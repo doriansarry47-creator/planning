@@ -2,33 +2,39 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/index.ts",
-      "use": "@vercel/node"
-    },
-    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist/public"
       }
+    },
+    {
+      "src": "api/server.ts",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/index.ts"
+      "dest": "/api/server.ts"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/dist/public/index.html"
+      "dest": "/index.html"
     }
   ],
   "env": {
     "NODE_ENV": "production",
-    "DATABASE_URL": "postgresql://neondb_owner:npg_i84emMYdFacv@ep-fragrant-mountain-ab8sksei-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    "DATABASE_URL": "postgresql://neondb_owner:npg_i84emMYdFacv@ep-fragrant-mountain-ab8sksei-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    "JWT_SECRET": "medplan-jwt-secret-2024-secure-key-for-production",
+    "JWT_EXPIRES_IN": "24h",
+    "SESSION_SECRET": "medplan-session-secret-2024-secure-key-for-prod"
   },
   "functions": {
-    "server/index.ts": {
+    "api/server.ts": {
       "maxDuration": 30
     }
   }
