@@ -25,24 +25,56 @@ app.use(cors({
   credentials: true,
 }));
 
-// Routes API avec préfixe /api
-app.use("/api/auth", authRoutes);
-app.use("/api/practitioners", practitionersRoutes);
-app.use("/api/timeslots", timeSlotsRoutes);
-app.use("/api/appointments", appointmentsRoutes);
-app.use("/api/patients", patientsRoutes);
+// Middleware de logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+  const originalResJson = res.json;
+  res.json = function (bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+
+      console.log(logLine);
+    }
+  });
+
+  next();
+});
+
+// Routes API avec préfixe /api (que Vercel ajoutera automatiquement)
+app.use("/auth", authRoutes);
+app.use("/practitioners", practitionersRoutes);
+app.use("/timeslots", timeSlotsRoutes);
+app.use("/appointments", appointmentsRoutes);
+app.use("/patients", patientsRoutes);
 
 // Route de santé pour vérifier le serveur
-app.get("/api/health", (req, res) => {
+app.get("/health", (req, res) => {
   res.json({ 
     status: "OK", 
     timestamp: new Date().toISOString(),
-    version: "1.0.0"
+    version: "1.0.0",
+    environment: process.env.NODE_ENV
   });
 });
 
 // Route de base pour l'API
-app.get("/api", (req, res) => {
+app.get("/", (req, res) => {
   res.json({ 
     message: "API Médicale - Gestion des rendez-vous",
     version: "1.0.0",
@@ -57,12 +89,22 @@ app.get("/api", (req, res) => {
   });
 });
 
+// Middleware de gestion d'erreurs
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  
+  console.error('API Error:', err);
+  res.status(status).json({ message });
+});
+
 // Handler pour Vercel
 export default function handler(req: VercelRequest, res: VercelResponse) {
   return new Promise<void>((resolve, reject) => {
     // Middleware pour traiter la requête et envoyer la réponse
     app(req as any, res as any, (err: any) => {
       if (err) {
+        console.error('Handler error:', err);
         reject(err);
       } else {
         resolve();

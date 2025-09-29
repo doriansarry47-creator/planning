@@ -1,29 +1,38 @@
 {
   "version": 2,
-  "builds": [
+  "framework": null,
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist/public",
+  "installCommand": "npm install",
+  "functions": {
+    "api/server.ts": {
+      "runtime": "@vercel/node",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
     {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist/public"
-      }
-    },
-    {
-      "src": "api/server.ts",
-      "use": "@vercel/node"
+      "source": "/api/(.*)",
+      "destination": "/api/server"
     }
   ],
-  "routes": [
+  "headers": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/server.ts"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
     }
   ],
   "env": {
@@ -32,10 +41,5 @@
     "JWT_SECRET": "medplan-jwt-secret-2024-secure-key-for-production",
     "JWT_EXPIRES_IN": "24h",
     "SESSION_SECRET": "medplan-session-secret-2024-secure-key-for-prod"
-  },
-  "functions": {
-    "api/server.ts": {
-      "maxDuration": 30
-    }
   }
 }
