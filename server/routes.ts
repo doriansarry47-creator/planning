@@ -8,6 +8,7 @@ import practitionersRoutes from "./routes/practitioners";
 import timeSlotsRoutes from "./routes/timeslots";
 import appointmentsRoutes from "./routes/appointments";
 import patientsRoutes from "./routes/patients";
+import availabilityRoutes from "./routes/availability";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configuration CORS
@@ -24,6 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/timeslots", timeSlotsRoutes);
   app.use("/api/appointments", appointmentsRoutes);
   app.use("/api/patients", patientsRoutes);
+  app.use("/api/availability", availabilityRoutes);
 
   // Route de santé pour vérifier le serveur
   app.get("/api/health", (req, res) => {
@@ -45,6 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeslots: "/api/timeslots", 
         appointments: "/api/appointments",
         patients: "/api/patients",
+        availability: "/api/availability",
         health: "/api/health"
       }
     });

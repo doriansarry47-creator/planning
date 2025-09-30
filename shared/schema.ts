@@ -52,7 +52,7 @@ export const practitioners = pgTable("practitioners", {
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Table des créneaux horaires disponibles
+// Table des créneaux horaires disponibles (récurrents par jour de semaine)
 export const timeSlots = pgTable("time_slots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   practitionerId: varchar("practitioner_id").notNull().references(() => practitioners.id),
@@ -63,11 +63,27 @@ export const timeSlots = pgTable("time_slots", {
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Table des créneaux de disponibilité spécifiques (Doctolib-like)
+export const availabilitySlots = pgTable("availability_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  practitionerId: varchar("practitioner_id").notNull().references(() => practitioners.id),
+  startTime: timestamp("start_time", { withTimezone: true }).notNull(),
+  endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+  recurringRule: text("recurring_rule"), // JSON ou RRULE format pour récurrence
+  capacity: integer("capacity").notNull().default(1), // nombre de patients par créneau
+  isBooked: boolean("is_booked").notNull().default(false),
+  notes: text("notes"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 // Table des rendez-vous
 export const appointments = pgTable("appointments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   patientId: varchar("patient_id").notNull().references(() => patients.id),
   practitionerId: varchar("practitioner_id").notNull().references(() => practitioners.id),
+  slotId: varchar("slot_id").references(() => availabilitySlots.id), // référence au créneau réservé
   appointmentDate: date("appointment_date").notNull(),
   startTime: time("start_time").notNull(),
   endTime: time("end_time").notNull(),
@@ -78,6 +94,7 @@ export const appointments = pgTable("appointments", {
   treatment: text("treatment"),
   followUpRequired: boolean("follow_up_required").notNull().default(false),
   followUpDate: date("follow_up_date"),
+  googleEventId: text("google_event_id"), // ID de l'événement Google Calendar
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -154,6 +171,15 @@ export const insertTimeSlotSchema = createInsertSchema(timeSlots).pick({
   endTime: true,
 });
 
+export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots).pick({
+  practitionerId: true,
+  startTime: true,
+  endTime: true,
+  recurringRule: true,
+  capacity: true,
+  notes: true,
+});
+
 // Types TypeScript
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -165,4 +191,6 @@ export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 export type InsertTimeSlot = z.infer<typeof insertTimeSlotSchema>;
 export type TimeSlot = typeof timeSlots.$inferSelect;
+export type InsertAvailabilitySlot = z.infer<typeof insertAvailabilitySlotSchema>;
+export type AvailabilitySlot = typeof availabilitySlots.$inferSelect;
 export type ScheduleException = typeof scheduleExceptions.$inferSelect;
