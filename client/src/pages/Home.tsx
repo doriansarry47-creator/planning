@@ -13,30 +13,50 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-dorian-beige-100 via-dorian-beige-50 to-dorian-green-50 relative overflow-hidden">
+      {/* Éléments décoratifs de fond */}
+      <div className="absolute top-0 left-0 w-full h-full opacity-5">
+        <svg className="absolute top-20 left-10" width="150" height="100" viewBox="0 0 150 100" fill="none">
+          <path d="M25 50 Q35 25, 60 40 Q85 55, 110 35 Q125 40, 135 50" stroke="currentColor" strokeWidth="3" className="text-dorian-green-600"/>
+          <circle cx="30" cy="45" r="4" fill="currentColor" className="text-dorian-green-400"/>
+          <circle cx="65" cy="35" r="3" fill="currentColor" className="text-dorian-green-400"/>
+          <circle cx="105" cy="50" r="3.5" fill="currentColor" className="text-dorian-green-400"/>
+        </svg>
+        <svg className="absolute bottom-32 right-20" width="120" height="80" viewBox="0 0 120 80" fill="none">
+          <path d="M20 40 Q30 20, 50 35 Q70 50, 90 30 Q100 35, 110 45" stroke="currentColor" strokeWidth="2" className="text-dorian-green-600"/>
+          <circle cx="25" cy="35" r="3" fill="currentColor" className="text-dorian-green-400"/>
+          <circle cx="55" cy="30" r="2" fill="currentColor" className="text-dorian-green-400"/>
+          <circle cx="85" cy="45" r="2.5" fill="currentColor" className="text-dorian-green-400"/>
+        </svg>
+      </div>
+      
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b">
+      <header className="bg-dorian-beige-50/90 backdrop-blur-sm border-b border-dorian-beige-300 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <Heart className="w-6 h-6 text-white" />
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center gap-4">
+              <div className="bg-therapy-primary p-3 rounded-lg shadow-md">
+                <Heart className="w-7 h-7 text-dorian-beige-50" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">MedicalApp</h1>
+              <div>
+                <h1 className="text-2xl font-serif font-bold text-dorian-green-800">Dorian Sarry</h1>
+                <p className="text-sm text-dorian-green-600">Thérapie sensori-motrice</p>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative z-10">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Système de Gestion des Rendez-vous Médicaux
+        <div className="text-center mb-20">
+          <h1 className="text-5xl font-serif font-bold text-dorian-green-800 mb-6 leading-tight">
+            Stabilisation émotionnelle<br />
+            <span className="text-therapy-primary">et traitement du psycho-traumatisme</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Une plateforme moderne et sécurisée pour la gestion des rendez-vous médicaux,
-            offrant une expérience optimale pour les patients et les professionnels de santé.
+          <p className="text-xl text-dorian-green-600 mb-12 max-w-4xl mx-auto leading-relaxed">
+            Une approche thérapeutique moderne et bienveillante pour votre bien-être émotionnel.
+            Prenez rendez-vous en toute simplicité et gérez votre parcours de soin.
           </p>
         </div>
 

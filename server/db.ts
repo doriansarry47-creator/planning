@@ -1,3 +1,9 @@
+// Charger les variables d'environnement si pas déjà fait
+import dotenv from "dotenv";
+if (!process.env.DATABASE_URL) {
+  dotenv.config();
+}
+
 import { drizzle } from "drizzle-orm/neon-http";
 import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
 import { neon } from "@neondatabase/serverless";
