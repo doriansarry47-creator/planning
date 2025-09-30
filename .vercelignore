@@ -12,7 +12,7 @@ dist/
 node_modules/
 
 # Source files not needed in production
-client/src/
+
 scripts/
 
 # Development tools
