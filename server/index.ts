@@ -16,7 +16,7 @@ if (!isSqlite) {
   // Utiliser PostgreSQL sessions en production
   const pgSession = (await import("connect-pg-simple")).default;
   const pkg = await import("pg");
-  const { Pool } = pkg;
+  const { Pool } = pkg.default || pkg;
   
   const PgSession = pgSession(session);
   const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -92,6 +92,7 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    console.error("Server Error:", err);
     res.status(status).json({ message });
   });
 
