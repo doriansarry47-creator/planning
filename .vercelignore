@@ -1,38 +1,24 @@
-# Development files
-.env
-.env.local
-.env.development
-*.log
-
-# Build directories
-dist/
-.next/
-
 # Dependencies
-node_modules/
+node_modules
 
-# Source files not needed in production
-
-scripts/
-
-# Development tools
-.replit
-.gitignore
-README.md
-*.md
-
-# Test files
-**/*.test.*
-**/*.spec.*
-__tests__/
-test/
+# Build artifacts
+dist
+build
+.next
 
 # IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
+.vscode
+.idea
 
-# OS generated files
+# OS files
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# Env files
+.env
+.env.*
+!/.env.production
+
