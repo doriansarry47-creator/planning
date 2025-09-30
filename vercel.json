@@ -1,18 +1,16 @@
 {
   "version": 2,
-  "framework": "express",
-  "buildCommand": "npm run vercel-build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/public",
   "installCommand": "npm install",
-  "functions": {
-    "api/server.js": {
-      "runtime": "@vercel/node@20.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/server"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -33,13 +31,6 @@
         }
       ]
     }
-  ],
-  "env": {
-    "NODE_ENV": "production",
-    "DATABASE_URL": "postgresql://neondb_owner:npg_i84emMYdFacv@ep-fragrant-mountain-ab8sksei-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-    "JWT_SECRET": "medplan-jwt-secret-2024-secure-key-for-production",
-    "JWT_EXPIRES_IN": "24h",
-    "SESSION_SECRET": "medplan-session-secret-2024-secure-key-for-prod"
-  }
+  ]
 }
 
