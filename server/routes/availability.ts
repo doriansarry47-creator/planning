@@ -1,24 +1,31 @@
 import { Router } from "express";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { db } from "../db";
-import { availabilitySlots, practitioners, insertAvailabilitySlotSchema } from "../../shared/schema";
-import { authMiddleware } from "../auth";
-import { availabilityService } from "../services/availabilityService";
+import { availabilitySlots, practitioners, appointments } from "../../shared/schema";
+import { requireAuth } from "../auth";
+import { z } from "zod";
 
 const router = Router();
 
-/**
- * GET /api/availability/slots/:practitionerId/:date
- * Obtenir les créneaux disponibles pour un praticien à une date donnée
- */
-router.get("/slots/:practitionerId/:date", async (req, res) => {
+// Schema de validation pour les créneaux de disponibilité
+const createAvailabilitySlotSchema = z.object({
+  practitionerId: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  capacity: z.number().min(1).default(1),
+  notes: z.string().optional(),
+});
+
+const updateAvailabilitySlotSchema = createAvailabilitySlotSchema.partial();
+
+// GET /api/availability/slots/:practitionerId - Récupérer les créneaux disponibles pour un praticien à une date donnée
+router.get("/slots/:practitionerId", async (req, res) => {
   try {
-    const { practitionerId, date } = req.params;
-    const { availableOnly = "true" } = req.query;
-    
-    // Valider le format de date
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: "Format de date invalide. Utilisez YYYY-MM-DD" });
+    const { practitionerId } = req.params;
+    const { date } = req.query;
+
+    if (!date || typeof date !== 'string') {
+      return res.status(400).json({ error: "Date requise" });
     }
 
     // Vérifier que le praticien existe
@@ -28,64 +35,121 @@ router.get("/slots/:practitionerId/:date", async (req, res) => {
       .limit(1);
 
     if (practitioner.length === 0) {
-      return res.status(404).json({ error: "Praticien introuvable" });
+      return res.status(404).json({ error: "Praticien non trouvé" });
     }
 
-    const availableSlots = await availabilityService.getAvailableSlots({
-      practitionerId,
-      date,
-      availableOnly: availableOnly === "true",
-    });
-
-    res.json({
-      practitionerId,
-      practitionerName: `Dr. ${practitioner[0].firstName} ${practitioner[0].lastName}`,
-      date,
-      slots: availableSlots,
-      totalSlots: availableSlots.length,
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération des créneaux disponibles:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
-  }
-});
-
-/**
- * GET /api/availability/slots/:practitionerId
- * Obtenir tous les créneaux d'un praticien avec filtres optionnels
- */
-router.get("/slots/:practitionerId", async (req, res) => {
-  try {
-    const { practitionerId } = req.params;
-    const { startDate, endDate, availableOnly = "false" } = req.query;
+    // Calculer la plage de dates pour le jour demandé
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
     
-    const slots = await availabilityService.getAvailableSlots({
-      practitionerId,
-      startDate: startDate as string,
-      endDate: endDate as string,
-      availableOnly: availableOnly === "true",
-    });
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
 
-    res.json({
-      practitionerId,
-      slots,
-      totalSlots: slots.length,
-      filters: { startDate, endDate, availableOnly },
-    });
+    // Récupérer les créneaux de disponibilité pour cette date
+    const slots = await db.select({
+      id: availabilitySlots.id,
+      startTime: availabilitySlots.startTime,
+      endTime: availabilitySlots.endTime,
+      capacity: availabilitySlots.capacity,
+      isBooked: availabilitySlots.isBooked,
+      notes: availabilitySlots.notes,
+    })
+    .from(availabilitySlots)
+    .where(
+      and(
+        eq(availabilitySlots.practitionerId, practitionerId),
+        eq(availabilitySlots.isActive, true),
+        gte(availabilitySlots.startTime, startOfDay.toISOString()),
+        lte(availabilitySlots.startTime, endOfDay.toISOString())
+      )
+    )
+    .orderBy(availabilitySlots.startTime);
+
+    // Pour chaque créneau, calculer le nombre de réservations existantes
+    const slotsWithBookingCount = await Promise.all(
+      slots.map(async (slot) => {
+        const bookingCount = await db.select({ count: appointments.id })
+          .from(appointments)
+          .where(
+            and(
+              eq(appointments.slotId, slot.id),
+              eq(appointments.status, "scheduled")
+            )
+          );
+
+        const bookedCount = bookingCount.length;
+        const isFullyBooked = bookedCount >= slot.capacity;
+
+        return {
+          ...slot,
+          startTime: new Date(slot.startTime).toTimeString().slice(0, 5), // Format HH:MM
+          endTime: new Date(slot.endTime).toTimeString().slice(0, 5), // Format HH:MM
+          bookedCount,
+          isBooked: isFullyBooked,
+        };
+      })
+    );
+
+    res.json(slotsWithBookingCount);
   } catch (error) {
     console.error("Erreur lors de la récupération des créneaux:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-/**
- * POST /api/availability/slots
- * Créer un nouveau créneau de disponibilité (admin seulement)
- */
-router.post("/slots", authMiddleware(['admin']), async (req, res) => {
+// GET /api/availability/practitioner/:practitionerId - Récupérer tous les créneaux d'un praticien (admin)
+router.get("/practitioner/:practitionerId", requireAuth, async (req, res) => {
   try {
-    const validatedData = insertAvailabilitySlotSchema.parse(req.body);
-    
+    const { practitionerId } = req.params;
+    const { date } = req.query;
+
+    // Vérifier que l'utilisateur est admin
+    if (req.user?.type !== "admin") {
+      return res.status(403).json({ error: "Accès non autorisé" });
+    }
+
+    let whereCondition = and(
+      eq(availabilitySlots.practitionerId, practitionerId),
+      eq(availabilitySlots.isActive, true)
+    );
+
+    // Si une date est spécifiée, filtrer par cette date
+    if (date && typeof date === 'string') {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      whereCondition = and(
+        whereCondition,
+        gte(availabilitySlots.startTime, startOfDay.toISOString()),
+        lte(availabilitySlots.startTime, endOfDay.toISOString())
+      );
+    }
+
+    const slots = await db.select()
+      .from(availabilitySlots)
+      .where(whereCondition)
+      .orderBy(availabilitySlots.startTime);
+
+    res.json(slots);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des créneaux:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// POST /api/availability - Créer un nouveau créneau de disponibilité
+router.post("/", requireAuth, async (req, res) => {
+  try {
+    // Vérifier que l'utilisateur est admin
+    if (req.user?.type !== "admin") {
+      return res.status(403).json({ error: "Accès non autorisé" });
+    }
+
+    const validatedData = createAvailabilitySlotSchema.parse(req.body);
+
     // Vérifier que le praticien existe
     const practitioner = await db.select()
       .from(practitioners)
@@ -93,225 +157,158 @@ router.post("/slots", authMiddleware(['admin']), async (req, res) => {
       .limit(1);
 
     if (practitioner.length === 0) {
-      return res.status(404).json({ error: "Praticien introuvable" });
+      return res.status(404).json({ error: "Praticien non trouvé" });
     }
 
-    const slot = await availabilityService.createSlot({
-      practitionerId: validatedData.practitionerId,
-      startTime: validatedData.startTime,
-      endTime: validatedData.endTime,
-      capacity: validatedData.capacity || 1,
-      notes: validatedData.notes,
-      recurringRule: validatedData.recurringRule,
-    });
+    // Valider les heures
+    const startTime = new Date(validatedData.startTime);
+    const endTime = new Date(validatedData.endTime);
 
-    res.status(201).json({
-      message: "Créneau créé avec succès",
-      slot,
-    });
+    if (startTime >= endTime) {
+      return res.status(400).json({ error: "L'heure de début doit être antérieure à l'heure de fin" });
+    }
+
+    // Vérifier les conflits avec des créneaux existants
+    const conflicts = await db.select()
+      .from(availabilitySlots)
+      .where(
+        and(
+          eq(availabilitySlots.practitionerId, validatedData.practitionerId),
+          eq(availabilitySlots.isActive, true),
+          // Vérifier les chevauchements
+          // Un créneau chevauche s'il commence avant la fin du nouveau et finit après le début du nouveau
+          and(
+            lte(availabilitySlots.startTime, validatedData.endTime),
+            gte(availabilitySlots.endTime, validatedData.startTime)
+          )
+        )
+      );
+
+    if (conflicts.length > 0) {
+      return res.status(400).json({ error: "Ce créneau chevauche avec un créneau existant" });
+    }
+
+    // Créer le créneau
+    const [newSlot] = await db.insert(availabilitySlots)
+      .values({
+        practitionerId: validatedData.practitionerId,
+        startTime: validatedData.startTime,
+        endTime: validatedData.endTime,
+        capacity: validatedData.capacity,
+        notes: validatedData.notes,
+      })
+      .returning();
+
+    res.status(201).json(newSlot);
   } catch (error) {
-    if (error instanceof Error && 'errors' in error) {
-      return res.status(400).json({ error: "Données invalides", details: (error as any).errors });
-    }
     console.error("Erreur lors de la création du créneau:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
-  }
-});
-
-/**
- * POST /api/availability/slots/recurring
- * Créer des créneaux récurrents (admin seulement)
- */
-router.post("/slots/recurring", authMiddleware(['admin']), async (req, res) => {
-  try {
-    const {
-      practitionerId,
-      startDate,
-      endDate,
-      timeSlots, // [{ startTime: "09:00", endTime: "09:30", daysOfWeek: [1,2,3,4,5] }]
-      capacity = 1,
-      notes,
-    } = req.body;
-
-    // Validation basique
-    if (!practitionerId || !startDate || !endDate || !timeSlots || !Array.isArray(timeSlots)) {
-      return res.status(400).json({ error: "Données manquantes ou invalides" });
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Données invalides", details: error.errors });
     }
-
-    const createdSlots = await availabilityService.createRecurringSlots({
-      practitionerId,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      timeSlots,
-      capacity,
-      notes,
-    });
-
-    res.status(201).json({
-      message: `${createdSlots.length} créneaux récurrents créés avec succès`,
-      slots: createdSlots,
-      totalCreated: createdSlots.length,
-    });
-  } catch (error) {
-    console.error("Erreur lors de la création des créneaux récurrents:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-/**
- * POST /api/availability/slots/generate
- * Générer automatiquement des créneaux basés sur les horaires de travail (admin seulement)
- */
-router.post("/slots/generate", authMiddleware(['admin']), async (req, res) => {
-  try {
-    const {
-      practitionerId,
-      startDate,
-      endDate,
-      workingDays = [1, 2, 3, 4, 5], // Lundi à Vendredi par défaut
-      workingHours = { start: "09:00", end: "17:00" },
-      slotDuration = 30, // 30 minutes par défaut
-      breakTimes = [{ start: "12:00", end: "13:00" }], // Pause déjeuner par défaut
-      capacity = 1,
-    } = req.body;
-
-    if (!practitionerId || !startDate || !endDate) {
-      return res.status(400).json({ error: "practitionerId, startDate et endDate sont requis" });
-    }
-
-    const createdSlots = await availabilityService.generateSlotsFromSchedule({
-      practitionerId,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      workingDays,
-      workingHours,
-      slotDuration,
-      breakTimes,
-      capacity,
-    });
-
-    res.status(201).json({
-      message: `${createdSlots.length} créneaux générés automatiquement`,
-      slots: createdSlots,
-      totalGenerated: createdSlots.length,
-      parameters: {
-        workingDays,
-        workingHours,
-        slotDuration,
-        breakTimes,
-      },
-    });
-  } catch (error) {
-    console.error("Erreur lors de la génération automatique des créneaux:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
-  }
-});
-
-/**
- * PUT /api/availability/slots/:id
- * Mettre à jour un créneau (admin seulement)
- */
-router.put("/slots/:id", authMiddleware(['admin']), async (req, res) => {
+// PUT /api/availability/:id - Modifier un créneau de disponibilité
+router.put("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
-
-    // Retirer les champs non autorisés pour la mise à jour
-    const { id: _, createdAt, ...allowedUpdates } = updates;
     
-    const updatedSlot = await availabilityService.updateSlot(id, allowedUpdates);
-
-    if (!updatedSlot) {
-      return res.status(404).json({ error: "Créneau introuvable" });
+    // Vérifier que l'utilisateur est admin
+    if (req.user?.type !== "admin") {
+      return res.status(403).json({ error: "Accès non autorisé" });
     }
 
-    res.json({
-      message: "Créneau mis à jour avec succès",
-      slot: updatedSlot,
-    });
+    const validatedData = updateAvailabilitySlotSchema.parse(req.body);
+
+    // Vérifier que le créneau existe
+    const existingSlot = await db.select()
+      .from(availabilitySlots)
+      .where(eq(availabilitySlots.id, id))
+      .limit(1);
+
+    if (existingSlot.length === 0) {
+      return res.status(404).json({ error: "Créneau non trouvé" });
+    }
+
+    // Valider les heures si elles sont fournies
+    if (validatedData.startTime && validatedData.endTime) {
+      const startTime = new Date(validatedData.startTime);
+      const endTime = new Date(validatedData.endTime);
+
+      if (startTime >= endTime) {
+        return res.status(400).json({ error: "L'heure de début doit être antérieure à l'heure de fin" });
+      }
+    }
+
+    // Mettre à jour le créneau
+    const [updatedSlot] = await db.update(availabilitySlots)
+      .set({
+        ...validatedData,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(availabilitySlots.id, id))
+      .returning();
+
+    res.json(updatedSlot);
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du créneau:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
+    console.error("Erreur lors de la modification du créneau:", error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Données invalides", details: error.errors });
+    }
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-/**
- * DELETE /api/availability/slots/:id
- * Supprimer un créneau (admin seulement)
- */
-router.delete("/slots/:id", authMiddleware(['admin']), async (req, res) => {
+// DELETE /api/availability/:id - Supprimer un créneau de disponibilité
+router.delete("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { force = "false" } = req.query;
     
-    const success = await availabilityService.deleteSlot(id, force === "true");
-
-    if (!success) {
-      return res.status(404).json({ error: "Créneau introuvable" });
+    // Vérifier que l'utilisateur est admin
+    if (req.user?.type !== "admin") {
+      return res.status(403).json({ error: "Accès non autorisé" });
     }
 
-    res.json({ 
-      message: force === "true" 
-        ? "Créneau supprimé définitivement" 
-        : "Créneau désactivé avec succès"
-    });
+    // Vérifier que le créneau existe
+    const existingSlot = await db.select()
+      .from(availabilitySlots)
+      .where(eq(availabilitySlots.id, id))
+      .limit(1);
+
+    if (existingSlot.length === 0) {
+      return res.status(404).json({ error: "Créneau non trouvé" });
+    }
+
+    // Vérifier s'il y a des rendez-vous liés à ce créneau
+    const linkedAppointments = await db.select()
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.slotId, id),
+          eq(appointments.status, "scheduled")
+        )
+      );
+
+    if (linkedAppointments.length > 0) {
+      return res.status(400).json({ 
+        error: "Impossible de supprimer ce créneau car il y a des rendez-vous programmés" 
+      });
+    }
+
+    // Supprimer (désactiver) le créneau
+    await db.update(availabilitySlots)
+      .set({
+        isActive: false,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(availabilitySlots.id, id));
+
+    res.json({ message: "Créneau supprimé avec succès" });
   } catch (error) {
     console.error("Erreur lors de la suppression du créneau:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-/**
- * GET /api/availability/practitioners/:id/slots
- * Obtenir tous les créneaux d'un praticien (admin)
- */
-router.get("/practitioners/:id/slots", authMiddleware(['admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const slots = await availabilityService.getPractitionerSlots(id);
-
-    res.json({
-      practitionerId: id,
-      slots,
-      totalSlots: slots.length,
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération des créneaux du praticien:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
-  }
-});
-
-/**
- * POST /api/availability/test-connection
- * Tester la connexion Google Calendar (admin seulement)
- */
-router.post("/test-connection", authMiddleware(['admin']), async (req, res) => {
-  try {
-    // Tester la connexion au service Google Calendar
-    const { googleCalendarService } = await import("../services/googleCalendar");
-    const testResult = await googleCalendarService.testConnection();
-
-    if (testResult.success) {
-      res.json({ 
-        message: "Connexion Google Calendar réussie",
-        status: "connected" 
-      });
-    } else {
-      res.status(500).json({ 
-        message: "Échec de connexion Google Calendar",
-        error: testResult.error,
-        status: "disconnected"
-      });
-    }
-  } catch (error) {
-    console.error("Erreur lors du test de connexion Google Calendar:", error);
-    res.status(500).json({ 
-      message: "Erreur lors du test de connexion",
-      error: error instanceof Error ? error.message : "Erreur inconnue",
-      status: "error"
-    });
-  }
-});
-
-export default router;
+export { router as availabilityRouter };
