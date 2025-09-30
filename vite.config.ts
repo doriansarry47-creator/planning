@@ -2,15 +2,25 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { fileURLToPath } from 'url';
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Plugins conditionnels selon l'environnement
+const plugins = [react()];
+
+// Ajouter les plugins Replit seulement en développement
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const runtimeErrorOverlay = await import("@replit/vite-plugin-runtime-error-modal");
+    plugins.push(runtimeErrorOverlay.default());
+  } catch (error) {
+    // Les plugins Replit ne sont pas disponibles, continuer sans eux
+    console.log("Replit plugins not available, continuing without them");
+  }
+}
+
 export default defineConfig({
-  plugins: [
-    react(),
-    runtimeErrorOverlay(),
-  ],
+  plugins,
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
