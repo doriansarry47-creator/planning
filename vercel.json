@@ -2,23 +2,25 @@
   "version": 2,
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "public",
-  "installCommand": "npm install",
+  "installCommand": "npm install --include=dev",
   "functions": {
     "api/**/*.ts": {
       "runtime": "@vercel/node@3.1.1"
     }
   },
+  "framework": null,
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/index"
     },
     {
-      "source": "/(.*)",
-      "destination": "/public/index.html"
+      "source": "/((?!api).*)",
+      "destination": "/index.html"
     }
   ],
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "regions": ["iad1"]
 }
