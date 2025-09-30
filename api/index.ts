@@ -11,7 +11,13 @@ import patientsRoutes from '../server/routes/patients';
 import timeslotsRoutes from '../server/routes/timeslots';
 import availabilityRoutes from '../server/routes/availability';
 
-// Configure dotenv
+// Configure dotenv for production
+if (process.env.NODE_ENV === 'production') {
+  // Variables d'environnement pour Vercel
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'medplan-jwt-secret-key-2024-production';
+  process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'medplan-session-secret-2024-production';
+  process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+}
 dotenv.config();
 
 // Create Express app
@@ -20,7 +26,7 @@ const app = express();
 // Configure CORS
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://planning-git-genspark-ai-developer-doriansarry47-creators-projects.vercel.app', 'https://planning-doriansarry47-creators-projects.vercel.app']
+    ? true // Permettre toutes les origines en production Vercel
     : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -37,26 +43,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// Register routes
-app.use('/api/auth', authRoutes);
-app.use('/api/practitioners', practitionersRoutes);
-app.use('/api/appointments', appointmentsRoutes);
-app.use('/api/patients', patientsRoutes);
-app.use('/api/timeslots', timeslotsRoutes);
-app.use('/api/availability', availabilityRoutes);
+// Register routes (Vercel ajoute automatiquement le préfixe /api)
+app.use('/auth', authRoutes);
+app.use('/practitioners', practitionersRoutes);
+app.use('/appointments', appointmentsRoutes);
+app.use('/patients', patientsRoutes);
+app.use('/timeslots', timeslotsRoutes);
+app.use('/availability', availabilityRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    environment: process.env.NODE_ENV || 'production'
+    environment: process.env.NODE_ENV || 'production',
+    jwt_configured: !!process.env.JWT_SECRET,
+    db_configured: !!process.env.DATABASE_URL
   });
 });
 
 // API info endpoint
-app.get('/api', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).json({ 
     message: "API Médicale - Gestion des rendez-vous",
     version: "1.0.0",
@@ -70,6 +78,11 @@ app.get('/api', (req, res) => {
       appointments: "/api/appointments",
       patients: "/api/patients",
       availability: "/api/availability"
+    },
+    env_check: {
+      node_env: process.env.NODE_ENV,
+      jwt_secret: !!process.env.JWT_SECRET,
+      database_url: !!process.env.DATABASE_URL
     }
   });
 });
@@ -94,15 +107,28 @@ app.use((req, res) => {
 });
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.status(200).end();
-    return;
-  }
+  return new Promise<void>((resolve, reject) => {
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+      res.status(200).end();
+      resolve();
+      return;
+    }
 
-  // Convert Vercel request/response to Express format and handle
-  return app(req as any, res as any);
+    // Convert Vercel request/response to Express format and handle
+    app(req as any, res as any, (err: any) => {
+      if (err) {
+        console.error('Vercel handler error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Internal Server Error', timestamp: new Date().toISOString() });
+        }
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
 }
