@@ -23,20 +23,19 @@ export default defineConfig(async ({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "client", "src"),
         "@shared": path.resolve(__dirname, "shared"),
-        "@assets": path.resolve(__dirname, "attached_assets"),
-      },
+        "@assets": path.resolve(__dirname, "attached_assets")
+      }
     },
     root: path.resolve(__dirname, "client"),
     build: {
-      outDir: path.resolve(__dirname, "dist-client"), // build frontend séparé pour Express
-      emptyOutDir: true,
+      outDir: path.resolve(__dirname, "dist-client"),
+      emptyOutDir: true
     },
     server: {
       fs: {
         strict: true,
-        deny: ["**/.*"],
-      },
-    },
+        deny: ["**/.*"]
+      }
+    }
   };
 });
-
