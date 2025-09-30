@@ -11,6 +11,37 @@ export default {
         sm: ".1875rem", /* 3px */
       },
       colors: {
+        // Palette inspirée de Dorian Sarry - couleurs thérapeutiques
+        "dorian-beige": {
+          50: "hsl(41, 40%, 98%)",
+          100: "hsl(41, 30%, 95%)", 
+          200: "hsl(41, 25%, 92%)",
+          300: "hsl(41, 20%, 88%)",
+          400: "hsl(41, 15%, 82%)",
+          500: "hsl(41, 15%, 75%)",
+          600: "hsl(41, 20%, 65%)",
+          700: "hsl(41, 25%, 55%)",
+          800: "hsl(41, 30%, 45%)",
+          900: "hsl(41, 35%, 35%)",
+        },
+        "dorian-green": {
+          50: "hsl(120, 25%, 85%)",
+          100: "hsl(120, 20%, 80%)", 
+          200: "hsl(120, 25%, 75%)",
+          300: "hsl(120, 30%, 65%)",
+          400: "hsl(120, 25%, 55%)",
+          500: "hsl(120, 35%, 45%)",
+          600: "hsl(120, 30%, 35%)",
+          700: "hsl(120, 25%, 30%)",
+          800: "hsl(120, 25%, 25%)",
+          900: "hsl(120, 30%, 20%)",
+        },
+        "therapy": {
+          primary: "hsl(120, 35%, 45%)",
+          secondary: "hsl(41, 20%, 90%)",
+          accent: "hsl(120, 25%, 85%)",
+          neutral: "hsl(41, 15%, 85%)",
+        },
         // Flat / base colors (regular buttons)
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* LIGHT MODE - Inspiré de la carte de visite Dorian Sarry */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
@@ -14,71 +14,73 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 0 0% 98%;
+  /* Palette inspirée de Dorian Sarry - beiges et verts naturels */
+  --background: 41 30% 95%; /* Beige doux très clair */
 
-  --foreground: 220 9% 20%;
+  --foreground: 120 25% 25%; /* Vert foncé pour le texte principal */
 
-  --border: 220 9% 88%;
+  --border: 41 15% 85%; /* Bordures beige neutre */
 
-  --card: 0 0% 100%;
+  --card: 41 40% 98%; /* Cartes beige très clair */
 
-  --card-foreground: 220 9% 20%;
+  --card-foreground: 120 25% 25%; /* Texte des cartes vert foncé */
 
-  --card-border: 220 9% 92%;
+  --card-border: 41 20% 88%; /* Bordures des cartes beige doux */
 
-  --sidebar: 220 9% 96%;
+  --sidebar: 41 25% 92%; /* Sidebar beige doux */
 
-  --sidebar-foreground: 220 9% 20%;
+  --sidebar-foreground: 120 25% 25%; /* Texte sidebar vert foncé */
 
-  --sidebar-border: 220 9% 90%;
+  --sidebar-border: 41 20% 85%; /* Bordure sidebar beige */
 
-  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary: 120 35% 45%; /* Vert thérapeutique principal */
 
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary-foreground: 41 40% 98%; /* Texte sur vert - beige clair */
 
-  --sidebar-accent: 217 100% 95%;
+  --sidebar-accent: 120 20% 85%; /* Accent vert très doux */
 
-  --sidebar-accent-foreground: 217 91% 35%;
+  --sidebar-accent-foreground: 120 25% 30%; /* Texte accent vert */
 
-  --sidebar-ring: 217 91% 60%;
+  --sidebar-ring: 120 35% 45%; /* Ring vert thérapeutique */
 
-  --popover: 0 0% 100%;
+  --popover: 41 40% 98%; /* Popovers beige très clair */
 
-  --popover-foreground: 220 9% 20%;
+  --popover-foreground: 120 25% 25%; /* Texte popover vert foncé */
 
-  --popover-border: 220 9% 90%;
+  --popover-border: 41 20% 88%; /* Bordure popover beige */
 
-  --primary: 217 91% 60%;
+  --primary: 120 35% 45%; /* Primaire vert thérapeutique */
 
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 41 40% 98%; /* Texte sur primaire beige clair */
 
-  --secondary: 220 9% 94%;
+  --secondary: 41 20% 90%; /* Secondaire beige doux */
 
-  --secondary-foreground: 220 9% 20%;
+  --secondary-foreground: 120 25% 25%; /* Texte secondaire vert foncé */
 
-  --muted: 220 9% 96%;
+  --muted: 41 15% 88%; /* Éléments atténués beige */
 
-  --muted-foreground: 220 9% 45%;
+  --muted-foreground: 120 15% 45%; /* Texte atténué vert moyen */
 
-  --accent: 217 20% 92%;
+  --accent: 120 25% 85%; /* Accent vert naturel doux */
 
-  --accent-foreground: 217 91% 35%;
+  --accent-foreground: 120 30% 30%; /* Texte accent vert foncé */
 
-  --destructive: 0 84% 60%;
+  --destructive: 0 70% 55%; /* Rouge doux pour destruction */
 
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 41 40% 98%; /* Texte sur rouge beige clair */
 
-  --input: 220 9% 80%;
-  --ring: 217 91% 60%;
-  --chart-1: 217 91% 35%;
-  --chart-2: 142 76% 36%;
-  --chart-3: 45 100% 51%;
-  --chart-4: 0 84% 60%;
-  --chart-5: 280 87% 65%;
+  --input: 41 15% 82%; /* Champs de saisie beige */
+  --ring: 120 35% 45%; /* Ring vert thérapeutique */
+  --chart-1: 120 35% 45%; /* Graphique 1 vert principal */
+  --chart-2: 120 45% 35%; /* Graphique 2 vert foncé */
+  --chart-3: 41 50% 60%; /* Graphique 3 beige doré */
+  --chart-4: 120 25% 55%; /* Graphique 4 vert moyen */
+  --chart-5: 41 35% 70%; /* Graphique 5 beige chaud */
 
-  --font-sans: Inter, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
+  /* Typographie inspirée de la carte - serif élégant */
+  --font-sans: "Inter", "Segoe UI", sans-serif;
+  --font-serif: "Crimson Text", "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
   --radius: .5rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(220 9% 20% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(220 9% 20% / 0.00);

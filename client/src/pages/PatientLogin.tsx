@@ -88,27 +88,57 @@ export default function PatientLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-100 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dorian-beige-100 to-dorian-green-50 p-4 relative overflow-hidden">
+      {/* Éléments décoratifs inspirés de la carte de visite */}
+      <div className="absolute top-8 left-8 opacity-20">
+        <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 40 Q30 20, 50 35 Q70 50, 90 30 Q100 35, 110 45" stroke="currentColor" strokeWidth="2" fill="none" className="text-dorian-green-400"/>
+          <circle cx="25" cy="35" r="3" fill="currentColor" className="text-dorian-green-300"/>
+          <circle cx="55" cy="30" r="2" fill="currentColor" className="text-dorian-green-300"/>
+          <circle cx="85" cy="45" r="2.5" fill="currentColor" className="text-dorian-green-300"/>
+        </svg>
+      </div>
+      
+      <div className="absolute bottom-8 right-8 opacity-20 transform rotate-180">
+        <svg width="100" height="60" viewBox="0 0 100 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 30 Q25 15, 40 25 Q55 35, 70 20 Q80 25, 85 35" stroke="currentColor" strokeWidth="2" fill="none" className="text-dorian-green-400"/>
+          <circle cx="20" cy="25" r="2.5" fill="currentColor" className="text-dorian-green-300"/>
+          <circle cx="45" cy="20" r="2" fill="currentColor" className="text-dorian-green-300"/>
+          <circle cx="75" cy="30" r="2" fill="currentColor" className="text-dorian-green-300"/>
+        </svg>
+      </div>
+
+      <Card className="w-full max-w-md shadow-lg border-dorian-beige-300 bg-dorian-beige-50/80 backdrop-blur-sm relative z-10">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="bg-green-600 p-3 rounded-full">
-              <User className="w-6 h-6 text-white" />
+            <div className="bg-therapy-primary p-4 rounded-full shadow-md">
+              <User className="w-7 h-7 text-dorian-beige-50" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center">Espace Patient</CardTitle>
-          <CardDescription className="text-center">
-            Connectez-vous ou créez votre compte
+          <CardTitle className="text-3xl text-center font-serif text-dorian-green-800">
+            Dorian Sarry
+          </CardTitle>
+          <CardDescription className="text-center text-dorian-green-600 font-medium">
+            Stabilisation émotionnelle et traitement du psycho-traumatisme
+          </CardDescription>
+          <CardDescription className="text-center text-dorian-green-500 italic">
+            Thérapie sensori-motrice
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="bg-dorian-beige-50/50 rounded-b-lg">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login" className="flex items-center gap-2">
+            <TabsList className="grid w-full grid-cols-2 bg-dorian-beige-200 border-dorian-beige-300">
+              <TabsTrigger 
+                value="login" 
+                className="flex items-center gap-2 data-[state=active]:bg-therapy-primary data-[state=active]:text-dorian-beige-50"
+              >
                 <User className="w-4 h-4" />
                 Connexion
               </TabsTrigger>
-              <TabsTrigger value="register" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="register" 
+                className="flex items-center gap-2 data-[state=active]:bg-therapy-primary data-[state=active]:text-dorian-beige-50"
+              >
                 <UserPlus className="w-4 h-4" />
                 Inscription
               </TabsTrigger>
@@ -144,7 +174,7 @@ export default function PatientLogin() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-therapy-primary hover:bg-dorian-green-600 text-dorian-beige-50 font-medium shadow-md transition-all duration-200"
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -240,7 +270,7 @@ export default function PatientLogin() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-therapy-primary hover:bg-dorian-green-600 text-dorian-beige-50 font-medium shadow-md transition-all duration-200"
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
