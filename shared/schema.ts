@@ -1,13 +1,5 @@
 import { sql } from "drizzle-orm";
-import { 
-  pgTable, text, varchar, timestamp, integer, boolean, date, time,
-  sqliteTable
-} from "drizzle-orm/pg-core";
-import { 
-  text as sqliteText, 
-  integer as sqliteInteger, 
-  real as sqliteReal
-} from "drizzle-orm/sqlite-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, date, time } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
