@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { db } from "../db";
 import { availabilitySlots, practitioners, appointments } from "../../shared/schema";
-import { requireAuth } from "../auth";
+import { authMiddleware } from "../auth";
 import { z } from "zod";
 
 const router = Router();
@@ -98,13 +98,13 @@ router.get("/slots/:practitionerId", async (req, res) => {
 });
 
 // GET /api/availability/practitioner/:practitionerId - Récupérer tous les créneaux d'un praticien (admin)
-router.get("/practitioner/:practitionerId", requireAuth, async (req, res) => {
+router.get("/practitioner/:practitionerId", authMiddleware(['admin']), async (req, res) => {
   try {
     const { practitionerId } = req.params;
     const { date } = req.query;
 
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -141,10 +141,10 @@ router.get("/practitioner/:practitionerId", requireAuth, async (req, res) => {
 });
 
 // POST /api/availability - Créer un nouveau créneau de disponibilité
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", authMiddleware(['admin']), async (req, res) => {
   try {
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -210,12 +210,12 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 // PUT /api/availability/:id - Modifier un créneau de disponibilité
-router.put("/:id", requireAuth, async (req, res) => {
+router.put("/:id", authMiddleware(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -261,12 +261,12 @@ router.put("/:id", requireAuth, async (req, res) => {
 });
 
 // DELETE /api/availability/:id - Supprimer un créneau de disponibilité
-router.delete("/:id", requireAuth, async (req, res) => {
+router.delete("/:id", authMiddleware(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 

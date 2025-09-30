@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db";
 import { timeSlots, practitioners } from "../../shared/schema";
-import { requireAuth } from "../auth";
+import { authMiddleware } from "../auth";
 import { z } from "zod";
 
 const router = Router();
@@ -18,12 +18,12 @@ const createTimeSlotSchema = z.object({
 const updateTimeSlotSchema = createTimeSlotSchema.partial();
 
 // GET /api/timeslots/practitioner/:practitionerId - Récupérer les créneaux horaires d'un praticien
-router.get("/practitioner/:practitionerId", requireAuth, async (req, res) => {
+router.get("/practitioner/:practitionerId", authMiddleware(['admin']), async (req, res) => {
   try {
     const { practitionerId } = req.params;
     
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -56,10 +56,10 @@ router.get("/practitioner/:practitionerId", requireAuth, async (req, res) => {
 });
 
 // GET /api/timeslots - Récupérer tous les créneaux horaires (admin)
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", authMiddleware(['admin']), async (req, res) => {
   try {
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -91,10 +91,10 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // POST /api/timeslots - Créer un nouveau créneau horaire récurrent
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", authMiddleware(['admin']), async (req, res) => {
   try {
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -171,12 +171,12 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 // PUT /api/timeslots/:id - Modifier un créneau horaire
-router.put("/:id", requireAuth, async (req, res) => {
+router.put("/:id", authMiddleware(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -222,12 +222,12 @@ router.put("/:id", requireAuth, async (req, res) => {
 });
 
 // DELETE /api/timeslots/:id - Supprimer un créneau horaire
-router.delete("/:id", requireAuth, async (req, res) => {
+router.delete("/:id", authMiddleware(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
@@ -256,12 +256,12 @@ router.delete("/:id", requireAuth, async (req, res) => {
 });
 
 // GET /api/timeslots/:id - Récupérer un créneau horaire spécifique
-router.get("/:id", requireAuth, async (req, res) => {
+router.get("/:id", authMiddleware(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     
     // Vérifier que l'utilisateur est admin
-    if (req.user?.type !== "admin") {
+    if ((req as any).user?.type !== "admin") {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
