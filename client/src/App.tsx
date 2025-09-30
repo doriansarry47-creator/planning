@@ -10,8 +10,8 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import AdminLogin from "./pages/AdminLogin";
 import PatientLogin from "./pages/PatientLogin";
-import ImprovedAdminDashboard from "./pages/ImprovedAdminDashboard";
-import ImprovedPatientDashboard from "./pages/ImprovedPatientDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import PatientDashboard from "./pages/PatientDashboard";
 
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
@@ -30,9 +30,9 @@ function AuthenticatedApp() {
   // Si l'utilisateur est connecté, rediriger vers le bon tableau de bord
   if (user) {
     if (user.type === "admin") {
-      return <ImprovedAdminDashboard />;
+      return <AdminDashboard />;
     } else if (user.type === "patient") {
-      return <ImprovedPatientDashboard />;
+      return <PatientDashboard />;
     }
   }
 
