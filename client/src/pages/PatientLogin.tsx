@@ -45,6 +45,39 @@ export default function PatientLogin() {
     setError("");
     setLoading(true);
 
+    // Validation côté client
+    if (registerData.firstName.length < 2) {
+      setError("Le prénom doit contenir au moins 2 caractères");
+      setLoading(false);
+      return;
+    }
+    
+    if (registerData.lastName.length < 2) {
+      setError("Le nom doit contenir au moins 2 caractères");
+      setLoading(false);
+      return;
+    }
+    
+    if (registerData.password.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères");
+      setLoading(false);
+      return;
+    }
+    
+    // Validation du mot de passe (au moins 1 majuscule, 1 minuscule, 1 chiffre)
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(registerData.password)) {
+      setError("Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre");
+      setLoading(false);
+      return;
+    }
+    
+    // Validation du téléphone (si fourni)
+    if (registerData.phoneNumber && !/^(?:\+33|0)[1-9](?:[0-9]{8})$/.test(registerData.phoneNumber.replace(/\s/g, ''))) {
+      setError("Format de téléphone invalide (utilisez le format français)");
+      setLoading(false);
+      return;
+    }
+
     try {
       await register(registerData, "patient");
     } catch (err) {
@@ -135,20 +168,24 @@ export default function PatientLogin() {
                     <Label htmlFor="firstName">Prénom</Label>
                     <Input
                       id="firstName"
-                      placeholder="Prénom"
+                      placeholder="Prénom (min 2 caractères)"
                       value={registerData.firstName}
                       onChange={(e) => setRegisterData({...registerData, firstName: e.target.value})}
                       required
+                      minLength={2}
+                      maxLength={50}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Nom</Label>
                     <Input
                       id="lastName"
-                      placeholder="Nom"
+                      placeholder="Nom (min 2 caractères)"
                       value={registerData.lastName}
                       onChange={(e) => setRegisterData({...registerData, lastName: e.target.value})}
                       required
+                      minLength={2}
+                      maxLength={50}
                     />
                   </div>
                 </div>
@@ -168,22 +205,29 @@ export default function PatientLogin() {
                   <Input
                     id="register-password"
                     type="password"
-                    placeholder="Minimum 6 caractères"
+                    placeholder="Min 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre"
                     value={registerData.password}
                     onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
                     required
-                    minLength={6}
+                    minLength={8}
                   />
+                  <div className="text-xs text-gray-600">
+                    Le mot de passe doit contenir au moins 8 caractères avec une majuscule, une minuscule et un chiffre
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phoneNumber">Téléphone (optionnel)</Label>
                   <Input
                     id="phoneNumber"
                     type="tel"
-                    placeholder="06 12 34 56 78"
+                    placeholder="06 12 34 56 78 ou +33 6 12 34 56 78"
                     value={registerData.phoneNumber}
                     onChange={(e) => setRegisterData({...registerData, phoneNumber: e.target.value})}
+                    pattern="^(?:\+33|0)[1-9](?:[0-9]{8})$"
                   />
+                  <div className="text-xs text-gray-600">
+                    Format français : 06 12 34 56 78 ou +33 6 12 34 56 78
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dateOfBirth">Date de naissance (optionnel)</Label>

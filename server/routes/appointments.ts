@@ -2,7 +2,9 @@ import { Router } from "express";
 import { eq, and, asc, desc, gte, lte, between, sql } from "drizzle-orm";
 import { db } from "../db";
 import { appointments, patients, practitioners, insertAppointmentSchema } from "../../shared/schema";
+import { appointments as appointmentsSqlite, patients as patientsSqlite, practitioners as practitionersSqlite, insertAppointmentSchema as insertAppointmentSchemaSqlite } from "../../shared/schema-sqlite";
 import { authMiddleware } from "../auth";
+import crypto from "crypto";
 
 const router = Router();
 

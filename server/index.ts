@@ -3,34 +3,55 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
-import pgSession from "connect-pg-simple";
-import pkg from "pg";
-const { Pool } = pkg;
 
 // Charger les variables d'environnement
 dotenv.config();
 
 const app = express();
 
-const PgSession = pgSession(session);
-const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Configuration session simplifiée pour le développement
+const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
 
-app.use(
-  session({
-    store: new PgSession({
-      pool: pgPool,
-      tableName: "session",
+if (!isSqlite) {
+  // Utiliser PostgreSQL sessions en production
+  const pgSession = (await import("connect-pg-simple")).default;
+  const pkg = await import("pg");
+  const { Pool } = pkg;
+  
+  const PgSession = pgSession(session);
+  const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+  app.use(
+    session({
+      store: new PgSession({
+        pool: pgPool,
+        tableName: "session",
+      }),
+      secret: process.env.SESSION_SECRET || "supersecret",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+      },
     }),
-    secret: process.env.SESSION_SECRET || "supersecret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-    },
-  }),
-);
+  );
+} else {
+  // Session en mémoire pour le développement avec SQLite
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "supersecret",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        secure: false,
+        httpOnly: true,
+      },
+    }),
+  );
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

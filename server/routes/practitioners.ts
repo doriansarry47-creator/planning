@@ -2,23 +2,30 @@ import { Router } from "express";
 import { eq, and, asc } from "drizzle-orm";
 import { db } from "../db";
 import { practitioners, insertPractitionerSchema } from "../../shared/schema";
+import { practitioners as practitionersSqlite, insertPractitionerSchema as insertPractitionerSchemaSqlite } from "../../shared/schema-sqlite";
 import { authMiddleware } from "../auth";
+import crypto from "crypto";
 
 const router = Router();
 
 // Obtenir tous les praticiens (public)
 router.get("/", async (req, res) => {
   try {
+    // Détecter le type de base de données
+    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
+    const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
+    const activeValue = isSqlite ? 1 : true; // SQLite utilise 1/0, PostgreSQL true/false
+    
     const allPractitioners = await db.select({
-      id: practitioners.id,
-      firstName: practitioners.firstName,
-      lastName: practitioners.lastName,
-      specialization: practitioners.specialization,
-      biography: practitioners.biography,
-      consultationDuration: practitioners.consultationDuration,
-    }).from(practitioners)
-      .where(eq(practitioners.isActive, true))
-      .orderBy(asc(practitioners.lastName));
+      id: practitionersTable.id,
+      firstName: practitionersTable.firstName,
+      lastName: practitionersTable.lastName,
+      specialization: practitionersTable.specialization,
+      biography: practitionersTable.biography,
+      consultationDuration: practitionersTable.consultationDuration,
+    }).from(practitionersTable)
+      .where(eq(practitionersTable.isActive, activeValue))
+      .orderBy(asc(practitionersTable.lastName));
 
     res.json(allPractitioners);
   } catch (error) {
@@ -32,15 +39,20 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Détecter le type de base de données
+    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
+    const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
+    const activeValue = isSqlite ? 1 : true;
+    
     const practitioner = await db.select({
-      id: practitioners.id,
-      firstName: practitioners.firstName,
-      lastName: practitioners.lastName,
-      specialization: practitioners.specialization,
-      biography: practitioners.biography,
-      consultationDuration: practitioners.consultationDuration,
-    }).from(practitioners)
-      .where(and(eq(practitioners.id, id), eq(practitioners.isActive, true)))
+      id: practitionersTable.id,
+      firstName: practitionersTable.firstName,
+      lastName: practitionersTable.lastName,
+      specialization: practitionersTable.specialization,
+      biography: practitionersTable.biography,
+      consultationDuration: practitionersTable.consultationDuration,
+    }).from(practitionersTable)
+      .where(and(eq(practitionersTable.id, id), eq(practitionersTable.isActive, activeValue)))
       .limit(1);
 
     if (practitioner.length === 0) {
@@ -57,17 +69,28 @@ router.get("/:id", async (req, res) => {
 // Créer un nouveau praticien (admin seulement)
 router.post("/", authMiddleware(['admin']), async (req, res) => {
   try {
-    const validatedData = insertPractitionerSchema.parse(req.body);
+    // Détecter le type de base de données
+    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
+    const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
+    const schema = isSqlite ? insertPractitionerSchemaSqlite : insertPractitionerSchema;
+    
+    const validatedData = schema.parse(req.body);
     
     // Vérifier si l'email existe déjà
-    const existingPractitioner = await db.select().from(practitioners)
-      .where(eq(practitioners.email, validatedData.email)).limit(1);
+    const existingPractitioner = await db.select().from(practitionersTable)
+      .where(eq(practitionersTable.email, validatedData.email)).limit(1);
     
     if (existingPractitioner.length > 0) {
       return res.status(400).json({ error: "Cet email est déjà utilisé" });
     }
 
-    const newPractitioner = await db.insert(practitioners).values(validatedData).returning();
+    // Pour SQLite, générer un ID manuellement
+    const practitionerData = { ...validatedData };
+    if (isSqlite) {
+      practitionerData.id = crypto.randomUUID();
+    }
+
+    const newPractitioner = await db.insert(practitionersTable).values(practitionerData).returning();
 
     res.status(201).json({
       message: "Praticien créé avec succès",
@@ -86,11 +109,22 @@ router.post("/", authMiddleware(['admin']), async (req, res) => {
 router.put("/:id", authMiddleware(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const validatedData = insertPractitionerSchema.partial().parse(req.body);
     
-    const updatedPractitioner = await db.update(practitioners)
-      .set({ ...validatedData, updatedAt: new Date() })
-      .where(eq(practitioners.id, id))
+    // Détecter le type de base de données
+    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
+    const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
+    const schema = isSqlite ? insertPractitionerSchemaSqlite : insertPractitionerSchema;
+    
+    const validatedData = schema.partial().parse(req.body);
+    
+    // Pour SQLite, utiliser une string pour updatedAt
+    const updateData = isSqlite 
+      ? { ...validatedData, updatedAt: new Date().toISOString() }
+      : { ...validatedData, updatedAt: new Date() };
+    
+    const updatedPractitioner = await db.update(practitionersTable)
+      .set(updateData)
+      .where(eq(practitionersTable.id, id))
       .returning();
 
     if (updatedPractitioner.length === 0) {
@@ -115,9 +149,18 @@ router.delete("/:id", authMiddleware(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     
-    const updatedPractitioner = await db.update(practitioners)
-      .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(practitioners.id, id))
+    // Détecter le type de base de données
+    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
+    const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
+    
+    // Pour SQLite, utiliser 0 pour false et string pour date
+    const updateData = isSqlite 
+      ? { isActive: 0, updatedAt: new Date().toISOString() }
+      : { isActive: false, updatedAt: new Date() };
+    
+    const updatedPractitioner = await db.update(practitionersTable)
+      .set(updateData)
+      .where(eq(practitionersTable.id, id))
       .returning();
 
     if (updatedPractitioner.length === 0) {
@@ -134,8 +177,12 @@ router.delete("/:id", authMiddleware(['admin']), async (req, res) => {
 // Obtenir tous les praticiens avec détails complets (admin seulement)
 router.get("/admin/all", authMiddleware(['admin']), async (req, res) => {
   try {
-    const allPractitioners = await db.select().from(practitioners)
-      .orderBy(asc(practitioners.createdAt));
+    // Détecter le type de base de données
+    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
+    const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
+    
+    const allPractitioners = await db.select().from(practitionersTable)
+      .orderBy(asc(practitionersTable.createdAt));
 
     res.json(allPractitioners);
   } catch (error) {

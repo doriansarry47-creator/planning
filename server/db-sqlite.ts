@@ -1,27 +1,19 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import * as schema from "../shared/schema";
-import * as schemaSqlite from "../shared/schema-sqlite";
+import * as schema from "../shared/schema-sqlite";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
-}
+// Utiliser une base SQLite pour le développement local
+const sqlite = new Database("dev.db");
+export const db = drizzle(sqlite, { schema });
 
-// Créer la base de données selon le type
-let db: any;
+export type Database = typeof db;
 
-if (process.env.DATABASE_URL.startsWith("file:")) {
-  // Utiliser SQLite pour les bases locales (file:)
-  const dbPath = process.env.DATABASE_URL.replace("file:", "");
-  const sqlite = new Database(dbPath);
-  db = drizzleSqlite(sqlite, { schema: schemaSqlite });
-  
-  // Initialiser les tables SQLite
+// Fonction pour initialiser les tables
+export function initializeDatabase() {
+  // Créer les tables si elles n'existent pas
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       username TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
@@ -35,7 +27,7 @@ if (process.env.DATABASE_URL.startsWith("file:")) {
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS patients (
-      id TEXT PRIMARY KEY,
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       email TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
       first_name TEXT NOT NULL,
@@ -56,7 +48,7 @@ if (process.env.DATABASE_URL.startsWith("file:")) {
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS practitioners (
-      id TEXT PRIMARY KEY,
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       first_name TEXT NOT NULL,
       last_name TEXT NOT NULL,
       specialization TEXT NOT NULL,
@@ -73,22 +65,21 @@ if (process.env.DATABASE_URL.startsWith("file:")) {
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS time_slots (
-      id TEXT PRIMARY KEY,
-      practitioner_id TEXT NOT NULL,
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      practitioner_id TEXT NOT NULL REFERENCES practitioners(id),
       day_of_week INTEGER NOT NULL,
       start_time TEXT NOT NULL,
       end_time TEXT NOT NULL,
       is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (practitioner_id) REFERENCES practitioners(id)
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS appointments (
-      id TEXT PRIMARY KEY,
-      patient_id TEXT NOT NULL,
-      practitioner_id TEXT NOT NULL,
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      patient_id TEXT NOT NULL REFERENCES patients(id),
+      practitioner_id TEXT NOT NULL REFERENCES practitioners(id),
       appointment_date TEXT NOT NULL,
       start_time TEXT NOT NULL,
       end_time TEXT NOT NULL,
@@ -100,18 +91,22 @@ if (process.env.DATABASE_URL.startsWith("file:")) {
       follow_up_required INTEGER NOT NULL DEFAULT 0,
       follow_up_date TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (patient_id) REFERENCES patients(id),
-      FOREIGN KEY (practitioner_id) REFERENCES practitioners(id)
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
-  console.log("SQLite database initialized");
-} else {
-  // Utiliser Neon PostgreSQL pour la production
-  const sql = neon(process.env.DATABASE_URL);
-  db = drizzle(sql, { schema });
-}
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS schedule_exceptions (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      practitioner_id TEXT NOT NULL REFERENCES practitioners(id),
+      exception_date TEXT NOT NULL,
+      start_time TEXT,
+      end_time TEXT,
+      is_full_day INTEGER NOT NULL DEFAULT 0,
+      reason TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
-export { db };
-export type Database = typeof db;
+  console.log("Database initialized successfully");
+}
