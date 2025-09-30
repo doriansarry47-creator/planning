@@ -12,7 +12,6 @@ dist/
 node_modules/
 
 # Source files not needed in production
-server/
 client/src/
 scripts/
 
