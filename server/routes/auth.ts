@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users, patients, insertUserSchema, insertPatientSchema } from "../../shared/schema";
-import { hashPassword, verifyPassword, generateToken } from "../auth";
+import { hashPassword, verifyPassword, generateToken, verifyToken } from "../auth";
 import { z } from "zod";
 
 const router = Router();
