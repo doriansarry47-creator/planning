@@ -20,7 +20,7 @@ const app = express();
 // Configure CORS
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.vercel.app', 'https://your-custom-domain.com']
+    ? ['https://planning-git-genspark-ai-developer-doriansarry47-creators-projects.vercel.app', 'https://planning-doriansarry47-creators-projects.vercel.app']
     : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
