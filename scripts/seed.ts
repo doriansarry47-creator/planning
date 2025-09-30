@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, patients, practitioners, timeSlots } from "../shared/schema";
+import { users, patients, practitioners, timeSlots } from "../shared/schema-sqlite";
 import { hashPassword } from "../server/auth";
 
 async function seed() {
