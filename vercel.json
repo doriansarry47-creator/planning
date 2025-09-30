@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "framework": null,
+  "framework": "express",
   "buildCommand": "npm run vercel-build",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "dist",
   "installCommand": "npm install",
   "functions": {
     "api/server.js": {
@@ -42,3 +42,4 @@
     "SESSION_SECRET": "medplan-session-secret-2024-secure-key-for-prod"
   }
 }
+
