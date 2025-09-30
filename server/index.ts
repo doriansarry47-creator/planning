@@ -2,11 +2,35 @@ import dotenv from "dotenv";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import session from "express-session";
+import pgSession from "connect-pg-simple";
+import pkg from "pg";
+const { Pool } = pkg;
 
 // Charger les variables d'environnement
 dotenv.config();
 
 const app = express();
+
+const PgSession = pgSession(session);
+const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+app.use(
+  session({
+    store: new PgSession({
+      pool: pgPool,
+      tableName: "session",
+    }),
+    secret: process.env.SESSION_SECRET || "supersecret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+    },
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
