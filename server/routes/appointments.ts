@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { eq, and, asc, desc, gte, lte, between, sql } from "drizzle-orm";
 import { db } from "../db";
-import { appointments, patients, practitioners, insertAppointmentSchema } from "../../shared/schema";
+import { appointments, patients, practitioners, availabilitySlots, insertAppointmentSchema } from "../../shared/schema";
 import { appointments as appointmentsSqlite, patients as patientsSqlite, practitioners as practitionersSqlite, insertAppointmentSchema as insertAppointmentSchemaSqlite } from "../../shared/schema-sqlite";
 import { authMiddleware } from "../auth";
+import { googleCalendarService } from "../services/googleCalendar";
+import { availabilityService } from "../services/availabilityService";
 import crypto from "crypto";
 
 const router = Router();
@@ -52,52 +54,97 @@ router.post("/", authMiddleware(['patient']), async (req, res) => {
     const appointmentData = { ...req.body, patientId: userId };
     const validatedData = insertAppointmentSchema.parse(appointmentData);
     
-    // Vérifier la disponibilité du créneau
-    const existingAppointment = await db.select().from(appointments)
-      .where(and(
-        eq(appointments.practitionerId, validatedData.practitionerId),
-        eq(appointments.appointmentDate, validatedData.appointmentDate),
-        eq(appointments.startTime, validatedData.startTime),
-        eq(appointments.status, "scheduled")
-      )).limit(1);
+    // Transaction pour éviter les double-bookings
+    const result = await db.transaction(async (trx) => {
+      // Si un slotId est fourni, vérifier la disponibilité du créneau
+      if (validatedData.slotId) {
+        const isAvailable = await availabilityService.isSlotAvailable(validatedData.slotId);
+        if (!isAvailable) {
+          throw new Error("Ce créneau n'est plus disponible");
+        }
+      } else {
+        // Vérification classique par heure
+        const existingAppointment = await trx.select().from(appointments)
+          .where(and(
+            eq(appointments.practitionerId, validatedData.practitionerId),
+            eq(appointments.appointmentDate, validatedData.appointmentDate),
+            eq(appointments.startTime, validatedData.startTime),
+            eq(appointments.status, "scheduled")
+          )).limit(1);
 
-    if (existingAppointment.length > 0) {
-      return res.status(400).json({ error: "Ce créneau n'est pas disponible" });
-    }
-
-    const newAppointment = await db.insert(appointments).values(validatedData).returning();
-
-    // Récupérer les détails complets du rendez-vous créé
-    const appointmentDetails = await db.select({
-      id: appointments.id,
-      appointmentDate: appointments.appointmentDate,
-      startTime: appointments.startTime,
-      endTime: appointments.endTime,
-      status: appointments.status,
-      reason: appointments.reason,
-      createdAt: appointments.createdAt,
-      practitioner: {
-        id: practitioners.id,
-        firstName: practitioners.firstName,
-        lastName: practitioners.lastName,
-        specialization: practitioners.specialization,
+        if (existingAppointment.length > 0) {
+          throw new Error("Ce créneau n'est pas disponible");
+        }
       }
-    })
-    .from(appointments)
-    .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
-    .where(eq(appointments.id, newAppointment[0].id))
-    .limit(1);
+
+      // Créer le rendez-vous
+      const [newAppointment] = await trx.insert(appointments).values(validatedData).returning();
+      
+      return newAppointment;
+    });
+
+    // Récupérer les détails complets pour Google Calendar
+    const [appointmentDetails, practitionerData, patientData] = await Promise.all([
+      db.select({
+        id: appointments.id,
+        appointmentDate: appointments.appointmentDate,
+        startTime: appointments.startTime,
+        endTime: appointments.endTime,
+        status: appointments.status,
+        reason: appointments.reason,
+        notes: appointments.notes,
+        slotId: appointments.slotId,
+        createdAt: appointments.createdAt,
+        practitioner: {
+          id: practitioners.id,
+          firstName: practitioners.firstName,
+          lastName: practitioners.lastName,
+          specialization: practitioners.specialization,
+        }
+      })
+      .from(appointments)
+      .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
+      .where(eq(appointments.id, result.id))
+      .limit(1),
+      
+      db.select().from(practitioners).where(eq(practitioners.id, validatedData.practitionerId)).limit(1),
+      db.select().from(patients).where(eq(patients.id, userId)).limit(1)
+    ]);
+
+    const appointment = appointmentDetails[0];
+    const practitioner = practitionerData[0];
+    const patient = patientData[0];
+
+    // Créer l'événement Google Calendar en arrière-plan
+    if (practitioner && patient) {
+      googleCalendarService.createEvent(result, practitioner, patient)
+        .then(async (calendarResult) => {
+          if (calendarResult.success && calendarResult.eventId) {
+            // Mettre à jour le rendez-vous avec l'ID Google Calendar
+            await db.update(appointments)
+              .set({ googleEventId: calendarResult.eventId })
+              .where(eq(appointments.id, result.id));
+            
+            console.log(`Événement Google Calendar créé: ${calendarResult.eventId}`);
+          } else {
+            console.error('Échec de création Google Calendar:', calendarResult.error);
+          }
+        })
+        .catch((error) => {
+          console.error('Erreur lors de la création Google Calendar:', error);
+        });
+    }
 
     res.status(201).json({
       message: "Rendez-vous créé avec succès",
-      appointment: appointmentDetails[0],
+      appointment,
     });
   } catch (error) {
     if (error instanceof Error && 'errors' in error) {
       return res.status(400).json({ error: "Données invalides", details: (error as any).errors });
     }
     console.error("Erreur lors de la création du rendez-vous:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
+    res.status(500).json({ error: error instanceof Error ? error.message : "Erreur interne du serveur" });
   }
 });
 
@@ -107,17 +154,40 @@ router.put("/:id/cancel", authMiddleware(['patient']), async (req, res) => {
     const { id } = req.params;
     const userId = (req as any).user.id;
     
-    const updatedAppointment = await db.update(appointments)
-      .set({ status: "cancelled", updatedAt: new Date() })
+    // Récupérer les détails du rendez-vous avant annulation
+    const appointmentToCancel = await db.select()
+      .from(appointments)
       .where(and(
         eq(appointments.id, id),
         eq(appointments.patientId, userId),
         eq(appointments.status, "scheduled")
       ))
+      .limit(1);
+
+    if (appointmentToCancel.length === 0) {
+      return res.status(404).json({ error: "Rendez-vous introuvable ou déjà traité" });
+    }
+
+    const appointment = appointmentToCancel[0];
+    
+    const updatedAppointment = await db.update(appointments)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(eq(appointments.id, id))
       .returning();
 
-    if (updatedAppointment.length === 0) {
-      return res.status(404).json({ error: "Rendez-vous introuvable ou déjà traité" });
+    // Supprimer l'événement Google Calendar si l'ID existe
+    if (appointment.googleEventId) {
+      googleCalendarService.deleteEvent(appointment.googleEventId)
+        .then((result) => {
+          if (result.success) {
+            console.log(`Événement Google Calendar supprimé: ${appointment.googleEventId}`);
+          } else {
+            console.error('Échec de suppression Google Calendar:', result.error);
+          }
+        })
+        .catch((error) => {
+          console.error('Erreur lors de la suppression Google Calendar:', error);
+        });
     }
 
     res.json({ message: "Rendez-vous annulé avec succès" });
