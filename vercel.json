@@ -2,7 +2,7 @@
   "version": 2,
   "buildCommand": "npm run build:client",
   "outputDirectory": "public",
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node@3.1.1"
@@ -51,7 +51,8 @@
     "VERCEL_FORCE_BUILD_BUNDLER": "vite",
     "JWT_SECRET": "@jwt_secret",
     "SESSION_SECRET": "@session_secret",
-    "DATABASE_URL": "@database_url"
+    "DATABASE_URL": "@database_url",
+    "JWT_EXPIRES_IN": "24h"
   },
   "regions": ["iad1"]
 }
