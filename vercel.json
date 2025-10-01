@@ -48,6 +48,7 @@
   ],
   "env": {
     "NODE_ENV": "production",
+    "VERCEL_FORCE_BUILD_BUNDLER": "vite",
     "JWT_SECRET": "@jwt_secret",
     "SESSION_SECRET": "@session_secret",
     "DATABASE_URL": "@database_url"
