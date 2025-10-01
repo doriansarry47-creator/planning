@@ -1,8 +1,8 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+const { defineConfig } = require("vite");
+const react = require("@vitejs/plugin-react");
+const path = require("path");
 
-export default defineConfig({
+module.exports = defineConfig({
   plugins: [
     react(),
   ],
@@ -20,18 +20,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu']
+          vendor: [\'react\', \'react-dom\'],
+          ui: [\'@radix-ui/react-dialog\', \'@radix-ui/react-dropdown-menu\']
         }
       }
     },
-    target: 'esnext',
-    minify: 'esbuild',
+    target: \'esnext\',
+    minify: \'esbuild\',
     sourcemap: false,
     chunkSizeWarningLimit: 1000
   },
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+    \'process.env.NODE_ENV\': JSON.stringify(process.env.NODE_ENV || \'production\')
   },
   server: {
     fs: {
@@ -40,3 +40,4 @@ export default defineConfig({
     },
   },
 });
+
