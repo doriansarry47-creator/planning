@@ -34,6 +34,12 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 // Debug logging
 console.log("AuthContext initialized with API_BASE_URL:", API_BASE_URL);
+console.log("Environment check:", {
+  NODE_ENV: import.meta.env.NODE_ENV,
+  MODE: import.meta.env.MODE,
+  PROD: import.meta.env.PROD,
+  DEV: import.meta.env.DEV
+});
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -57,15 +63,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
+      // En production, timeout encore plus agressif pour éviter les blocages
+      const isProduction = import.meta.env.PROD || import.meta.env.NODE_ENV === 'production';
+      const timeoutDuration = isProduction ? 800 : 1500; // 800ms en production, 1.5s en dev
+
       try {
         console.log("Attempting to verify token with API:", `${API_BASE_URL}/auth/verify`);
+        console.log("Production mode:", isProduction, "- Timeout:", timeoutDuration + "ms");
         
         // Timeout très court pour éviter l'attente en cas de problème réseau
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           controller.abort();
-          console.warn("Timeout de vérification du token - abandon");
-        }, 1500); // Réduit à 1.5 secondes
+          console.warn("Timeout de vérification du token - abandon après", timeoutDuration + "ms");
+        }, timeoutDuration);
 
         const response = await fetch(`${API_BASE_URL}/auth/verify`, {
           headers: {
@@ -93,7 +104,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("Erreur lors de la vérification du token:", error);
         // En cas d'erreur de réseau, on continue sans authentification
         console.warn("Suppression du token en raison d'une erreur de vérification");
-        localStorage.removeItem("authToken");
+        if (storedToken) {
+          localStorage.removeItem("authToken");
+        }
         setToken(null);
         setUser(null);
       } finally {
@@ -102,11 +115,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // Timeout de sécurité global : max 2 secondes pour toute la vérification
+    // Timeout de sécurité global : plus agressif en production
+    const isProduction = import.meta.env.PROD || import.meta.env.NODE_ENV === 'production';
+    const globalTimeout = isProduction ? 1000 : 2000; // 1s en production, 2s en dev
+    
     const maxLoadingTimeout = setTimeout(() => {
-      console.warn("Timeout global d'authentification - arrêt forcé du loading");
+      console.warn("Timeout global d'authentification - arrêt forcé du loading après", globalTimeout + "ms");
       setLoading(false);
-    }, 2000);
+    }, globalTimeout);
 
     // Démarrer la vérification immédiatement
     verifyToken().finally(() => {

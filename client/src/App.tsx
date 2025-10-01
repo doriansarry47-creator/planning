@@ -22,10 +22,14 @@ function AuthenticatedApp() {
   const [dots, setDots] = useState("");
   
   useEffect(() => {
+    // Timeout plus agressif en production
+    const isProduction = import.meta.env.PROD || import.meta.env.NODE_ENV === 'production';
+    const timeoutDuration = isProduction ? 800 : 1500; // 800ms en production, 1.5s en dev
+    
     const timer = setTimeout(() => {
-      console.warn("App.tsx: Timeout de chargement atteint - forçage d'affichage");
+      console.warn("App.tsx: Timeout de chargement atteint - forçage d'affichage après", timeoutDuration + "ms");
       setLoadingTimeout(true);
-    }, 1500); // Réduit à 1.5 secondes max
+    }, timeoutDuration);
 
     return () => clearTimeout(timer);
   }, []);
@@ -37,6 +41,16 @@ function AuthenticatedApp() {
       setLoadingTimeout(true);
     }
   }, [loading, user]);
+
+  // Forcer l'affichage après un délai absolu, même si loading=true
+  useEffect(() => {
+    const emergencyTimer = setTimeout(() => {
+      console.warn("App.tsx: TIMEOUT D'URGENCE - forçage absolu de l'affichage");
+      setLoadingTimeout(true);
+    }, 2000); // Maximum absolu 2 secondes
+
+    return () => clearTimeout(emergencyTimer);
+  }, []);
 
   // Animation des points de chargement
   useEffect(() => {
