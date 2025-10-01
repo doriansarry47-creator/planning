@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:client || node build-manual.cjs",
+  "buildCommand": "npm run vercel-build",
   "outputDirectory": "public",
-  "installCommand": "npm install vite @vitejs/plugin-react react react-dom typescript @types/node @types/react @types/react-dom tailwindcss autoprefixer postcss --save",
+  "installCommand": "npm install --include=dev",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node@3.1.1"
