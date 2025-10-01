@@ -17,17 +17,26 @@ import PatientDashboard from "./pages/PatientDashboard";
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
 
-  // Ajouter un timeout de sécurité pour éviter le chargement infini
+  // Timeout de sécurité pour éviter le chargement infini
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [dots, setDots] = useState("");
   
   useEffect(() => {
     const timer = setTimeout(() => {
+      console.warn("App.tsx: Timeout de chargement atteint - forçage d'affichage");
       setLoadingTimeout(true);
-    }, 3000); // 3 secondes max pour le chargement
+    }, 1500); // Réduit à 1.5 secondes max
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Force l'arrêt du loading si l'utilisateur n'est pas connecté
+  useEffect(() => {
+    if (!loading && !user) {
+      // Si l'authentification est finie et qu'il n'y a pas d'utilisateur, forcer l'affichage
+      setLoadingTimeout(true);
+    }
+  }, [loading, user]);
 
   // Animation des points de chargement
   useEffect(() => {
@@ -38,6 +47,7 @@ function AuthenticatedApp() {
     return () => clearInterval(interval);
   }, []);
 
+  // Affichage du loading seulement si nécessaire
   if (loading && !loadingTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50">
@@ -45,9 +55,16 @@ function AuthenticatedApp() {
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 border-t-blue-600 mx-auto"></div>
           <div>
             <p className="text-xl font-semibold text-gray-900">Planning Médical</p>
-            <p className="text-sm text-gray-600">Initialisation de l'application{dots}</p>
-            <p className="text-xs text-gray-400 mt-2">Vérification de la connexion...</p>
+            <p className="text-sm text-gray-600">Vérification de l'authentification{dots}</p>
+            <p className="text-xs text-gray-400 mt-2">Connexion au serveur...</p>
+            <p className="text-xs text-gray-300 mt-1">Si cet écran persiste, cliquez pour continuer</p>
           </div>
+          <button 
+            onClick={() => setLoadingTimeout(true)} 
+            className="mt-4 px-4 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded text-gray-600"
+          >
+            Continuer sans vérification
+          </button>
         </div>
       </div>
     );

@@ -247,15 +247,19 @@ router.post("/login/admin", async (req, res) => {
 
 // Vérification du token
 router.get("/verify", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: "Token d'accès requis" });
-  }
-
-  const token = authHeader.substring(7);
-
   try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: "Token d'accès requis" });
+    }
+
+    const token = authHeader.substring(7);
+
+    if (!token) {
+      return res.status(401).json({ error: "Token manquant" });
+    }
+
     const decoded = verifyToken(token);
     
     // Détecter le type de base de données
@@ -297,7 +301,11 @@ router.get("/verify", async (req, res) => {
       });
     }
   } catch (error) {
-    return res.status(401).json({ error: "Token invalide" });
+    console.error("Erreur lors de la vérification du token:", error);
+    return res.status(401).json({ 
+      error: "Token invalide",
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
