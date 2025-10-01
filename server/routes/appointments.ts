@@ -1,12 +1,8 @@
 import { Router } from "express";
-import { eq, and, asc, desc, gte, lte, between, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db";
-import { appointments, patients, practitioners, availabilitySlots, insertAppointmentSchema } from "../../shared/schema";
-import { appointments as appointmentsSqlite, patients as patientsSqlite, practitioners as practitionersSqlite, insertAppointmentSchema as insertAppointmentSchemaSqlite } from "../../shared/schema-sqlite";
+import * as schema from "../../shared/schema-sqlite";
 import { authMiddleware } from "../auth";
-import { googleCalendarService } from "../services/googleCalendar";
-import { availabilityService } from "../services/availabilityService";
-import crypto from "crypto";
 
 const router = Router();
 
@@ -16,29 +12,29 @@ router.get("/patient", authMiddleware(['patient']), async (req, res) => {
     const userId = (req as any).user.id;
     
     const patientAppointments = await db.select({
-      id: appointments.id,
-      appointmentDate: appointments.appointmentDate,
-      startTime: appointments.startTime,
-      endTime: appointments.endTime,
-      status: appointments.status,
-      reason: appointments.reason,
-      notes: appointments.notes,
-      diagnosis: appointments.diagnosis,
-      treatment: appointments.treatment,
-      followUpRequired: appointments.followUpRequired,
-      followUpDate: appointments.followUpDate,
-      createdAt: appointments.createdAt,
+      id: schema.appointments.id,
+      appointmentDate: schema.appointments.appointmentDate,
+      startTime: schema.appointments.startTime,
+      endTime: schema.appointments.endTime,
+      status: schema.appointments.status,
+      reason: schema.appointments.reason,
+      notes: schema.appointments.notes,
+      diagnosis: schema.appointments.diagnosis,
+      treatment: schema.appointments.treatment,
+      followUpRequired: schema.appointments.followUpRequired,
+      followUpDate: schema.appointments.followUpDate,
+      createdAt: schema.appointments.createdAt,
       practitioner: {
-        id: practitioners.id,
-        firstName: practitioners.firstName,
-        lastName: practitioners.lastName,
-        specialization: practitioners.specialization,
+        id: schema.practitioners.id,
+        firstName: schema.practitioners.firstName,
+        lastName: schema.practitioners.lastName,
+        specialization: schema.practitioners.specialization,
       }
     })
-    .from(appointments)
-    .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
-    .where(eq(appointments.patientId, userId))
-    .orderBy(desc(appointments.appointmentDate), desc(appointments.startTime));
+    .from(schema.appointments)
+    .innerJoin(schema.practitioners, eq(schema.appointments.practitionerId, schema.practitioners.id))
+    .where(eq(schema.appointments.patientId, userId))
+    .orderBy(desc(schema.appointments.appointmentDate), desc(schema.appointments.startTime));
 
     res.json(patientAppointments);
   } catch (error) {
@@ -52,88 +48,55 @@ router.post("/", authMiddleware(['patient']), async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const appointmentData = { ...req.body, patientId: userId };
-    const validatedData = insertAppointmentSchema.parse(appointmentData);
+    const validatedData = schema.insertAppointmentSchema.parse(appointmentData);
     
-    // Transaction pour éviter les double-bookings
-    const result = await db.transaction(async (trx) => {
-      // Si un slotId est fourni, vérifier la disponibilité du créneau
-      if (validatedData.slotId) {
-        const isAvailable = await availabilityService.isSlotAvailable(validatedData.slotId);
-        if (!isAvailable) {
-          throw new Error("Ce créneau n'est plus disponible");
-        }
-      } else {
-        // Vérification classique par heure
-        const existingAppointment = await trx.select().from(appointments)
-          .where(and(
-            eq(appointments.practitionerId, validatedData.practitionerId),
-            eq(appointments.appointmentDate, validatedData.appointmentDate),
-            eq(appointments.startTime, validatedData.startTime),
-            eq(appointments.status, "scheduled")
-          )).limit(1);
+    // Vérification classique par heure
+    const existingAppointment = await db.select().from(schema.appointments)
+      .where(and(
+        eq(schema.appointments.practitionerId, validatedData.practitionerId),
+        eq(schema.appointments.appointmentDate, validatedData.appointmentDate),
+        eq(schema.appointments.startTime, validatedData.startTime),
+        eq(schema.appointments.status, "scheduled")
+      )).limit(1);
 
-        if (existingAppointment.length > 0) {
-          throw new Error("Ce créneau n'est pas disponible");
-        }
+    if (existingAppointment.length > 0) {
+      return res.status(409).json({ error: "Ce créneau n'est pas disponible" });
+    }
+
+    // Générer un ID unique
+    const appointmentId = "apt-" + Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 9);
+    
+    // Créer le rendez-vous avec un ID explicite
+    const appointmentToInsert = {
+      id: appointmentId,
+      ...validatedData,
+    };
+
+    await db.insert(schema.appointments).values(appointmentToInsert);
+    
+    // Récupérer les détails complets du rendez-vous créé
+    const appointmentDetails = await db.select({
+      id: schema.appointments.id,
+      appointmentDate: schema.appointments.appointmentDate,
+      startTime: schema.appointments.startTime,
+      endTime: schema.appointments.endTime,
+      status: schema.appointments.status,
+      reason: schema.appointments.reason,
+      notes: schema.appointments.notes,
+      createdAt: schema.appointments.createdAt,
+      practitioner: {
+        id: schema.practitioners.id,
+        firstName: schema.practitioners.firstName,
+        lastName: schema.practitioners.lastName,
+        specialization: schema.practitioners.specialization,
       }
-
-      // Créer le rendez-vous
-      const [newAppointment] = await trx.insert(appointments).values(validatedData).returning();
-      
-      return newAppointment;
-    });
-
-    // Récupérer les détails complets pour Google Calendar
-    const [appointmentDetails, practitionerData, patientData] = await Promise.all([
-      db.select({
-        id: appointments.id,
-        appointmentDate: appointments.appointmentDate,
-        startTime: appointments.startTime,
-        endTime: appointments.endTime,
-        status: appointments.status,
-        reason: appointments.reason,
-        notes: appointments.notes,
-        slotId: appointments.slotId,
-        createdAt: appointments.createdAt,
-        practitioner: {
-          id: practitioners.id,
-          firstName: practitioners.firstName,
-          lastName: practitioners.lastName,
-          specialization: practitioners.specialization,
-        }
-      })
-      .from(appointments)
-      .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
-      .where(eq(appointments.id, result.id))
-      .limit(1),
-      
-      db.select().from(practitioners).where(eq(practitioners.id, validatedData.practitionerId)).limit(1),
-      db.select().from(patients).where(eq(patients.id, userId)).limit(1)
-    ]);
+    })
+    .from(schema.appointments)
+    .innerJoin(schema.practitioners, eq(schema.appointments.practitionerId, schema.practitioners.id))
+    .where(eq(schema.appointments.id, appointmentId))
+    .limit(1);
 
     const appointment = appointmentDetails[0];
-    const practitioner = practitionerData[0];
-    const patient = patientData[0];
-
-    // Créer l'événement Google Calendar en arrière-plan
-    if (practitioner && patient) {
-      googleCalendarService.createEvent(result, practitioner, patient)
-        .then(async (calendarResult) => {
-          if (calendarResult.success && calendarResult.eventId) {
-            // Mettre à jour le rendez-vous avec l'ID Google Calendar
-            await db.update(appointments)
-              .set({ googleEventId: calendarResult.eventId })
-              .where(eq(appointments.id, result.id));
-            
-            console.log(`Événement Google Calendar créé: ${calendarResult.eventId}`);
-          } else {
-            console.error('Échec de création Google Calendar:', calendarResult.error);
-          }
-        })
-        .catch((error) => {
-          console.error('Erreur lors de la création Google Calendar:', error);
-        });
-    }
 
     res.status(201).json({
       message: "Rendez-vous créé avec succès",
@@ -156,39 +119,21 @@ router.put("/:id/cancel", authMiddleware(['patient']), async (req, res) => {
     
     // Récupérer les détails du rendez-vous avant annulation
     const appointmentToCancel = await db.select()
-      .from(appointments)
+      .from(schema.appointments)
       .where(and(
-        eq(appointments.id, id),
-        eq(appointments.patientId, userId),
-        eq(appointments.status, "scheduled")
+        eq(schema.appointments.id, id),
+        eq(schema.appointments.patientId, userId),
+        eq(schema.appointments.status, "scheduled")
       ))
       .limit(1);
 
     if (appointmentToCancel.length === 0) {
       return res.status(404).json({ error: "Rendez-vous introuvable ou déjà traité" });
     }
-
-    const appointment = appointmentToCancel[0];
     
-    const updatedAppointment = await db.update(appointments)
-      .set({ status: "cancelled", updatedAt: new Date() })
-      .where(eq(appointments.id, id))
-      .returning();
-
-    // Supprimer l'événement Google Calendar si l'ID existe
-    if (appointment.googleEventId) {
-      googleCalendarService.deleteEvent(appointment.googleEventId)
-        .then((result) => {
-          if (result.success) {
-            console.log(`Événement Google Calendar supprimé: ${appointment.googleEventId}`);
-          } else {
-            console.error('Échec de suppression Google Calendar:', result.error);
-          }
-        })
-        .catch((error) => {
-          console.error('Erreur lors de la suppression Google Calendar:', error);
-        });
-    }
+    await db.update(schema.appointments)
+      .set({ status: "cancelled" })
+      .where(eq(schema.appointments.id, id));
 
     res.json({ message: "Rendez-vous annulé avec succès" });
   } catch (error) {
@@ -205,50 +150,50 @@ router.get("/admin/all", authMiddleware(['admin']), async (req, res) => {
     let whereConditions: any = [];
     
     if (status) {
-      whereConditions.push(eq(appointments.status, status as string));
+      whereConditions.push(eq(schema.appointments.status, status as string));
     }
     
     if (date) {
-      whereConditions.push(eq(appointments.appointmentDate, date as string));
+      whereConditions.push(eq(schema.appointments.appointmentDate, date as string));
     }
     
     if (practitionerId) {
-      whereConditions.push(eq(appointments.practitionerId, practitionerId as string));
+      whereConditions.push(eq(schema.appointments.practitionerId, practitionerId as string));
     }
 
     const adminAppointments = await db.select({
-      id: appointments.id,
-      appointmentDate: appointments.appointmentDate,
-      startTime: appointments.startTime,
-      endTime: appointments.endTime,
-      status: appointments.status,
-      reason: appointments.reason,
-      notes: appointments.notes,
-      diagnosis: appointments.diagnosis,
-      treatment: appointments.treatment,
-      followUpRequired: appointments.followUpRequired,
-      followUpDate: appointments.followUpDate,
-      createdAt: appointments.createdAt,
-      updatedAt: appointments.updatedAt,
+      id: schema.appointments.id,
+      appointmentDate: schema.appointments.appointmentDate,
+      startTime: schema.appointments.startTime,
+      endTime: schema.appointments.endTime,
+      status: schema.appointments.status,
+      reason: schema.appointments.reason,
+      notes: schema.appointments.notes,
+      diagnosis: schema.appointments.diagnosis,
+      treatment: schema.appointments.treatment,
+      followUpRequired: schema.appointments.followUpRequired,
+      followUpDate: schema.appointments.followUpDate,
+      createdAt: schema.appointments.createdAt,
+      updatedAt: schema.appointments.updatedAt,
       patient: {
-        id: patients.id,
-        firstName: patients.firstName,
-        lastName: patients.lastName,
-        email: patients.email,
-        phoneNumber: patients.phoneNumber,
+        id: schema.patients.id,
+        firstName: schema.patients.firstName,
+        lastName: schema.patients.lastName,
+        email: schema.patients.email,
+        phoneNumber: schema.patients.phoneNumber,
       },
       practitioner: {
-        id: practitioners.id,
-        firstName: practitioners.firstName,
-        lastName: practitioners.lastName,
-        specialization: practitioners.specialization,
+        id: schema.practitioners.id,
+        firstName: schema.practitioners.firstName,
+        lastName: schema.practitioners.lastName,
+        specialization: schema.practitioners.specialization,
       }
     })
-    .from(appointments)
-    .innerJoin(patients, eq(appointments.patientId, patients.id))
-    .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
+    .from(schema.appointments)
+    .innerJoin(schema.patients, eq(schema.appointments.patientId, schema.patients.id))
+    .innerJoin(schema.practitioners, eq(schema.appointments.practitionerId, schema.practitioners.id))
     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-    .orderBy(desc(appointments.appointmentDate), desc(appointments.startTime));
+    .orderBy(desc(schema.appointments.appointmentDate), desc(schema.appointments.startTime));
 
     res.json(adminAppointments);
   } catch (error) {
@@ -266,10 +211,12 @@ router.put("/:id", authMiddleware(['admin']), async (req, res) => {
     // Retirer les champs non autorisés pour la mise à jour
     const { patientId, practitionerId, ...allowedUpdates } = updateData;
     
-    const updatedAppointment = await db.update(appointments)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(eq(appointments.id, id))
-      .returning();
+    await db.update(schema.appointments)
+      .set(allowedUpdates)
+      .where(eq(schema.appointments.id, id));
+
+    // Récupérer le rendez-vous mis à jour
+    const updatedAppointment = await db.select().from(schema.appointments).where(eq(schema.appointments.id, id)).limit(1);
 
     if (updatedAppointment.length === 0) {
       return res.status(404).json({ error: "Rendez-vous introuvable" });
@@ -281,40 +228,6 @@ router.put("/:id", authMiddleware(['admin']), async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur lors de la mise à jour du rendez-vous:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
-  }
-});
-
-// Obtenir les créneaux disponibles pour un praticien à une date donnée
-router.get("/available-slots/:practitionerId/:date", async (req, res) => {
-  try {
-    const { practitionerId, date } = req.params;
-    
-    // Obtenir les créneaux du praticien pour le jour de la semaine
-    const dayOfWeek = new Date(date).getDay();
-    
-    // Obtenir les rendez-vous existants pour cette date
-    const existingAppointments = await db.select({
-      startTime: appointments.startTime,
-      endTime: appointments.endTime,
-    }).from(appointments)
-      .where(and(
-        eq(appointments.practitionerId, practitionerId),
-        eq(appointments.appointmentDate, date),
-        eq(appointments.status, "scheduled")
-      ));
-
-    // Cette logique devrait être améliorée pour calculer les créneaux disponibles
-    // basés sur les time_slots et les rendez-vous existants
-    res.json({
-      practitionerId,
-      date,
-      dayOfWeek,
-      existingAppointments,
-      // TODO: Implémenter la logique de calcul des créneaux disponibles
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération des créneaux disponibles:", error);
     res.status(500).json({ error: "Erreur interne du serveur" });
   }
 });
@@ -331,11 +244,11 @@ router.get("/admin/stats", authMiddleware(['admin']), async (req, res) => {
       completedAppointments,
       cancelledAppointments,
     ] = await Promise.all([
-      db.select({ count: sql`count(*)` }).from(appointments),
-      db.select({ count: sql`count(*)` }).from(appointments).where(eq(appointments.appointmentDate, today)),
-      db.select({ count: sql`count(*)` }).from(appointments).where(eq(appointments.status, 'scheduled')),
-      db.select({ count: sql`count(*)` }).from(appointments).where(eq(appointments.status, 'completed')),
-      db.select({ count: sql`count(*)` }).from(appointments).where(eq(appointments.status, 'cancelled')),
+      db.select({ count: sql`count(*)` }).from(schema.appointments),
+      db.select({ count: sql`count(*)` }).from(schema.appointments).where(eq(schema.appointments.appointmentDate, today)),
+      db.select({ count: sql`count(*)` }).from(schema.appointments).where(eq(schema.appointments.status, 'scheduled')),
+      db.select({ count: sql`count(*)` }).from(schema.appointments).where(eq(schema.appointments.status, 'completed')),
+      db.select({ count: sql`count(*)` }).from(schema.appointments).where(eq(schema.appointments.status, 'cancelled')),
     ]);
 
     res.json({

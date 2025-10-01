@@ -91,10 +91,28 @@ if (process.env.DATABASE_URL.startsWith("file:")) {
   `);
 
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS availability_slots (
+      id TEXT PRIMARY KEY,
+      practitioner_id TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      recurring_rule TEXT,
+      capacity INTEGER NOT NULL DEFAULT 1,
+      is_booked INTEGER NOT NULL DEFAULT 0,
+      notes TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (practitioner_id) REFERENCES practitioners(id)
+    );
+  `);
+
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS appointments (
       id TEXT PRIMARY KEY,
       patient_id TEXT NOT NULL,
       practitioner_id TEXT NOT NULL,
+      slot_id TEXT,
       appointment_date TEXT NOT NULL,
       start_time TEXT NOT NULL,
       end_time TEXT NOT NULL,
@@ -105,9 +123,25 @@ if (process.env.DATABASE_URL.startsWith("file:")) {
       treatment TEXT,
       follow_up_required INTEGER NOT NULL DEFAULT 0,
       follow_up_date TEXT,
+      google_event_id TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (patient_id) REFERENCES patients(id),
+      FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
+      FOREIGN KEY (slot_id) REFERENCES availability_slots(id)
+    );
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS schedule_exceptions (
+      id TEXT PRIMARY KEY,
+      practitioner_id TEXT NOT NULL,
+      exception_date TEXT NOT NULL,
+      start_time TEXT,
+      end_time TEXT,
+      is_full_day INTEGER NOT NULL DEFAULT 0,
+      reason TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (practitioner_id) REFERENCES practitioners(id)
     );
   `);
