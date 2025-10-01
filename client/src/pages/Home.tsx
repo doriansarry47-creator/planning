@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { 
@@ -8,10 +9,37 @@ import {
   Clock, 
   Users, 
   Heart,
-  ArrowRight 
+  ArrowRight,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from "lucide-react";
 
 export default function Home() {
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  useEffect(() => {
+    const checkApiStatus = async () => {
+      try {
+        const response = await fetch('/api/health', { 
+          method: 'GET',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+        if (response.ok) {
+          setApiStatus('online');
+          console.log('API is online and responding');
+        } else {
+          setApiStatus('offline');
+          console.warn('API responded but with error status:', response.status);
+        }
+      } catch (error) {
+        setApiStatus('offline');
+        console.error('API health check failed:', error);
+      }
+    };
+
+    checkApiStatus();
+  }, []);
   return (
     <div className="min-h-screen bg-gradient-to-br from-dorian-beige-100 via-dorian-beige-50 to-dorian-green-50 relative overflow-hidden">
       {/* Éléments décoratifs de fond */}
@@ -42,6 +70,28 @@ export default function Home() {
                 <h1 className="text-2xl font-serif font-bold text-dorian-green-800">Dorian Sarry</h1>
                 <p className="text-sm text-dorian-green-600">Thérapie sensori-motrice</p>
               </div>
+            </div>
+            
+            {/* API Status Indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              {apiStatus === 'checking' && (
+                <>
+                  <AlertCircle className="w-4 h-4 text-yellow-600 animate-pulse" />
+                  <span className="text-yellow-600">Vérification...</span>
+                </>
+              )}
+              {apiStatus === 'online' && (
+                <>
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-green-600">Système en ligne</span>
+                </>
+              )}
+              {apiStatus === 'offline' && (
+                <>
+                  <XCircle className="w-4 h-4 text-red-600" />
+                  <span className="text-red-600">Système indisponible</span>
+                </>
+              )}
             </div>
           </div>
         </div>

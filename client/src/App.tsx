@@ -19,24 +19,34 @@ function AuthenticatedApp() {
 
   // Ajouter un timeout de sécurité pour éviter le chargement infini
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [dots, setDots] = useState("");
   
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoadingTimeout(true);
-    }, 5000); // 5 secondes max pour le chargement
+    }, 3000); // 3 secondes max pour le chargement
 
     return () => clearTimeout(timer);
   }, []);
 
+  // Animation des points de chargement
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? "" : prev + ".");
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
   if (loading && !loadingTimeout) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+        <div className="text-center space-y-4 max-w-md mx-auto px-6">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 border-t-blue-600 mx-auto"></div>
           <div>
-            <p className="text-lg font-medium text-gray-900">Planning Médical</p>
-            <p className="text-sm text-gray-600">Application en cours de déploiement...</p>
-            <p className="text-xs text-gray-500 mt-2">Veuillez patienter, le système se configure automatiquement.</p>
+            <p className="text-xl font-semibold text-gray-900">Planning Médical</p>
+            <p className="text-sm text-gray-600">Initialisation de l'application{dots}</p>
+            <p className="text-xs text-gray-400 mt-2">Vérification de la connexion...</p>
           </div>
         </div>
       </div>

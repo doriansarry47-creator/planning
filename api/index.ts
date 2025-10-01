@@ -53,14 +53,36 @@ app.use('/availability', availabilityRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'production',
-    jwt_configured: !!process.env.JWT_SECRET,
-    db_configured: !!process.env.DATABASE_URL
-  });
+  try {
+    res.status(200).json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'production',
+      config: {
+        jwt_configured: !!process.env.JWT_SECRET,
+        db_configured: !!process.env.DATABASE_URL,
+        session_configured: !!process.env.SESSION_SECRET,
+        cors_enabled: true
+      },
+      api_endpoints: [
+        '/api/health',
+        '/api/auth/login/patient',
+        '/api/auth/login/admin',
+        '/api/auth/verify',
+        '/api/practitioners',
+        '/api/appointments',
+        '/api/patients'
+      ]
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      error: 'Health check failed'
+    });
+  }
 });
 
 // API info endpoint

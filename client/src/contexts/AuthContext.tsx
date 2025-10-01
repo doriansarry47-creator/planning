@@ -32,6 +32,9 @@ export const useAuth = () => {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
+// Debug logging
+console.log("AuthContext initialized with API_BASE_URL:", API_BASE_URL);
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -52,9 +55,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (storedToken) {
         try {
-          // Ajouter un timeout à la requête
+          console.log("Attempting to verify token with API:", `${API_BASE_URL}/auth/verify`);
+          
+          // Ajouter un timeout à la requête plus court pour éviter l'attente
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 secondes
+          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 secondes
 
           const response = await fetch(`${API_BASE_URL}/auth/verify`, {
             headers: {
@@ -65,37 +70,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           clearTimeout(timeoutId);
 
+          console.log("Token verification response status:", response.status);
+
           if (response.ok) {
             const data = await response.json();
+            console.log("Token verification successful, user data:", data.user);
             setUser(data.user);
             setToken(storedToken);
           } else {
             // Token invalide
-            console.warn("Token invalide, suppression du localStorage");
+            console.warn("Token invalide, status:", response.status);
             localStorage.removeItem("authToken");
             setToken(null);
             setUser(null);
           }
         } catch (error) {
           console.error("Erreur lors de la vérification du token:", error);
-          // Ne pas supprimer le token si c'est juste un problème de réseau
-          if (error.name !== 'AbortError') {
-            console.error("Erreur de vérification:", error);
-          }
+          // Toujours supprimer le token si il y a une erreur et finir le loading
+          console.warn("Suppression du token en raison d'une erreur de vérification");
           localStorage.removeItem("authToken");
           setToken(null);
           setUser(null);
         }
+      } else {
+        console.log("Pas de token stocké, utilisateur non connecté");
       }
+      // S'assurer que le loading se termine toujours
       setLoading(false);
     };
 
-    // Délai pour éviter les problèmes d'hydratation
-    const timer = setTimeout(() => {
-      verifyToken();
-    }, 100);
+    // Timeout de sécurité : si ça prend plus de 4 secondes, arrêter le loading
+    const maxLoadingTimeout = setTimeout(() => {
+      console.warn("Timeout de vérification d'authentification - arrêt du loading");
+      setLoading(false);
+    }, 4000);
 
-    return () => clearTimeout(timer);
+    // Délai court pour éviter les problèmes d'hydratation
+    const timer = setTimeout(() => {
+      verifyToken().finally(() => {
+        clearTimeout(maxLoadingTimeout);
+      });
+    }, 50); // Réduit à 50ms
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(maxLoadingTimeout);
+    };
   }, []);
 
   const login = async (email: string, password: string, userType: "admin" | "patient") => {
