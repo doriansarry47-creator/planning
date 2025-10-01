@@ -4,7 +4,11 @@ dotenv.config();
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const log = console.log;
 import session from "express-session";
 
 const app = express();
@@ -100,9 +104,12 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    // Vite gère les fichiers statiques en développement.
   } else {
-    serveStatic(app);
+    app.use(express.static(path.join(__dirname, '../../public')));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, '../../public', 'index.html'));
+    });
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
