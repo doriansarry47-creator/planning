@@ -12,13 +12,14 @@ import timeslotsRoutes from '../server/routes/timeslots';
 import availabilityRoutes from '../server/routes/availability';
 
 // Configure dotenv for production
+dotenv.config();
+
+// Configure environment variables for production if not already set
 if (process.env.NODE_ENV === 'production') {
-  // Variables d'environnement pour Vercel
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'medplan-jwt-secret-key-2024-production';
   process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'medplan-session-secret-2024-production';
   process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 }
-dotenv.config();
 
 // Create Express app
 const app = express();

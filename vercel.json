@@ -25,7 +25,8 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_i84emMYdFacv@ep-fragrant-mountain-ab8sksei-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
   },
   "headers": [
     {
