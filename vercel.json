@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:client",
+  "buildCommand": "vite build --config vite.config.simple.js",
   "outputDirectory": "public",
-  "installCommand": "npm ci --legacy-peer-deps",
+  "installCommand": "npm install vite @vitejs/plugin-react react react-dom typescript @types/node @types/react @types/react-dom tailwindcss autoprefixer postcss --save",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node@3.1.1"
@@ -18,41 +18,7 @@
       "destination": "/index.html"
     }
   ],
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
-      ]
-    }
-  ],
   "env": {
-    "NODE_ENV": "production",
-    "VERCEL_FORCE_BUILD_BUNDLER": "vite",
-    "JWT_SECRET": "@jwt_secret",
-    "SESSION_SECRET": "@session_secret",
-    "DATABASE_URL": "@database_url",
-    "JWT_EXPIRES_IN": "24h"
-  },
-  "regions": ["iad1"]
+    "NODE_ENV": "production"
+  }
 }
