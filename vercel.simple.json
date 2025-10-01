@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "buildCommand": "vite build --config vite.config.simple.js",
+  "outputDirectory": "public",
+  "installCommand": "npm install vite @vitejs/plugin-react react react-dom typescript @types/node @types/react @types/react-dom tailwindcss autoprefixer postcss --save",
+  "functions": {
+    "api/index.ts": {
+      "runtime": "@vercel/node@3.1.1"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/((?!api|assets).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

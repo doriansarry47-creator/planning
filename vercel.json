@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:client || npx vite build --config vite.config.cjs || npx vite build",
+  "buildCommand": "npm run build:client",
   "outputDirectory": "public",
   "installCommand": "npm ci --legacy-peer-deps",
   "functions": {
