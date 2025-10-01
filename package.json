@@ -19,6 +19,7 @@
     "build:alternative": "node build-alternative.cjs",
     "prepare:vercel": "node prepare-vercel.cjs",
     "build:simple": "vite build --config vite.config.simple.js",
+    "build:manual": "node build-manual.cjs",
     "deploy:check": "node scripts/deploy.cjs"
   },
   "dependencies": {

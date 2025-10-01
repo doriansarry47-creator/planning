@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "vite build --config vite.config.simple.js",
+  "buildCommand": "npm run build:client || node build-manual.cjs",
   "outputDirectory": "public",
   "installCommand": "npm install vite @vitejs/plugin-react react react-dom typescript @types/node @types/react @types/react-dom tailwindcss autoprefixer postcss --save",
   "functions": {
