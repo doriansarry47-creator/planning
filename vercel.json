@@ -20,7 +20,10 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "DATABASE_URL": "postgresql://neondb_owner:npg_i84emMYdFacv@ep-fragrant-mountain-ab8sksei-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    "VITE_API_URL": "/api",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_i84emMYdFacv@ep-fragrant-mountain-ab8sksei-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    "JWT_SECRET": "medplan-jwt-secret-key-2024-production",
+    "SESSION_SECRET": "medplan-session-secret-2024-production"
   },
   "headers": [
     {

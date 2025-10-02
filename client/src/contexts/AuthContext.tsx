@@ -89,10 +89,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("Token verification response status:", response.status);
 
         if (response.ok) {
-          const data = await response.json();
-          console.log("Token verification successful, user data:", data.user);
-          setUser(data.user);
-          setToken(storedToken);
+          // Vérifier le content-type avant de parser en JSON
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await response.json();
+            console.log("Token verification successful, user data:", data.user);
+            setUser(data.user);
+            setToken(storedToken);
+          } else {
+            const text = await response.text();
+            console.warn("Réponse de vérification non-JSON:", text.substring(0, 100));
+            localStorage.removeItem("authToken");
+            setToken(null);
+            setUser(null);
+          }
         } else {
           // Token invalide
           console.warn("Token invalide, status:", response.status);
@@ -144,16 +154,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur de connexion");
+      // Vérifier le content-type avant de parser en JSON
+      const contentType = response.headers.get("content-type");
+      
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || `Erreur de connexion (${response.status})`);
+        }
+        
+        localStorage.setItem("authToken", data.token);
+        setToken(data.token);
+        setUser(data.user);
+      } else {
+        // Réponse non-JSON (probablement une erreur HTML)
+        const text = await response.text();
+        const errorPreview = text.length > 200 ? text.substring(0, 200) + "..." : text;
+        throw new Error(`Erreur serveur (${response.status}): ${errorPreview}`);
       }
-
-      localStorage.setItem("authToken", data.token);
-      setToken(data.token);
-      setUser(data.user);
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Erreur de connexion: Impossible de joindre le serveur");
+      }
       throw error;
     }
   };
@@ -168,16 +191,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: JSON.stringify(userData),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur d'inscription");
+      // Vérifier le content-type avant de parser en JSON
+      const contentType = response.headers.get("content-type");
+      
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || `Erreur d'inscription (${response.status})`);
+        }
+        
+        localStorage.setItem("authToken", data.token);
+        setToken(data.token);
+        setUser(data.user);
+      } else {
+        // Réponse non-JSON (probablement une erreur HTML)
+        const text = await response.text();
+        const errorPreview = text.length > 200 ? text.substring(0, 200) + "..." : text;
+        throw new Error(`Erreur serveur (${response.status}): ${errorPreview}`);
       }
-
-      localStorage.setItem("authToken", data.token);
-      setToken(data.token);
-      setUser(data.user);
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Erreur de connexion: Impossible de joindre le serveur");
+      }
       throw error;
     }
   };
