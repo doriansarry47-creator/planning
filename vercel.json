@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "vite build --config vite.config.simple.js",
+  "buildCommand": "npm run build:client",
   "outputDirectory": "public",
   "installCommand": "npm install",
   "functions": {
