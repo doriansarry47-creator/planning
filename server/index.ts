@@ -103,14 +103,21 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    // Vite gère les fichiers statiques en développement.
-  } else {
-    app.use(express.static(path.join(__dirname, '../../public')));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, '../../public', 'index.html'));
-    });
-  }
+  // Servir les fichiers statiques React compilés
+  const publicPath = path.join(__dirname, '../public');
+  log(`Serving static files from: ${publicPath}`);
+  app.use(express.static(publicPath));
+  
+  // Route catch-all pour servir React pour toutes les routes non-API
+  app.get('*', (req, res) => {
+    // Ne pas intercepter les routes API
+    if (req.path.startsWith('/api')) {
+      return;
+    }
+    const indexPath = path.join(publicPath, 'index.html');
+    log(`Serving index.html from: ${indexPath}`);
+    res.sendFile(indexPath);
+  });
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
