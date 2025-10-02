@@ -35,7 +35,7 @@ router.post("/register/patient", async (req, res) => {
     const hashedPassword = await hashPassword(validatedData.password);
 
     // Créer le patient avec ID généré
-    const patientData = {
+    const patientData: any = {
       ...validatedData,
       password: hashedPassword,
     };
@@ -149,7 +149,7 @@ router.post("/register/admin", async (req, res) => {
     const hashedPassword = await hashPassword(validatedData.password);
 
     // Créer l'utilisateur administrateur avec ID généré
-    const userData = {
+    const userData: any = {
       ...validatedData,
       password: hashedPassword,
     };

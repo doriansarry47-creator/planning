@@ -136,19 +136,21 @@ class AvailabilityService {
       const endOfDay = new Date(searchDate);
       endOfDay.setHours(23, 59, 59, 999);
       
-      whereConditions.push(
-        and(
-          gte(availabilitySlots.startTime, startOfDay),
-          lte(availabilitySlots.startTime, endOfDay)
-        )
+      const dateCondition = and(
+        gte(availabilitySlots.startTime, startOfDay),
+        lte(availabilitySlots.startTime, endOfDay)
       );
+      if (dateCondition) {
+        whereConditions.push(dateCondition);
+      }
     } else if (filters.startDate && filters.endDate) {
-      whereConditions.push(
-        and(
-          gte(availabilitySlots.startTime, new Date(filters.startDate)),
-          lte(availabilitySlots.startTime, new Date(filters.endDate))
-        )
+      const rangeCondition = and(
+        gte(availabilitySlots.startTime, new Date(filters.startDate)),
+        lte(availabilitySlots.startTime, new Date(filters.endDate))
       );
+      if (rangeCondition) {
+        whereConditions.push(rangeCondition);
+      }
     }
     
     const slots = await db.select({

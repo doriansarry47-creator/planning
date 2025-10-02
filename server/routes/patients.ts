@@ -128,7 +128,7 @@ router.get("/admin/all", authMiddleware(['admin']), async (req, res) => {
     }
 
     // Tri
-    const sortColumn = patients[sortBy as keyof typeof patients] || patients.createdAt;
+    const sortColumn: any = patients[sortBy as keyof typeof patients] || patients.createdAt;
     const orderFn = sortOrder === 'asc' ? asc : desc;
     query = query.orderBy(orderFn(sortColumn)) as any;
 
