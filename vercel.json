@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "npm run build:client",
   "outputDirectory": "public",
-  "installCommand": "npm ci",
+  "installCommand": "npm install",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node@3.1.1"

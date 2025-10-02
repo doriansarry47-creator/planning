@@ -101,8 +101,8 @@ router.post("/slots", authMiddleware(['admin']), async (req, res) => {
       startTime: validatedData.startTime,
       endTime: validatedData.endTime,
       capacity: validatedData.capacity || 1,
-      notes: validatedData.notes,
-      recurringRule: validatedData.recurringRule,
+      notes: validatedData.notes || undefined,
+      recurringRule: validatedData.recurringRule || undefined,
     });
 
     res.status(201).json({

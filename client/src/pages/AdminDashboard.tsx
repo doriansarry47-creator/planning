@@ -115,10 +115,10 @@ export default function AdminDashboard() {
         api.getAllPractitionersAdmin(token),
       ]);
 
-      setStats(statsData);
-      setAppointments(appointmentsData);
-      setPatients(patientsData.patients || patientsData);
-      setPractitioners(practitionersData);
+      setStats(statsData as any);
+      setAppointments(appointmentsData as any);
+      setPatients((patientsData as any)?.patients || (patientsData as any));
+      setPractitioners(practitionersData as any);
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
     } finally {

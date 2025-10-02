@@ -100,9 +100,9 @@ export default function PatientDashboard() {
         api.getPatientProfile(token),
       ]);
 
-      setAppointments(appointmentsData);
-      setPractitioners(practitionersData);
-      setProfile(profileData);
+      setAppointments(appointmentsData as any);
+      setPractitioners(practitionersData as any);
+      setProfile(profileData as any);
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
     } finally {
@@ -162,7 +162,7 @@ export default function PatientDashboard() {
       
       // Recharger les rendez-vous
       const appointmentsData = await api.getPatientAppointments(token);
-      setAppointments(appointmentsData);
+      setAppointments(appointmentsData as any);
     } catch (error) {
       console.error("Erreur lors de la création du rendez-vous:", error);
     }
@@ -175,7 +175,7 @@ export default function PatientDashboard() {
       await api.cancelAppointment(appointmentId, token);
       // Recharger les rendez-vous
       const appointmentsData = await api.getPatientAppointments(token);
-      setAppointments(appointmentsData);
+      setAppointments(appointmentsData as any);
     } catch (error) {
       console.error("Erreur lors de l'annulation du rendez-vous:", error);
     }

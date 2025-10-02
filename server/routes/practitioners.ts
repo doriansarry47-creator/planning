@@ -14,7 +14,7 @@ router.get("/", async (req, res) => {
     // Détecter le type de base de données
     const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
     const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
-    const activeValue = isSqlite ? 1 : true; // SQLite utilise 1/0, PostgreSQL true/false
+    const activeValue: any = isSqlite ? 1 : true; // SQLite utilise 1/0, PostgreSQL true/false
     
     const allPractitioners = await db.select({
       id: practitionersTable.id,
@@ -42,7 +42,7 @@ router.get("/:id", async (req, res) => {
     // Détecter le type de base de données
     const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
     const practitionersTable = isSqlite ? practitionersSqlite : practitioners;
-    const activeValue = isSqlite ? 1 : true;
+    const activeValue: any = isSqlite ? 1 : true;
     
     const practitioner = await db.select({
       id: practitionersTable.id,
@@ -85,7 +85,7 @@ router.post("/", authMiddleware(['admin']), async (req, res) => {
     }
 
     // Pour SQLite, générer un ID manuellement
-    const practitionerData = { ...validatedData };
+    const practitionerData: any = { ...validatedData };
     if (isSqlite) {
       practitionerData.id = crypto.randomUUID();
     }
