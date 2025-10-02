@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:client",
+  "buildCommand": "vite build --config vite.config.simple.js",
   "outputDirectory": "public",
   "installCommand": "npm install",
   "functions": {
@@ -16,12 +16,6 @@
     {
       "source": "/((?!api|assets|_next|favicon.ico).*)",
       "destination": "/index.html"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/",
-      "dest": "/index.html"
     }
   ],
   "env": {

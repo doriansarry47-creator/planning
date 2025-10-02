@@ -22,20 +22,9 @@ Thumbs.db
 .env.*
 !/.env.production
 
-# Development files
-server
-client/src
+# Development files  
 *.md
 .replit
 replit.nix
-tsconfig.json
-vite.config.ts
-vite.config.js
-vite.config.mjs
-vite.config.cjs
 build-*.cjs
-scripts
-attached_assets
-shared
-drizzle.config.ts
 
