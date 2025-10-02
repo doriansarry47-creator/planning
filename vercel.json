@@ -5,9 +5,9 @@
   "installCommand": "npm install",
   "functions": {
     "api/index.ts": {
-      "runtime": "@vercel/node",
+      "runtime": "@vercel/node@3.2.4",
       "maxDuration": 30,
-      "includeFiles": ["server/**/*", "shared/**/*", "node_modules/**/*"]
+      "includeFiles": "{server,shared,node_modules}/**/*"
     }
   },
   "rewrites": [
