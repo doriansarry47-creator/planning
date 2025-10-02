@@ -5,7 +5,8 @@
   "installCommand": "npm install",
   "functions": {
     "api/index.ts": {
-      "runtime": "@vercel/node@3.1.1"
+      "runtime": "@vercel/node@3.2.4",
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -20,10 +21,7 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "VITE_API_URL": "/api",
-    "DATABASE_URL": "postgresql://neondb_owner:npg_i84emMYdFacv@ep-fragrant-mountain-ab8sksei-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-    "JWT_SECRET": "medplan-jwt-secret-key-2024-production",
-    "SESSION_SECRET": "medplan-session-secret-2024-production"
+    "VITE_API_URL": "/api"
   },
   "headers": [
     {
@@ -32,6 +30,23 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, X-Requested-With"
         }
       ]
     },

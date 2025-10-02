@@ -2,7 +2,6 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users, patients, insertUserSchema, insertPatientSchema } from "../../shared/schema";
-import { users as usersSqlite, patients as patientsSqlite, insertUserSchema as insertUserSchemaSqlite, insertPatientSchema as insertPatientSchemaSqlite } from "../../shared/schema-sqlite";
 import { hashPassword, verifyPassword, generateToken, verifyToken } from "../auth";
 import { z } from "zod";
 import crypto from "crypto";
@@ -18,15 +17,10 @@ const loginSchema = z.object({
 // Inscription d'un patient
 router.post("/register/patient", async (req, res) => {
   try {
-    // Détecter le type de base de données
-    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
-    const patientsTable = isSqlite ? patientsSqlite : patients;
-    const schema = isSqlite ? insertPatientSchemaSqlite : insertPatientSchema;
-    
-    const validatedData = schema.parse(req.body);
+    const validatedData = insertPatientSchema.parse(req.body);
     
     // Vérifier si l'email existe déjà
-    const existingPatient = await db.select().from(patientsTable).where(eq(patientsTable.email, validatedData.email)).limit(1);
+    const existingPatient = await db.select().from(patients).where(eq(patients.email, validatedData.email)).limit(1);
     if (existingPatient.length > 0) {
       return res.status(400).json({ error: "Cet email est déjà utilisé" });
     }
@@ -35,17 +29,12 @@ router.post("/register/patient", async (req, res) => {
     const hashedPassword = await hashPassword(validatedData.password);
 
     // Créer le patient avec ID généré
-    const patientData: any = {
+    const patientData = {
       ...validatedData,
       password: hashedPassword,
     };
-    
-    // Pour SQLite, générer un ID manuellement
-    if (isSqlite) {
-      patientData.id = crypto.randomUUID();
-    }
 
-    const newPatient = await db.insert(patientsTable).values(patientData).returning();
+    const newPatient = await db.insert(patients).values(patientData).returning();
 
     // Générer le token
     const token = generateToken({
@@ -80,12 +69,8 @@ router.post("/login/patient", async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
-    // Détecter le type de base de données
-    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
-    const patientsTable = isSqlite ? patientsSqlite : patients;
-
     // Trouver le patient
-    const patient = await db.select().from(patientsTable).where(eq(patientsTable.email, email)).limit(1);
+    const patient = await db.select().from(patients).where(eq(patients.email, email)).limit(1);
     if (patient.length === 0) {
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
@@ -132,15 +117,10 @@ router.post("/login/patient", async (req, res) => {
 // Inscription d'un administrateur
 router.post("/register/admin", async (req, res) => {
   try {
-    // Détecter le type de base de données
-    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
-    const usersTable = isSqlite ? usersSqlite : users;
-    const schema = isSqlite ? insertUserSchemaSqlite : insertUserSchema;
-    
-    const validatedData = schema.parse(req.body);
+    const validatedData = insertUserSchema.parse(req.body);
     
     // Vérifier si l'email existe déjà
-    const existingUser = await db.select().from(usersTable).where(eq(usersTable.email, validatedData.email)).limit(1);
+    const existingUser = await db.select().from(users).where(eq(users.email, validatedData.email)).limit(1);
     if (existingUser.length > 0) {
       return res.status(400).json({ error: "Cet email est déjà utilisé" });
     }
@@ -149,17 +129,12 @@ router.post("/register/admin", async (req, res) => {
     const hashedPassword = await hashPassword(validatedData.password);
 
     // Créer l'utilisateur administrateur avec ID généré
-    const userData: any = {
+    const userData = {
       ...validatedData,
       password: hashedPassword,
     };
-    
-    // Pour SQLite, générer un ID manuellement
-    if (isSqlite) {
-      userData.id = crypto.randomUUID();
-    }
 
-    const newUser = await db.insert(usersTable).values(userData).returning();
+    const newUser = await db.insert(users).values(userData).returning();
 
     // Générer le token
     const token = generateToken({
@@ -195,12 +170,8 @@ router.post("/login/admin", async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
-    // Détecter le type de base de données
-    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
-    const usersTable = isSqlite ? usersSqlite : users;
-
     // Trouver l'utilisateur
-    const user = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (user.length === 0) {
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
@@ -262,14 +233,9 @@ router.get("/verify", async (req, res) => {
 
     const decoded = verifyToken(token);
     
-    // Détecter le type de base de données
-    const isSqlite = process.env.DATABASE_URL?.startsWith("file:");
-    const patientsTable = isSqlite ? patientsSqlite : patients;
-    const usersTable = isSqlite ? usersSqlite : users;
-
     // Récupérer les informations utilisateur mises à jour
     if (decoded.type === 'patient') {
-      const patient = await db.select().from(patientsTable).where(eq(patientsTable.id, decoded.id)).limit(1);
+      const patient = await db.select().from(patients).where(eq(patients.id, decoded.id)).limit(1);
       if (patient.length === 0 || !patient[0].isActive) {
         return res.status(401).json({ error: "Compte introuvable ou désactivé" });
       }
@@ -284,7 +250,7 @@ router.get("/verify", async (req, res) => {
         },
       });
     } else {
-      const user = await db.select().from(usersTable).where(eq(usersTable.id, decoded.id)).limit(1);
+      const user = await db.select().from(users).where(eq(users.id, decoded.id)).limit(1);
       if (user.length === 0 || !user[0].isActive) {
         return res.status(401).json({ error: "Compte introuvable ou désactivé" });
       }

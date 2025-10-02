@@ -131,27 +131,64 @@ app.use((req, res) => {
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   return new Promise<void>((resolve, reject) => {
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-      res.status(200).end();
-      resolve();
-      return;
-    }
-
-    // Convert Vercel request/response to Express format and handle
-    app(req as any, res as any, (err: any) => {
-      if (err) {
-        console.error('Vercel handler error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Internal Server Error', timestamp: new Date().toISOString() });
-        }
-        reject(err);
-      } else {
+    try {
+      // Handle preflight requests
+      if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        res.status(200).end();
         resolve();
+        return;
       }
-    });
+
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        if (!res.headersSent) {
+          console.error('Request timeout after 25 seconds');
+          res.status(408).json({ 
+            error: 'Request timeout', 
+            timestamp: new Date().toISOString() 
+          });
+        }
+        reject(new Error('Request timeout'));
+      }, 25000);
+
+      // Convert Vercel request/response to Express format and handle
+      app(req as any, res as any, (err: any) => {
+        clearTimeout(timeout);
+        
+        if (err) {
+          console.error('Vercel handler error:', {
+            message: err.message,
+            stack: err.stack,
+            url: req.url,
+            method: req.method,
+            headers: req.headers,
+            body: req.body,
+          });
+          
+          if (!res.headersSent) {
+            res.status(500).json({ 
+              error: 'Internal Server Error',
+              message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
+              timestamp: new Date().toISOString() 
+            });
+          }
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    } catch (error) {
+      console.error('Handler setup error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: 'Server initialization error',
+          timestamp: new Date().toISOString() 
+        });
+      }
+      reject(error);
+    }
   });
 }
