@@ -28,14 +28,44 @@ class ApiService {
       },
     };
 
-    const response = await fetch(url, config);
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || data.message || "Une erreur s'est produite");
+    try {
+      const response = await fetch(url, config);
+      
+      // Vérifier le content-type de la réponse
+      const contentType = response.headers.get("content-type");
+      
+      if (contentType && contentType.includes("application/json")) {
+        // Réponse JSON normale
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || data.message || `Erreur ${response.status}: ${response.statusText}`);
+        }
+        
+        return data;
+      } else {
+        // Réponse non-JSON (HTML d'erreur, texte, etc.)
+        const text = await response.text();
+        
+        // Extraire le début du message d'erreur HTML pour diagnostic
+        const errorPreview = text.length > 100 ? text.substring(0, 100) + "..." : text;
+        
+        if (!response.ok) {
+          throw new Error(`Erreur serveur ${response.status}: ${errorPreview}`);
+        }
+        
+        // Si c'est un 200 mais pas du JSON, on a un problème
+        throw new Error(`Réponse inattendue (non-JSON): ${errorPreview}`);
+      }
+    } catch (error) {
+      // Gestion des erreurs réseau ou autres
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Erreur de connexion: Impossible de joindre le serveur");
+      }
+      
+      // Re-lancer l'erreur si c'est déjà une erreur traitée
+      throw error;
     }
-
-    return data;
   }
 
   // Méthodes d'authentification

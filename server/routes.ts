@@ -53,6 +53,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Gestionnaire 404 pour les routes API - TOUJOURS renvoyer du JSON
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({
+      error: "Route API non trouvée",
+      path: req.path,
+      method: req.method,
+      message: `L'endpoint ${req.method} ${req.path} n'existe pas`,
+      timestamp: new Date().toISOString(),
+      availableEndpoints: [
+        "/api/health",
+        "/api/auth/*",
+        "/api/practitioners/*",
+        "/api/timeslots/*",
+        "/api/appointments/*",
+        "/api/patients/*",
+        "/api/availability/*"
+      ]
+    });
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
