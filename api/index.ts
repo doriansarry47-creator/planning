@@ -4,12 +4,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 // Import routes
-import authRoutes from '../server/routes/auth';
-import practitionersRoutes from '../server/routes/practitioners';
-import appointmentsRoutes from '../server/routes/appointments';
-import patientsRoutes from '../server/routes/patients';
-import timeslotsRoutes from '../server/routes/timeslots';
-import availabilityRoutes from '../server/routes/availability';
+import authRoutes from '../server/routes/auth.js';
+import practitionersRoutes from '../server/routes/practitioners.js';
+import appointmentsRoutes from '../server/routes/appointments.js';
+import patientsRoutes from '../server/routes/patients.js';
+import timeslotsRoutes from '../server/routes/timeslots.js';
+import availabilityRoutes from '../server/routes/availability.js';
 
 // Configure dotenv for production
 dotenv.config();

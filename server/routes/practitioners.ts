@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { eq, and, asc } from "drizzle-orm";
-import { db } from "../db";
-import { practitioners, insertPractitionerSchema } from "../../shared/schema";
-import { authMiddleware } from "../auth";
+import { db } from "../db.js";
+import { practitioners, insertPractitionerSchema } from "../../shared/schema.js";
+import { authMiddleware } from "../auth.js";
 import crypto from "crypto";
 
 const router = Router();

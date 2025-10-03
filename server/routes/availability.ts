@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
-import { db } from "../db";
-import { availabilitySlots, practitioners, insertAvailabilitySlotSchema } from "../../shared/schema";
-import { authMiddleware } from "../auth";
-import { availabilityService } from "../services/availabilityService";
+import { db } from "../db.js";
+import { availabilitySlots, practitioners, insertAvailabilitySlotSchema } from "../../shared/schema.js";
+import { authMiddleware } from "../auth.js";
+import { availabilityService } from "../services/availabilityService.js";
 
 const router = Router();
 

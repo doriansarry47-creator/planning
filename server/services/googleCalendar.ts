@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import type { Appointment, Practitioner, Patient } from '../../shared/schema';
+import type { Appointment, Practitioner, Patient } from '../../shared/schema.js';
 
 interface CalendarEvent {
   summary: string;

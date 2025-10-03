@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { db } from "../db";
-import * as schema from "../../shared/schema-sqlite";
-import { authMiddleware } from "../auth";
+import { db } from "../db.js";
+import * as schema from "../../shared/schema-sqlite.js";
+import { authMiddleware } from "../auth.js";
 
 const router = Router();
 

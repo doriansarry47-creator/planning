@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { users, patients, insertUserSchema, insertPatientSchema } from "../../shared/schema";
-import { hashPassword, verifyPassword, generateToken, verifyToken } from "../auth";
+import { db } from "../db.js";
+import { users, patients, insertUserSchema, insertPatientSchema } from "../../shared/schema.js";
+import { hashPassword, verifyPassword, generateToken, verifyToken } from "../auth.js";
 import { z } from "zod";
 import crypto from "crypto";
 
