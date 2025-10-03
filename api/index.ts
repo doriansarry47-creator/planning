@@ -4,12 +4,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 // Import routes
-import authRoutes from '../server/routes/auth.js';
-import practitionersRoutes from '../server/routes/practitioners.js';
-import appointmentsRoutes from '../server/routes/appointments.js';
-import patientsRoutes from '../server/routes/patients.js';
-import timeslotsRoutes from '../server/routes/timeslots.js';
-import availabilityRoutes from '../server/routes/availability.js';
+import authRoutes from '../server/routes/auth.ts';
+import practitionersRoutes from '../server/routes/practitioners.ts';
+import appointmentsRoutes from '../server/routes/appointments.ts';
+import patientsRoutes from '../server/routes/patients.ts';
+import timeslotsRoutes from '../server/routes/timeslots.ts';
+import availabilityRoutes from '../server/routes/availability.ts';
 
 // Configure dotenv for production
 dotenv.config();
@@ -40,7 +40,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Add request logging for debugging
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`, req.body);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`, {
+    headers: {
+      'content-type': req.headers['content-type'],
+      'authorization': req.headers['authorization'] ? 'Bearer ***' : 'none'
+    },
+    body: req.method === 'POST' || req.method === 'PUT' ? req.body : undefined
+  });
   next();
 });
 
@@ -68,6 +74,8 @@ app.get('/health', (req, res) => {
       },
       api_endpoints: [
         '/api/health',
+        '/api/auth/register/patient',
+        '/api/auth/register/admin',
         '/api/auth/login/patient',
         '/api/auth/login/admin',
         '/api/auth/verify',
@@ -145,14 +153,14 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       // Add timeout to prevent hanging
       const timeout = setTimeout(() => {
         if (!res.headersSent) {
-          console.error('Request timeout after 25 seconds');
+          console.error('Request timeout after 10 seconds');
           res.status(408).json({ 
             error: 'Request timeout', 
             timestamp: new Date().toISOString() 
           });
         }
         reject(new Error('Request timeout'));
-      }, 25000);
+      }, 10000);
 
       // Convert Vercel request/response to Express format and handle
       app(req as any, res as any, (err: any) => {
