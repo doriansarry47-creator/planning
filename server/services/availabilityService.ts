@@ -1,7 +1,7 @@
 import { eq, and, gte, lte, between, sql, desc } from "drizzle-orm";
-import { db } from "../db";
-import { availabilitySlots, appointments, practitioners } from "../../shared/schema";
-import type { AvailabilitySlot, InsertAvailabilitySlot } from "../../shared/schema";
+import { db } from "../db.js";
+import { availabilitySlots, appointments, practitioners } from "../../shared/schema.js";
+import type { AvailabilitySlot, InsertAvailabilitySlot } from "../../shared/schema.js";
 
 export interface AvailableSlot {
   id: string;

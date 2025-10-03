@@ -3,12 +3,12 @@ import { createServer, type Server } from "http";
 import cors from "cors";
 
 // Import des routes
-import authRoutes from "./routes/auth";
-import practitionersRoutes from "./routes/practitioners";
-import timeSlotsRoutes from "./routes/timeslots";
-import appointmentsRoutes from "./routes/appointments";
-import patientsRoutes from "./routes/patients";
-import availabilityRoutes from "./routes/availability";
+import authRoutes from "./routes/auth.js";
+import practitionersRoutes from "./routes/practitioners.js";
+import timeSlotsRoutes from "./routes/timeslots.js";
+import appointmentsRoutes from "./routes/appointments.js";
+import patientsRoutes from "./routes/patients.js";
+import availabilityRoutes from "./routes/availability.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configuration CORS

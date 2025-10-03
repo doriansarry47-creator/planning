@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { eq, asc, desc, like, or } from "drizzle-orm";
-import { db } from "../db";
-import { patients } from "../../shared/schema";
-import { authMiddleware } from "../auth";
+import { db } from "../db.js";
+import { patients } from "../../shared/schema.js";
+import { authMiddleware } from "../auth.js";
 
 const router = Router();
 
