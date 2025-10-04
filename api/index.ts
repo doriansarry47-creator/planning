@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+'''import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -57,12 +57,12 @@ async function loadRoutes() {
     const { default: timeslotsRoutes } = await import('../server/routes/timeslots.js');
     const { default: availabilityRoutes } = await import('../server/routes/availability.js');
     
-    app.use("/auth", authRoutes);
-    app.use("/practitioners", practitionersRoutes);
-    app.use("/appointments", appointmentsRoutes);
-    app.use("/patients", patientsRoutes);
-    app.use("/timeslots", timeslotsRoutes);
-    app.use("/availability", availabilityRoutes);
+    app.use("/api/auth", authRoutes);
+    app.use("/api/practitioners", practitionersRoutes);
+    app.use("/api/appointments", appointmentsRoutes);
+    app.use("/api/patients", patientsRoutes);
+    app.use("/api/timeslots", timeslotsRoutes);
+    app.use("/api/availability", availabilityRoutes);
     
     routesLoaded = true;
     console.log("✅ Routes loaded successfully");
@@ -73,7 +73,7 @@ async function loadRoutes() {
 }
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+app.get("/api/health", (req, res) => {
   try {
     res.status(200).json({
       status: 'OK',
@@ -145,8 +145,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // 404 handler
 app.use((req, res) => {
+  const fullPath = req.url;
   res.status(404).json({
-    error: `API endpoint ${req.path} not found`,
+    error: `API endpoint ${fullPath} not found`,
     timestamp: new Date().toISOString()
   });
 });
@@ -158,7 +159,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       if (req.method === 'OPTIONS') {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type', 'Authorization', 'X-Requested-With');
         res.status(200).end();
         resolve();
         return;
@@ -217,3 +218,4 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
   });
 }
+'''
