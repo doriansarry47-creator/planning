@@ -57,23 +57,23 @@ async function loadRoutes() {
     const { default: timeslotsRoutes } = await import('../server/routes/timeslots.js');
     const { default: availabilityRoutes } = await import('../server/routes/availability.js');
     
-    app.use('/auth', authRoutes);
-    app.use('/practitioners', practitionersRoutes);
-    app.use('/appointments', appointmentsRoutes);
-    app.use('/patients', patientsRoutes);
-    app.use('/timeslots', timeslotsRoutes);
-    app.use('/availability', availabilityRoutes);
+    app.use("/api/auth", authRoutes);
+    app.use("/api/practitioners", practitionersRoutes);
+    app.use("/api/appointments", appointmentsRoutes);
+    app.use("/api/patients", patientsRoutes);
+    app.use("/api/timeslots", timeslotsRoutes);
+    app.use("/api/availability", availabilityRoutes);
     
     routesLoaded = true;
-    console.log('✅ Routes loaded successfully');
+    console.log("✅ Routes loaded successfully");
   } catch (error) {
-    console.error('❌ Error loading routes:', error);
+    console.error("❌ Error loading routes:", error);
     throw error;
   }
 }
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get("/api/health", (req, res) => {
   try {
     res.status(200).json({
       status: 'OK',
@@ -109,7 +109,7 @@ app.get('/health', (req, res) => {
 });
 
 // API info endpoint
-app.get('/', (req, res) => {
+app.get("/api", (req, res) => {
   res.status(200).json({
     message: "API Médicale - Gestion des rendez-vous",
     version: "1.0.0",
