@@ -57,12 +57,12 @@ async function loadRoutes() {
     const { default: timeslotsRoutes } = await import('../server/routes/timeslots.js');
     const { default: availabilityRoutes } = await import('../server/routes/availability.js');
     
-    app.use("/api/auth", authRoutes);
-    app.use("/api/practitioners", practitionersRoutes);
-    app.use("/api/appointments", appointmentsRoutes);
-    app.use("/api/patients", patientsRoutes);
-    app.use("/api/timeslots", timeslotsRoutes);
-    app.use("/api/availability", availabilityRoutes);
+    app.use("/auth", authRoutes);
+    app.use("/practitioners", practitionersRoutes);
+    app.use("/appointments", appointmentsRoutes);
+    app.use("/patients", patientsRoutes);
+    app.use("/timeslots", timeslotsRoutes);
+    app.use("/availability", availabilityRoutes);
     
     routesLoaded = true;
     console.log("✅ Routes loaded successfully");
@@ -73,7 +73,7 @@ async function loadRoutes() {
 }
 
 // Health check endpoint
-app.get("/api/health", (req, res) => {
+app.get("/health", (req, res) => {
   try {
     res.status(200).json({
       status: 'OK',
@@ -177,7 +177,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
         reject(new Error('Request timeout'));
-      }, 10000);
+      }, 30000);
 
       // Convert Vercel request/response to Express format and handle
       app(req as any, res as any, (err: any) => {

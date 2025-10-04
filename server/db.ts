@@ -18,8 +18,11 @@ let db: any;
 try {
   // Utiliser Neon PostgreSQL pour toutes les environnements
   const sql = neon(process.env.DATABASE_URL);
+  const startTime = process.hrtime.bigint();
   db = drizzle(sql, { schema });
-  console.log("PostgreSQL database connection initialized");
+  const endTime = process.hrtime.bigint();
+  const duration = Number(endTime - startTime) / 1_000_000; // Convert nanoseconds to milliseconds
+  console.log(`PostgreSQL database connection initialized in ${duration.toFixed(2)} ms`);
 } catch (error) {
   console.error("Database connection error:", error);
   throw new Error(`Failed to initialize database: ${error instanceof Error ? error.message : String(error)}`);
