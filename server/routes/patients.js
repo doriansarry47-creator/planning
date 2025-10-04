@@ -9,7 +9,7 @@ const router = Router();
 // Obtenir le profil du patient connecté
 router.get("/profile", authMiddleware(['patient']), async (req, res) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     
     const patient = await db.select({
       id: patients.id,
@@ -43,7 +43,7 @@ router.get("/profile", authMiddleware(['patient']), async (req, res) => {
 // Mettre à jour le profil du patient connecté
 router.put("/profile", authMiddleware(['patient']), async (req, res) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     const {
       firstName,
       lastName,
@@ -124,17 +124,17 @@ router.get("/admin/all", authMiddleware(['admin']), async (req, res) => {
         like(patients.firstName, searchTerm),
         like(patients.lastName, searchTerm),
         like(patients.email, searchTerm)
-      )) as any;
+      ));
     }
 
     // Tri
-    const sortColumn: any = patients[sortBy as keyof typeof patients] || patients.createdAt;
+    const sortColumn = patients[sortBy] || patients.createdAt;
     const orderFn = sortOrder === 'asc' ? asc : desc;
-    query = query.orderBy(orderFn(sortColumn)) as any;
+    query = query.orderBy(orderFn(sortColumn));
 
     // Pagination
     const offset = (Number(page) - 1) * Number(limit);
-    query = query.limit(Number(limit)).offset(offset) as any;
+    query = query.limit(Number(limit)).offset(offset);
 
     const allPatients = await query;
 
@@ -146,7 +146,7 @@ router.get("/admin/all", authMiddleware(['admin']), async (req, res) => {
         like(patients.firstName, searchTerm),
         like(patients.lastName, searchTerm),
         like(patients.email, searchTerm)
-      )) as any;
+      ));
     }
 
     res.json({

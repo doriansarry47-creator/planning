@@ -61,8 +61,8 @@ router.get("/slots/:practitionerId", async (req, res) => {
 
     const slots = await availabilityService.getAvailableSlots({
       practitionerId,
-      startDate: startDate as string,
-      endDate: endDate as string,
+      startDate: startDate,
+      endDate: endDate,
       availableOnly: availableOnly === "true",
     });
 
@@ -111,7 +111,7 @@ router.post("/slots", authMiddleware(['admin']), async (req, res) => {
     });
   } catch (error) {
     if (error instanceof Error && 'errors' in error) {
-      return res.status(400).json({ error: "Données invalides", details: (error as any).errors });
+      return res.status(400).json({ error: "Données invalides", details: error.errors });
     }
     console.error("Erreur lors de la création du créneau:", error);
     res.status(500).json({ error: "Erreur interne du serveur" });

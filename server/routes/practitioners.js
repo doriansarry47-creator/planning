@@ -98,7 +98,7 @@ router.post("/", authMiddleware(['admin']), async (req, res) => {
     if (error instanceof Error && 'errors' in error) {
       return res.status(400).json({ 
         error: "Données invalides", 
-        details: (error as any).errors,
+        details: error.errors,
         timestamp: new Date().toISOString()
       });
     }
@@ -150,7 +150,7 @@ router.put("/:id", authMiddleware(['admin']), async (req, res) => {
     if (error instanceof Error && 'errors' in error) {
       return res.status(400).json({ 
         error: "Données invalides", 
-        details: (error as any).errors,
+        details: error.errors,
         timestamp: new Date().toISOString()
       });
     }
