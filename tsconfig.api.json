@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["api/**/*", "server/**/*", "shared/**/*"],
-  "exclude": ["node_modules", "build", "dist", "client", "**/*.test.ts", "**/*.spec.ts"],
+  "include": ["api/**/*", "server/**/*.js", "shared/**/*"],
+  "exclude": ["server/**/*.ts", "node_modules", "build", "dist", "client", "**/*.test.ts", "**/*.spec.ts"],
   "compilerOptions": {
     "incremental": false,
     "noEmit": false,
@@ -24,3 +24,4 @@
     "outDir": "./dist"
   }
 }
+
