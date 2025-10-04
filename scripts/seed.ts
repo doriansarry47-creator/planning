@@ -1,6 +1,6 @@
-import { db } from "../server/db";
-import { users, patients, practitioners, timeSlots } from "../shared/schema-sqlite";
-import { hashPassword } from "../server/auth";
+import { db } from "../server/db.js";
+import { users, patients, practitioners, timeSlots } from "../shared/schema.js";
+import { hashPassword } from "../server/auth.js";
 
 async function seed() {
   console.log("🌱 Début de l'initialisation de la base de données...");
@@ -11,14 +11,14 @@ async function seed() {
     const adminPassword = await hashPassword("admin123");
     
     await db.insert(users).values({
-      username: "admin",
-      email: "admin@medical.fr",
+      username: "doriansarry47",
+      email: "doriansarry47@gmail.com",
       password: adminPassword,
-      fullName: "Administrateur Principal",
+      fullName: "Dorian Sarry",
       role: "admin",
     });
 
-    console.log("✅ Administrateur créé: admin@medical.fr / admin123");
+    console.log("✅ Administrateur créé: doriansarry47@gmail.com / admin123");
 
     // Créer des praticiens de test
     console.log("👨‍⚕️ Création des praticiens...");
@@ -106,7 +106,7 @@ async function seed() {
 
     console.log("\n🎉 Initialisation de la base de données terminée avec succès!");
     console.log("\n📋 Comptes de test créés:");
-    console.log("👤 Admin: admin@medical.fr / admin123");
+    console.log("👤 Admin: doriansarry47@gmail.com / admin123");
     console.log("🧑‍🤝‍🧑 Patient: patient@test.fr / patient123");
     
   } catch (error) {

@@ -3,6 +3,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
+// Import routes
+import authRoutes from '../server/routes/auth.js';
+import practitionersRoutes from '../server/routes/practitioners.js';
+import appointmentsRoutes from '../server/routes/appointments.js';
+import patientsRoutes from '../server/routes/patients.js';
+import timeslotsRoutes from '../server/routes/timeslots.js';
+import availabilityRoutes from '../server/routes/availability.js';
+
 // Configure dotenv for production
 dotenv.config();
 
@@ -43,34 +51,12 @@ app.use((req, res, next) => {
 });
 
 // Register routes (Vercel ajoute automatiquement le préfixe /api)
-// Routes will be loaded dynamically to avoid compilation issues
-let routesLoaded = false;
-
-async function loadRoutes() {
-  if (routesLoaded) return;
-  
-  try {
-    const { default: authRoutes } = await import('../server/routes/auth.js');
-    const { default: practitionersRoutes } = await import('../server/routes/practitioners.js');
-    const { default: appointmentsRoutes } = await import('../server/routes/appointments.js');
-    const { default: patientsRoutes } = await import('../server/routes/patients.js');
-    const { default: timeslotsRoutes } = await import('../server/routes/timeslots.js');
-    const { default: availabilityRoutes } = await import('../server/routes/availability.js');
-    
-    app.use('/auth', authRoutes);
-    app.use('/practitioners', practitionersRoutes);
-    app.use('/appointments', appointmentsRoutes);
-    app.use('/patients', patientsRoutes);
-    app.use('/timeslots', timeslotsRoutes);
-    app.use('/availability', availabilityRoutes);
-    
-    routesLoaded = true;
-    console.log('✅ Routes loaded successfully');
-  } catch (error) {
-    console.error('❌ Error loading routes:', error);
-    throw error;
-  }
-}
+app.use('/auth', authRoutes);
+app.use('/practitioners', practitionersRoutes);
+app.use('/appointments', appointmentsRoutes);
+app.use('/patients', patientsRoutes);
+app.use('/timeslots', timeslotsRoutes);
+app.use('/availability', availabilityRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -152,7 +138,7 @@ app.use((req, res) => {
 });
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  return new Promise<void>(async (resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     try {
       // Handle preflight requests
       if (req.method === 'OPTIONS') {
@@ -163,9 +149,6 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
         resolve();
         return;
       }
-
-      // Load routes dynamically on first request
-      await loadRoutes();
 
       // Add timeout to prevent hanging
       const timeout = setTimeout(() => {
