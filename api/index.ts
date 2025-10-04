@@ -159,16 +159,11 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       if (req.method === 'OPTIONS') {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type', 'Authorization', 'X-Requested-With');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
         res.status(200).end();
         resolve();
         return;
       }
-
-      // Load routes dynamically on first request
-      await loadRoutes();
-
-      // Add timeout to prevent hanging
       const timeout = setTimeout(() => {
         if (!res.headersSent) {
           console.error('Request timeout after 10 seconds');
