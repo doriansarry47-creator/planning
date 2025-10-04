@@ -1,4 +1,4 @@
-'''import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -50,12 +50,12 @@ async function loadRoutes() {
   if (routesLoaded) return;
   
   try {
-    const { default: authRoutes } = await import(\'../server/routes/auth.js\');
-    const { default: practitionersRoutes } = await import(\'../server/routes/practitioners.js\');
-    const { default: appointmentsRoutes } = await import(\'../server/routes/appointments.js\');
-    const { default: patientsRoutes } = await import(\'../server/routes/patients.js\');
-    const { default: timeslotsRoutes } = await import(\'../server/routes/timeslots.js\');
-    const { default: availabilityRoutes } = await import(\'../server/routes/availability.js\');
+    const { default: authRoutes } = await import('../server/routes/auth.js');
+    const { default: practitionersRoutes } = await import('../server/routes/practitioners.js');
+    const { default: appointmentsRoutes } = await import('../server/routes/appointments.js');
+    const { default: patientsRoutes } = await import('../server/routes/patients.js');
+    const { default: timeslotsRoutes } = await import('../server/routes/timeslots.js');
+    const { default: availabilityRoutes } = await import('../server/routes/availability.js');
     
     app.use("/api/auth", authRoutes);
     app.use("/api/practitioners", practitionersRoutes);
@@ -213,4 +213,3 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
   });
 }
-'''
