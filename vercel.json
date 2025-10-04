@@ -4,16 +4,16 @@
   "outputDirectory": "public",
   "installCommand": "npm install",
   "functions": {
-    "api/index.js": {
-      "runtime": "@vercel/node@3.2.4",
+    "api/index.ts": {
+      "runtime": "@vercel/node",
       "maxDuration": 30,
-      "includeFiles": "{server/**/*.js,shared}/**/*"
+      "includeFiles": "server/**/*"
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/index"
     },
     {
       "source": "/((?!api|assets|_next|favicon.ico).*)",
@@ -70,3 +70,4 @@
     }
   ]
 }
+
