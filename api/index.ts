@@ -42,38 +42,26 @@ app.use((req, res, next) => {
   next();
 });
 
-// Register routes (Vercel ajoute automatiquement le préfixe /api)
-// Routes will be loaded dynamically to avoid compilation issues
-let routesLoaded = false;
+// Import routes directly (Vercel handles the /api prefix automatically)
+import authRoutes from '../server/routes/auth.js';
+import practitionersRoutes from '../server/routes/practitioners.js';
+import appointmentsRoutes from '../server/routes/appointments.js';
+import patientsRoutes from '../server/routes/patients.js';
+import timeslotsRoutes from '../server/routes/timeslots.js';
+import availabilityRoutes from '../server/routes/availability.js';
 
-async function loadRoutes() {
-  if (routesLoaded) return;
-  
-  try {
-    const { default: authRoutes } = await import('../server/routes/auth.js');
-    const { default: practitionersRoutes } = await import('../server/routes/practitioners.js');
-    const { default: appointmentsRoutes } = await import('../server/routes/appointments.js');
-    const { default: patientsRoutes } = await import('../server/routes/patients.js');
-    const { default: timeslotsRoutes } = await import('../server/routes/timeslots.js');
-    const { default: availabilityRoutes } = await import('../server/routes/availability.js');
-    
-    app.use("/api/auth", authRoutes);
-    app.use("/api/practitioners", practitionersRoutes);
-    app.use("/api/appointments", appointmentsRoutes);
-    app.use("/api/patients", patientsRoutes);
-    app.use("/api/timeslots", timeslotsRoutes);
-    app.use("/api/availability", availabilityRoutes);
-    
-    routesLoaded = true;
-    console.log("✅ Routes loaded successfully");
-  } catch (error) {
-    console.error("❌ Error loading routes:", error);
-    throw error;
-  }
-}
+// Register routes without /api prefix (Vercel adds it automatically)
+app.use("/auth", authRoutes);
+app.use("/practitioners", practitionersRoutes);
+app.use("/appointments", appointmentsRoutes);
+app.use("/patients", patientsRoutes);
+app.use("/timeslots", timeslotsRoutes);
+app.use("/availability", availabilityRoutes);
+
+console.log("✅ Routes registered successfully");
 
 // Health check endpoint
-app.get("/api/health", (req, res) => {
+app.get("/health", (req, res) => {
   try {
     res.status(200).json({
       status: 'OK',
@@ -108,8 +96,8 @@ app.get("/api/health", (req, res) => {
   }
 });
 
-// API info endpoint
-app.get("/api", (req, res) => {
+// API info endpoint  
+app.get("/", (req, res) => {
   res.status(200).json({
     message: "API Médicale - Gestion des rendez-vous",
     version: "1.0.0",
@@ -153,63 +141,34 @@ app.use((req, res) => {
 });
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  return new Promise<void>(async (resolve, reject) => {
-    try {
-      // Handle preflight requests
-      if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-        res.status(200).end();
-        resolve();
-        return;
-      }
-      const timeout = setTimeout(() => {
-        if (!res.headersSent) {
-          console.error('Request timeout after 10 seconds');
-          res.status(408).json({ 
-            error: 'Request timeout', 
-            timestamp: new Date().toISOString() 
-          });
-        }
-        reject(new Error('Request timeout'));
-      }, 30000);
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.status(200).end();
+    return;
+  }
 
-      // Convert Vercel request/response to Express format and handle
-      app(req as any, res as any, (err: any) => {
-        clearTimeout(timeout);
-        
-        if (err) {
-          console.error('Vercel handler error:', {
-            message: err.message,
-            stack: err.stack,
-            url: req.url,
-            method: req.method,
-            headers: req.headers,
-            body: req.body,
-          });
-          
-          if (!res.headersSent) {
-            res.status(500).json({ 
-              error: 'Internal Server Error',
-              message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-              timestamp: new Date().toISOString() 
-            });
-          }
-          reject(err);
-        } else {
-          resolve();
-        }
+  // Convert Vercel request/response to Express format and handle
+  app(req as any, res as any, (err: any) => {
+    if (err) {
+      console.error('Vercel handler error:', {
+        message: err.message,
+        stack: err.stack,
+        url: req.url,
+        method: req.method,
+        headers: req.headers,
+        body: req.body,
       });
-    } catch (error) {
-      console.error('Handler setup error:', error);
+      
       if (!res.headersSent) {
         res.status(500).json({ 
-          error: 'Server initialization error',
+          error: 'Internal Server Error',
+          message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
           timestamp: new Date().toISOString() 
         });
       }
-      reject(error);
     }
   });
 }

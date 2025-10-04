@@ -9,7 +9,7 @@ const router = Router();
 // Obtenir les rendez-vous d'un patient
 router.get("/patient", authMiddleware(['patient']), async (req, res) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     
     const patientAppointments = await db.select({
       id: schema.appointments.id,
@@ -46,7 +46,7 @@ router.get("/patient", authMiddleware(['patient']), async (req, res) => {
 // Créer un nouveau rendez-vous (patient)
 router.post("/", authMiddleware(['patient']), async (req, res) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     const appointmentData = { ...req.body, patientId: userId };
     const validatedData = schema.insertAppointmentSchema.parse(appointmentData);
     
@@ -104,7 +104,7 @@ router.post("/", authMiddleware(['patient']), async (req, res) => {
     });
   } catch (error) {
     if (error instanceof Error && 'errors' in error) {
-      return res.status(400).json({ error: "Données invalides", details: (error as any).errors });
+      return res.status(400).json({ error: "Données invalides", details: error.errors });
     }
     console.error("Erreur lors de la création du rendez-vous:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Erreur interne du serveur" });
@@ -115,7 +115,7 @@ router.post("/", authMiddleware(['patient']), async (req, res) => {
 router.put("/:id/cancel", authMiddleware(['patient']), async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     
     // Récupérer les détails du rendez-vous avant annulation
     const appointmentToCancel = await db.select()
@@ -147,18 +147,18 @@ router.get("/admin/all", authMiddleware(['admin']), async (req, res) => {
   try {
     const { status, date, practitionerId } = req.query;
     
-    let whereConditions: any = [];
+    let whereConditions = [];
     
     if (status) {
-      whereConditions.push(eq(schema.appointments.status, status as string));
+      whereConditions.push(eq(schema.appointments.status, status));
     }
     
     if (date) {
-      whereConditions.push(eq(schema.appointments.appointmentDate, date as string));
+      whereConditions.push(eq(schema.appointments.appointmentDate, date));
     }
     
     if (practitionerId) {
-      whereConditions.push(eq(schema.appointments.practitionerId, practitionerId as string));
+      whereConditions.push(eq(schema.appointments.practitionerId, practitionerId));
     }
 
     const adminAppointments = await db.select({

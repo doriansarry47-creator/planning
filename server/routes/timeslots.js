@@ -38,7 +38,7 @@ router.post("/", authMiddleware(['admin']), async (req, res) => {
     });
   } catch (error) {
     if (error instanceof Error && 'errors' in error) {
-      return res.status(400).json({ error: "Données invalides", details: (error as any).errors });
+      return res.status(400).json({ error: "Données invalides", details: error.errors });
     }
     console.error("Erreur lors de la création du créneau:", error);
     res.status(500).json({ error: "Erreur interne du serveur" });
@@ -66,7 +66,7 @@ router.post("/bulk", authMiddleware(['admin']), async (req, res) => {
     });
   } catch (error) {
     if (error instanceof Error && 'errors' in error) {
-      return res.status(400).json({ error: "Données invalides", details: (error as any).errors });
+      return res.status(400).json({ error: "Données invalides", details: error.errors });
     }
     console.error("Erreur lors de la création des créneaux en lot:", error);
     res.status(500).json({ error: "Erreur interne du serveur" });
@@ -94,7 +94,7 @@ router.put("/:id", authMiddleware(['admin']), async (req, res) => {
     });
   } catch (error) {
     if (error instanceof Error && 'errors' in error) {
-      return res.status(400).json({ error: "Données invalides", details: (error as any).errors });
+      return res.status(400).json({ error: "Données invalides", details: error.errors });
     }
     console.error("Erreur lors de la mise à jour du créneau:", error);
     res.status(500).json({ error: "Erreur interne du serveur" });
