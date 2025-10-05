@@ -1,24 +1,39 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm run build:client",
+  "outputDirectory": "public",
   "installCommand": "npm install",
   "functions": {
-    "api/**/*.ts": {
-      "runtime": "nodejs20.x"
+    "api/index.js": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 30,
+      "includeFiles": "{server/**/*.js,shared}/**/*"
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "destination": "/api/index.js"
     },
     {
       "source": "/((?!api|assets|_next|favicon.ico).*)",
       "destination": "/index.html"
     }
   ],
+  "env": {
+    "NODE_ENV": "production",
+    "VITE_API_URL": "/api"
+  },
   "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
     {
       "source": "/api/(.*)",
       "headers": [
@@ -35,6 +50,24 @@
           "value": "Content-Type, Authorization, X-Requested-With"
         }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
     }
   ]
 }
+
