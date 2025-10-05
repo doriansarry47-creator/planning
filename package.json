@@ -3,11 +3,14 @@
   "version": "2.0.0",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "vercel-build": "vite build"
+    "vercel-build": "npm run build:server && npm run build:client"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
