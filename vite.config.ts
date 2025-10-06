@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: './', // essentiel pour Vercel
+  base: '/', // Pour Vercel
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -14,5 +14,18 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['wouter'],
+          query: ['@tanstack/react-query'],
+        },
+      },
+    },
+  },
+  server: {
+    host: true,
+    port: 5173,
   },
 });

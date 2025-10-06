@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, userType: 'admin' | 'patient') => {
     try {
-      const endpoint = userType === 'admin' ? '/auth/login/admin' : '/auth/login/patient';
+      const endpoint = `/auth/login?userType=${userType}`;
       const response = await api.post(endpoint, { email, password });
       
       const { token, user: userData } = response.data;
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (userData: any, userType: 'admin' | 'patient') => {
     try {
-      const endpoint = userType === 'admin' ? '/auth/register/admin' : '/auth/register/patient';
+      const endpoint = `/auth/register?userType=${userType}`;
       const response = await api.post(endpoint, userData);
       
       const { token, user: newUser } = response.data;
