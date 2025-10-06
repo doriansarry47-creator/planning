@@ -1,6 +1,10 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
 export default defineConfig({
   plugins: [react()],
-  base: './', // <-- essentiel pour Vercel
+  base: './', // chemins relatifs pour Vercel
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -18,14 +22,6 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          utils: ['axios', 'wouter'],
-        },
-      },
-    },
   },
   server: {
     port: 5173,
@@ -37,9 +33,5 @@ export default defineConfig({
         secure: false,
       },
     },
-  },
-  preview: {
-    port: 5173,
-    host: true,
   },
 });
