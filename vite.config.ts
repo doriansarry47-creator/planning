@@ -4,34 +4,15 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: './', // chemins relatifs pour Vercel
+  base: './', // essentiel pour Vercel
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@/lib': path.resolve(__dirname, './src/lib'),
-      '@/components': path.resolve(__dirname, './src/components'),
-      '@/pages': path.resolve(__dirname, './src/pages'),
-      '@/hooks': path.resolve(__dirname, './src/hooks'),
-      '@/types': path.resolve(__dirname, './src/types'),
     },
-  },
-  define: {
-    'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || '/api'),
   },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-  },
-  server: {
-    port: 5173,
-    host: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
   },
 });
