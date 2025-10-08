@@ -8,27 +8,37 @@ import {
   Shield, 
   Users, 
   Heart, 
-  Stethoscope,
+  Brain,
+  Leaf,
   ArrowRight 
 } from 'lucide-react';
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-medical-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-therapy-50 via-white to-therapy-100">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-therapy-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              <Heart className="h-8 w-8 text-medical-600 mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">MedPlan</h1>
+              <div className="bg-therapy-600 p-2 rounded-full mr-3">
+                <Heart className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-therapy-800">Dorian Sarry</h1>
+                <p className="text-sm text-therapy-600">Thérapie sensori-motrice</p>
+              </div>
             </div>
             <div className="space-x-4">
               <Link href="/login/patient">
-                <Button variant="outline">Connexion Patient</Button>
+                <Button variant="outline" className="border-therapy-600 text-therapy-600 hover:bg-therapy-50">
+                  Connexion Patient
+                </Button>
               </Link>
               <Link href="/login/admin">
-                <Button>Espace Admin</Button>
+                <Button className="bg-therapy-600 hover:bg-therapy-700">
+                  Espace Admin
+                </Button>
               </Link>
             </div>
           </div>
@@ -38,18 +48,42 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-5xl font-bold text-gray-900 mb-6">
-            Gestion des rendez-vous médicaux
-            <span className="text-medical-600"> simplifiée</span>
-          </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Une plateforme moderne et intuitive pour gérer vos consultations médicales. 
-            Prenez rendez-vous en ligne, suivez votre historique médical et restez connecté 
-            avec vos professionnels de santé.
-          </p>
+          <div className="mb-8">
+            <div className="flex items-center justify-center space-x-3 mb-6">
+              <div className="bg-therapy-600 p-4 rounded-full">
+                <Leaf className="h-12 w-12 text-white" />
+              </div>
+            </div>
+            <h2 className="text-5xl font-bold text-therapy-800 mb-4">
+              Stabilisation émotionnelle
+            </h2>
+            <h3 className="text-4xl font-bold text-therapy-700 mb-6">
+              et traitement du <span className="text-therapy-600">psycho-traumatisme</span>
+            </h3>
+          </div>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 max-w-4xl mx-auto border border-therapy-200 healing-shadow mb-8">
+            <p className="text-xl text-therapy-700 mb-6 leading-relaxed">
+              Une approche thérapeutique moderne et bienveillante pour votre bien-être émotionnel. 
+              Prenez rendez-vous en toute simplicité et gérez votre parcours de soin.
+            </p>
+            <div className="flex items-center justify-center space-x-8 text-sm text-therapy-600 mb-8">
+              <div className="flex items-center space-x-2">
+                <Shield className="h-5 w-5" />
+                <span>Confidentialité assurée</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Heart className="h-5 w-5" />
+                <span>Accompagnement bienveillant</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Brain className="h-5 w-5" />
+                <span>Approche holistique</span>
+              </div>
+            </div>
+          </div>
           <div className="space-x-4">
             <Link href="/login/patient">
-              <Button size="lg" className="medical-button">
+              <Button size="lg" className="bg-therapy-gradient hover:opacity-90 text-white font-semibold py-4 px-8 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl">
                 Prendre un rendez-vous
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -62,107 +96,107 @@ export function LandingPage() {
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">
-              Fonctionnalités principales
+            <h3 className="text-3xl font-bold text-therapy-800 mb-4">
+              Votre parcours thérapeutique
             </h3>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Découvrez tous les avantages de notre plateforme de gestion médicale
+            <p className="text-lg text-therapy-600 max-w-2xl mx-auto">
+              Découvrez une approche personnalisée pour votre bien-être émotionnel
             </p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="medical-card">
-              <CardHeader>
-                <Calendar className="h-12 w-12 text-medical-600 mb-4" />
-                <CardTitle>Prise de rendez-vous en ligne</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Réservez vos consultations 24h/24, 7j/7 avec nos praticiens. 
-                  Interface simple et intuitive pour choisir vos créneaux.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="therapy-card p-6">
+              <div className="mb-4">
+                <div className="bg-therapy-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <Calendar className="h-8 w-8 text-therapy-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-therapy-800">Prise de rendez-vous simplifiée</h4>
+              </div>
+              <p className="text-therapy-600">
+                Réservez vos séances de thérapie en ligne, 24h/24. 
+                Choisissez le créneau qui vous convient le mieux.
+              </p>
+            </div>
 
-            <Card className="medical-card">
-              <CardHeader>
-                <Stethoscope className="h-12 w-12 text-medical-600 mb-4" />
-                <CardTitle>Suivi médical personnalisé</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Accédez à votre historique médical, vos prescriptions et 
-                  suivez l'évolution de votre santé en un clic.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="therapy-card p-6">
+              <div className="mb-4">
+                <div className="bg-therapy-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <Brain className="h-8 w-8 text-therapy-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-therapy-800">Suivi thérapeutique personnalisé</h4>
+              </div>
+              <p className="text-therapy-600">
+                Suivez votre progression thérapeutique et accédez à vos notes 
+                de séances en toute confidentialité.
+              </p>
+            </div>
 
-            <Card className="medical-card">
-              <CardHeader>
-                <Shield className="h-12 w-12 text-medical-600 mb-4" />
-                <CardTitle>Sécurité et confidentialité</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Vos données médicales sont protégées par un chiffrement de 
-                  niveau bancaire et respectent la réglementation RGPD.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="therapy-card p-6">
+              <div className="mb-4">
+                <div className="bg-therapy-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <Shield className="h-8 w-8 text-therapy-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-therapy-800">Confidentialité absolue</h4>
+              </div>
+              <p className="text-therapy-600">
+                Vos échanges thérapeutiques sont protégés par le secret professionnel 
+                et un chiffrement de niveau bancaire.
+              </p>
+            </div>
 
-            <Card className="medical-card">
-              <CardHeader>
-                <Clock className="h-12 w-12 text-medical-600 mb-4" />
-                <CardTitle>Rappels automatiques</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Recevez des notifications pour vos rendez-vous à venir et 
-                  n'oubliez plus jamais vos consultations importantes.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="therapy-card p-6">
+              <div className="mb-4">
+                <div className="bg-therapy-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <Clock className="h-8 w-8 text-therapy-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-therapy-800">Rappels bienveillants</h4>
+              </div>
+              <p className="text-therapy-600">
+                Recevez des rappels personnalisés pour vos séances à venir 
+                et ne manquez plus vos rendez-vous thérapeutiques.
+              </p>
+            </div>
 
-            <Card className="medical-card">
-              <CardHeader>
-                <Users className="h-12 w-12 text-medical-600 mb-4" />
-                <CardTitle>Équipe médicale qualifiée</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Consultez le profil de nos praticiens, leurs spécialités et 
-                  choisissez le professionnel qui vous correspond.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="therapy-card p-6">
+              <div className="mb-4">
+                <div className="bg-therapy-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <Users className="h-8 w-8 text-therapy-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-therapy-800">Accompagnement professionnel</h4>
+              </div>
+              <p className="text-therapy-600">
+                Bénéficiez d'un accompagnement spécialisé en thérapie sensori-motrice 
+                avec une approche adaptée à vos besoins.
+              </p>
+            </div>
 
-            <Card className="medical-card">
-              <CardHeader>
-                <Heart className="h-12 w-12 text-medical-600 mb-4" />
-                <CardTitle>Soins coordonnés</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Bénéficiez d'un suivi coordonné entre différents spécialistes 
-                  pour des soins optimaux et personnalisés.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="therapy-card p-6">
+              <div className="mb-4">
+                <div className="bg-therapy-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <Heart className="h-8 w-8 text-therapy-600" />
+                </div>
+                <h4 className="text-xl font-semibold text-therapy-800">Approche holistique</h4>
+              </div>
+              <p className="text-therapy-600">
+                Une prise en charge globale de votre bien-être émotionnel, 
+                corporel et mental pour une guérison durable.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-medical-600 text-white">
+      <section className="py-16 bg-therapy-gradient text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h3 className="text-3xl font-bold mb-4">
-            Prêt à prendre en main votre santé ?
+            Prêt à commencer votre parcours de guérison ?
           </h3>
           <p className="text-xl mb-8 opacity-90">
-            Créez votre compte dès maintenant et accédez à tous nos services
+            Créez votre compte dès maintenant et prenez votre premier rendez-vous
           </p>
           <Link href="/login/patient">
-            <Button size="lg" variant="secondary">
+            <Button size="lg" className="bg-white text-therapy-600 hover:bg-gray-50 font-semibold px-8 py-4">
               Commencer maintenant
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -176,33 +210,38 @@ export function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center mb-4">
-                <Heart className="h-6 w-6 text-medical-400 mr-2" />
-                <span className="text-lg font-bold">MedPlan</span>
+                <div className="bg-therapy-600 p-2 rounded-full mr-3">
+                  <Heart className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <span className="text-lg font-bold">Dorian Sarry</span>
+                  <p className="text-sm text-gray-500">Thérapie sensori-motrice</p>
+                </div>
               </div>
               <p className="text-gray-400">
-                Votre plateforme de confiance pour la gestion des rendez-vous médicaux.
+                Votre thérapeute de confiance pour la stabilisation émotionnelle et le traitement du psycho-traumatisme.
               </p>
             </div>
             <div>
-              <h4 className="text-lg font-semibold mb-4">Services</h4>
+              <h4 className="text-lg font-semibold mb-4">Services thérapeutiques</h4>
               <ul className="space-y-2 text-gray-400">
-                <li>Prise de rendez-vous</li>
-                <li>Suivi médical</li>
-                <li>Consultations en ligne</li>
-                <li>Gestion des prescriptions</li>
+                <li>Thérapie sensori-motrice</li>
+                <li>Traitement du psycho-traumatisme</li>
+                <li>Stabilisation émotionnelle</li>
+                <li>Accompagnement personnalisé</li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Contact</h4>
               <div className="space-y-2 text-gray-400">
-                <p>📧 contact@medplan.fr</p>
-                <p>📞 01 23 45 67 89</p>
-                <p>📍 123 Rue de la Santé, 75001 Paris</p>
+                <p>📧 doriansarry47@gmail.com</p>
+                <p>📞 Sur rendez-vous uniquement</p>
+                <p>📍 Consultations en cabinet ou à distance</p>
               </div>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 MedPlan. Tous droits réservés.</p>
+            <p>&copy; 2024 Dorian Sarry - Thérapie sensori-motrice. Tous droits réservés.</p>
           </div>
         </div>
       </footer>

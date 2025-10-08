@@ -25,9 +25,12 @@
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
     
-    /* Medical theme colors */
-    --medical-primary: 197 71% 52%;
-    --medical-secondary: 197 71% 95%;
+    /* Medical theme colors - Therapy Green */
+    --medical-primary: 142 76% 36%;
+    --medical-secondary: 142 76% 95%;
+    --therapy-primary: 142 76% 36%;
+    --therapy-secondary: 142 76% 95%;
+    --therapy-accent: 142 76% 25%;
   }
 
   .dark {
@@ -73,6 +76,22 @@
   }
   
   .medical-button {
-    @apply bg-medical-500 hover:bg-medical-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-therapy-600 hover:bg-therapy-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-md hover:shadow-lg;
+  }
+  
+  .therapy-gradient {
+    background: linear-gradient(135deg, #16a34a 0%, #22c55e 50%, #4ade80 100%);
+  }
+  
+  .therapy-card {
+    @apply bg-white border border-therapy-200 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 hover:border-therapy-300;
+  }
+  
+  .therapy-input {
+    @apply border-therapy-200 focus:border-therapy-500 focus:ring-therapy-200;
+  }
+  
+  .healing-shadow {
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.1), 0 2px 4px -1px rgba(34, 197, 94, 0.06);
   }
 }

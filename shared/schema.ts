@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, boolean, date, time } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+// import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Table des utilisateurs (administrateurs)
@@ -112,25 +112,15 @@ export const scheduleExceptions = pgTable("schedule_exceptions", {
 });
 
 // Schémas de validation Zod
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  email: true,
-  fullName: true,
-  role: true,
+export const insertUserSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+  email: z.string().email(),
+  fullName: z.string().min(1),
+  role: z.string().default("admin"),
 });
 
-export const insertPatientSchema = createInsertSchema(patients).pick({
-  email: true,
-  password: true,
-  firstName: true,
-  lastName: true,
-  phoneNumber: true,
-  dateOfBirth: true,
-  address: true,
-  emergencyContact: true,
-  emergencyPhone: true,
-}).extend({
+export const insertPatientSchema = z.object({
   email: z.string().email("Format d'email invalide").min(1, "L'email est requis"),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").regex(
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
@@ -142,42 +132,46 @@ export const insertPatientSchema = createInsertSchema(patients).pick({
     (phone) => !phone || /^(?:\+33|0)[1-9](?:[0-9]{8})$/.test(phone.replace(/\s/g, '')),
     "Format de téléphone invalide (format français attendu)"
   ),
+  dateOfBirth: z.string().optional(),
+  address: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  emergencyPhone: z.string().optional(),
 });
 
-export const insertPractitionerSchema = createInsertSchema(practitioners).pick({
-  firstName: true,
-  lastName: true,
-  specialization: true,
-  email: true,
-  phoneNumber: true,
-  licenseNumber: true,
-  biography: true,
-  consultationDuration: true,
+export const insertPractitionerSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  specialization: z.string().min(1),
+  email: z.string().email(),
+  phoneNumber: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  biography: z.string().optional(),
+  consultationDuration: z.number().default(30),
 });
 
-export const insertAppointmentSchema = createInsertSchema(appointments).pick({
-  patientId: true,
-  practitionerId: true,
-  appointmentDate: true,
-  startTime: true,
-  endTime: true,
-  reason: true,
+export const insertAppointmentSchema = z.object({
+  patientId: z.string(),
+  practitionerId: z.string(),
+  appointmentDate: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  reason: z.string().optional(),
 });
 
-export const insertTimeSlotSchema = createInsertSchema(timeSlots).pick({
-  practitionerId: true,
-  dayOfWeek: true,
-  startTime: true,
-  endTime: true,
+export const insertTimeSlotSchema = z.object({
+  practitionerId: z.string(),
+  dayOfWeek: z.number(),
+  startTime: z.string(),
+  endTime: z.string(),
 });
 
-export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots).pick({
-  practitionerId: true,
-  startTime: true,
-  endTime: true,
-  recurringRule: true,
-  capacity: true,
-  notes: true,
+export const insertAvailabilitySlotSchema = z.object({
+  practitionerId: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  recurringRule: z.string().optional(),
+  capacity: z.number().default(1),
+  notes: z.string().optional(),
 });
 
 // Types TypeScript

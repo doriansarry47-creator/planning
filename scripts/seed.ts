@@ -1,8 +1,15 @@
 import { config } from 'dotenv';
-import { db, users, patients, practitioners } from '../shared/schema';
+
+// Charger les variables d'environnement depuis .env
+config({ path: '.env' });
+
+import { users, patients, practitioners } from '../shared/sqlite-schema';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { hashPassword } from '../api/_lib/auth';
 
-config();
+const sqlite = new Database('./dev.sqlite');
+const db = drizzle(sqlite);
 
 async function seed() {
   try {
@@ -18,62 +25,65 @@ async function seed() {
       role: 'admin',
     }).onConflictDoNothing();
 
-    console.log('✅ Administrateur créé');
-
-    // Créer un patient de test
-    const hashedPatientPassword = await hashPassword('patient123');
-    await db.insert(patients).values({
-      email: 'patient@test.fr',
-      password: hashedPatientPassword,
-      firstName: 'Jean',
-      lastName: 'Dupont',
-      phoneNumber: '0123456789',
-      dateOfBirth: '1985-06-15',
-      address: '123 Rue de la Santé, 75001 Paris',
+    // Créer le compte admin de Dorian Sarry
+    const hashedDorianPassword = await hashPassword('admin123');
+    await db.insert(users).values({
+      username: 'doriansarry',
+      email: 'doriansarry47@gmail.com',
+      password: hashedDorianPassword,
+      fullName: 'Dorian Sarry',
+      role: 'admin',
     }).onConflictDoNothing();
 
-    console.log('✅ Patient de test créé');
+    console.log('✅ Administrateurs créés');
 
-    // Créer des praticiens de test
+    // Créer des patients de test
+    const hashedPatientPassword = await hashPassword('patient123');
+    await db.insert(patients).values([
+      {
+        email: 'patient@test.fr',
+        password: hashedPatientPassword,
+        firstName: 'Marie',
+        lastName: 'Sereine',
+        phoneNumber: '0123456789',
+        dateOfBirth: '1985-06-15',
+        address: 'Paris, France',
+      },
+      {
+        email: 'test.patient2@example.com',
+        password: hashedPatientPassword,
+        firstName: 'Paul',
+        lastName: 'Bienêtre',
+        phoneNumber: '0123456788',
+        dateOfBirth: '1990-03-20',
+        address: 'Lyon, France',
+      },
+    ]).onConflictDoNothing();
+
+    console.log('✅ Patients de test créés');
+
+    // Créer Dorian Sarry comme praticien principal
     await db.insert(practitioners).values([
       {
-        firstName: 'Marie',
-        lastName: 'Martin',
-        specialization: 'Médecine générale',
-        email: 'marie.martin@medplan.fr',
-        phoneNumber: '0123456790',
-        licenseNumber: 'MED001',
-        biography: 'Médecin généraliste avec 15 ans d\'expérience.',
-        consultationDuration: 30,
-      },
-      {
-        firstName: 'Pierre',
-        lastName: 'Durand',
-        specialization: 'Cardiologie',
-        email: 'pierre.durand@medplan.fr',
-        phoneNumber: '0123456791',
-        licenseNumber: 'CARD001',
-        biography: 'Cardiologue spécialisé dans les pathologies cardiovasculaires.',
-        consultationDuration: 45,
-      },
-      {
-        firstName: 'Sophie',
-        lastName: 'Leroy',
-        specialization: 'Dermatologie',
-        email: 'sophie.leroy@medplan.fr',
-        phoneNumber: '0123456792',
-        licenseNumber: 'DERM001',
-        biography: 'Dermatologue experte en dermatologie esthétique et médicale.',
-        consultationDuration: 30,
+        firstName: 'Dorian',
+        lastName: 'Sarry',
+        specialization: 'Thérapie sensori-motrice',
+        email: 'doriansarry47@gmail.com',
+        phoneNumber: 'Sur rendez-vous uniquement',
+        licenseNumber: 'TSM001',
+        biography: 'Thérapeute spécialisé en stabilisation émotionnelle et traitement du psycho-traumatisme. Approche holistique alliant thérapie sensori-motrice et accompagnement bienveillant.',
+        consultationDuration: 60,
       },
     ]).onConflictDoNothing();
 
     console.log('✅ Praticiens créés');
     console.log('🎉 Seeding terminé avec succès !');
 
+    sqlite.close();
     process.exit(0);
   } catch (error) {
     console.error('❌ Erreur pendant le seeding:', error);
+    sqlite.close();
     process.exit(1);
   }
 }
