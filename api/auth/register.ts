@@ -1,21 +1,39 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import { db, users, patients, insertUserSchema, insertPatientSchema } from '../_lib/db';
-import { hashPassword, generateToken } from '../_lib/auth';
+import bcrypt from 'bcryptjs';
+import { mockDb } from '../_lib/mock-db';
+import { generateToken } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
 
-const registerAdminSchema = insertUserSchema.extend({
+const registerAdminSchema = z.object({
+  email: z.string().email("Format d'email invalide"),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
   confirmPassword: z.string(),
+  username: z.string().min(2, "Le nom d'utilisateur est requis"),
+  fullName: z.string().min(2, "Le nom complet est requis"),
+  role: z.string().optional().default('admin'),
 });
 
-const registerPatientSchema = insertPatientSchema.extend({
+const registerPatientSchema = z.object({
+  email: z.string().email("Format d'email invalide"),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+    "Le mot de passe doit contenir au moins une lettre minuscule, une majuscule et un chiffre"
+  ),
   confirmPassword: z.string(),
+  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
+  lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  phoneNumber: z.string().optional(),
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   if (req.method === 'OPTIONS') {
-    return handleCors(res);
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
@@ -41,7 +59,7 @@ async function registerAdmin(req: VercelRequest, res: VercelResponse) {
   const validationResult = registerAdminSchema.safeParse(req.body);
   
   if (!validationResult.success) {
-    return sendError(res, 'Données invalides', 400);
+    return sendError(res, 'Données invalides: ' + validationResult.error.issues[0].message, 400);
   }
 
   const { password, confirmPassword, ...userData } = validationResult.data;
@@ -51,17 +69,17 @@ async function registerAdmin(req: VercelRequest, res: VercelResponse) {
   }
 
   // Vérifier si l'email existe déjà
-  const existingUser = await db.select().from(users).where(eq(users.email, userData.email)).limit(1);
-  if (existingUser.length > 0) {
+  const existingUser = await mockDb.findUserByEmail(userData.email);
+  if (existingUser) {
     return sendError(res, 'Cette adresse email est déjà utilisée', 409);
   }
 
   // Hasher le mot de passe et créer l'utilisateur
-  const hashedPassword = await hashPassword(password);
-  const [newUser] = await db.insert(users).values({
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = await mockDb.createUser({
     ...userData,
     password: hashedPassword,
-  }).returning();
+  });
 
   // Générer le token
   const token = generateToken({
@@ -83,7 +101,7 @@ async function registerPatient(req: VercelRequest, res: VercelResponse) {
   const validationResult = registerPatientSchema.safeParse(req.body);
   
   if (!validationResult.success) {
-    return sendError(res, 'Données invalides', 400);
+    return sendError(res, 'Données invalides: ' + validationResult.error.issues[0].message, 400);
   }
 
   const { password, confirmPassword, ...patientData } = validationResult.data;
@@ -93,17 +111,17 @@ async function registerPatient(req: VercelRequest, res: VercelResponse) {
   }
 
   // Vérifier si l'email existe déjà
-  const existingPatient = await db.select().from(patients).where(eq(patients.email, patientData.email)).limit(1);
-  if (existingPatient.length > 0) {
+  const existingPatient = await mockDb.findPatientByEmail(patientData.email);
+  if (existingPatient) {
     return sendError(res, 'Cette adresse email est déjà utilisée', 409);
   }
 
   // Hasher le mot de passe et créer le patient
-  const hashedPassword = await hashPassword(password);
-  const [newPatient] = await db.insert(patients).values({
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newPatient = await mockDb.createPatient({
     ...patientData,
     password: hashedPassword,
-  }).returning();
+  });
 
   // Générer le token
   const token = generateToken({

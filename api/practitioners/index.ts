@@ -1,12 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { eq } from 'drizzle-orm';
-import { db, practitioners, insertPractitionerSchema } from '../_lib/db';
+import { z } from 'zod';
+import { mockDb } from '../_lib/mock-db';
 import { requireAdminAuth } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   if (req.method === 'OPTIONS') {
-    return handleCors(res);
+    return res.status(200).end();
   }
 
   try {
@@ -25,10 +30,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 async function getPractitioners(req: VercelRequest, res: VercelResponse) {
   // Les praticiens peuvent être consultés par tous (patients et admins)
-  const allPractitioners = await db.select().from(practitioners).where(eq(practitioners.isActive, true));
+  const allPractitioners = await mockDb.findAllPractitioners();
   
   return sendSuccess(res, allPractitioners);
 }
+
+const insertPractitionerSchema = z.object({
+  firstName: z.string().min(2, "Le prénom est requis"),
+  lastName: z.string().min(2, "Le nom est requis"),
+  specialization: z.string().min(2, "La spécialisation est requise"),
+  email: z.string().email("Format d'email invalide"),
+  phoneNumber: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  biography: z.string().optional(),
+  consultationDuration: z.number().min(15).max(180).default(60),
+});
 
 async function createPractitioner(req: VercelRequest, res: VercelResponse) {
   // Seuls les admins peuvent créer des praticiens
@@ -37,24 +53,15 @@ async function createPractitioner(req: VercelRequest, res: VercelResponse) {
   const validationResult = insertPractitionerSchema.safeParse(req.body);
   
   if (!validationResult.success) {
-    return sendError(res, 'Données invalides', 400);
+    return sendError(res, 'Données invalides: ' + validationResult.error.issues[0].message, 400);
   }
 
   const practitionerData = validationResult.data;
 
-  // Vérifier si l'email existe déjà
-  const existingPractitioner = await db.select()
-    .from(practitioners)
-    .where(eq(practitioners.email, practitionerData.email))
-    .limit(1);
-    
-  if (existingPractitioner.length > 0) {
-    return sendError(res, 'Cette adresse email est déjà utilisée', 409);
-  }
-
-  const [newPractitioner] = await db.insert(practitioners)
-    .values(practitionerData)
-    .returning();
+  const newPractitioner = await mockDb.createPractitioner({
+    ...practitionerData,
+    isActive: true,
+  });
 
   return sendSuccess(res, newPractitioner, 'Praticien créé avec succès', 201);
 }

@@ -38,16 +38,18 @@ export function PatientDashboard() {
   ) || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white/95 backdrop-blur-md shadow-lg border-b border-green-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <Heart className="h-8 w-8 text-medical-600 mr-3" />
+              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-2 rounded-lg mr-3">
+                <Heart className="h-6 w-6 text-white" />
+              </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">MedPlan</h1>
-                <p className="text-sm text-gray-600">Espace Patient</p>
+                <h1 className="text-xl font-bold text-gray-900">Dorian Sarry</h1>
+                <p className="text-sm text-green-600 font-medium">Thérapie sensori-motrice</p>
               </div>
             </div>
             
@@ -84,35 +86,43 @@ export function PatientDashboard() {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-green-50 to-teal-50 cursor-pointer">
             <CardContent className="p-6 text-center">
-              <Plus className="h-8 w-8 text-medical-600 mx-auto mb-3" />
+              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <Plus className="h-6 w-6 text-white" />
+              </div>
               <h3 className="font-semibold text-gray-900 mb-2">Nouveau RDV</h3>
-              <p className="text-sm text-gray-600">Prendre un rendez-vous</p>
+              <p className="text-sm text-gray-600">Réserver une séance</p>
             </CardContent>
           </Card>
 
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 cursor-pointer">
             <CardContent className="p-6 text-center">
-              <Calendar className="h-8 w-8 text-medical-600 mx-auto mb-3" />
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <Calendar className="h-6 w-6 text-white" />
+              </div>
               <h3 className="font-semibold text-gray-900 mb-2">Mes RDV</h3>
-              <p className="text-sm text-gray-600">Voir tous mes rendez-vous</p>
+              <p className="text-sm text-gray-600">Mes séances programmées</p>
             </CardContent>
           </Card>
 
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50 cursor-pointer">
             <CardContent className="p-6 text-center">
-              <FileText className="h-8 w-8 text-medical-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-900 mb-2">Historique</h3>
-              <p className="text-sm text-gray-600">Consulter mon historique</p>
+              <div className="bg-gradient-to-r from-purple-500 to-pink-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Suivi</h3>
+              <p className="text-sm text-gray-600">Mon parcours thérapeutique</p>
             </CardContent>
           </Card>
 
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-red-50 cursor-pointer">
             <CardContent className="p-6 text-center">
-              <Settings className="h-8 w-8 text-medical-600 mx-auto mb-3" />
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <Settings className="h-6 w-6 text-white" />
+              </div>
               <h3 className="font-semibold text-gray-900 mb-2">Profil</h3>
-              <p className="text-sm text-gray-600">Modifier mes informations</p>
+              <p className="text-sm text-gray-600">Mes informations personnelles</p>
             </CardContent>
           </Card>
         </div>

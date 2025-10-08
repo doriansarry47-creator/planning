@@ -29,20 +29,25 @@ export function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-teal-900">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
+      <header className="bg-gray-800/95 backdrop-blur-md border-b border-teal-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <Link href="/">
-              <Button variant="ghost" className="flex items-center text-gray-300 hover:text-white">
+              <Button variant="ghost" className="flex items-center text-gray-300 hover:text-white hover:bg-teal-700/30">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Retour à l'accueil
               </Button>
             </Link>
             <div className="flex items-center">
-              <Heart className="h-6 w-6 text-medical-400 mr-2" />
-              <h1 className="text-xl font-bold text-white">MedPlan Admin</h1>
+              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-2 rounded-lg mr-3">
+                <Heart className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white">Administration</h1>
+                <p className="text-xs text-teal-400">Dorian Sarry - Thérapie</p>
+              </div>
             </div>
           </div>
         </div>
@@ -51,14 +56,16 @@ export function AdminLoginPage() {
       {/* Main Content */}
       <div className="flex items-center justify-center py-12">
         <div className="w-full max-w-md">
-          <Card className="bg-white shadow-xl">
-            <CardHeader className="text-center bg-gray-800 text-white rounded-t-lg">
-              <Shield className="h-12 w-12 mx-auto mb-4 text-medical-400" />
+          <Card className="bg-white/95 backdrop-blur-sm shadow-2xl border-0">
+            <CardHeader className="text-center bg-gradient-to-r from-gray-800 to-slate-700 text-white rounded-t-lg pb-8">
+              <div className="bg-gradient-to-r from-teal-400 to-green-500 p-3 rounded-xl w-fit mx-auto mb-4">
+                <Shield className="h-10 w-10 text-white" />
+              </div>
               <CardTitle className="text-2xl font-bold">
-                Connexion Administrateur
+                Administration Thérapeutique
               </CardTitle>
               <p className="text-gray-300 mt-2">
-                Accès réservé au personnel autorisé
+                Gestion des rendez-vous et suivi patients
               </p>
             </CardHeader>
             
@@ -111,20 +118,21 @@ export function AdminLoginPage() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gray-800 hover:bg-gray-900" 
+                  className="w-full bg-gradient-to-r from-gray-800 to-slate-700 hover:from-gray-900 hover:to-slate-800 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all" 
                   disabled={loading}
                 >
                   {loading ? 'Connexion...' : 'Accéder à l\'administration'}
                 </Button>
               </form>
               
-              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="mt-6 p-4 bg-teal-50 border border-teal-200 rounded-xl">
                 <div className="flex items-start">
-                  <Shield className="h-5 w-5 text-yellow-600 mr-2 mt-0.5" />
+                  <Shield className="h-5 w-5 text-teal-600 mr-2 mt-0.5" />
                   <div className="text-sm">
-                    <p className="text-yellow-800 font-medium">Accès sécurisé</p>
-                    <p className="text-yellow-700 mt-1">
-                      Cet espace est réservé au personnel médical et administratif autorisé.
+                    <p className="text-teal-800 font-medium">Accès professionnel sécurisé</p>
+                    <p className="text-teal-700 mt-1">
+                      Espace de gestion thérapeutique réservé aux praticiens autorisés.
+                      Toutes les données patients sont strictement confidentielles.
                     </p>
                   </div>
                 </div>
@@ -138,12 +146,12 @@ export function AdminLoginPage() {
       <div className="text-center pb-8">
         <p className="text-sm text-gray-400 mb-2">
           Support technique :{' '}
-          <a href="mailto:support@medplan.fr" className="text-medical-400 hover:text-medical-300">
-            support@medplan.fr
+          <a href="mailto:doriansarry47@gmail.com" className="text-teal-400 hover:text-teal-300">
+            doriansarry47@gmail.com
           </a>
         </p>
         <p className="text-xs text-gray-500">
-          Toutes les connexions sont enregistrées et surveillées
+          Accès sécurisé - Respect du secret professionnel - Confidentialité garantie
         </p>
       </div>
     </div>

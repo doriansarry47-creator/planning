@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useLocation } from 'wouter';
 import { User, Patient, AuthState } from '@/types';
 import api from '@/lib/api';
 
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userType: null,
   });
   const [loading, setLoading] = useState(true);
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -53,8 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: true,
         userType,
       });
+
+      // Redirect to appropriate dashboard after successful login
+      const dashboardPath = userType === 'admin' ? '/admin/dashboard' : '/patient/dashboard';
+      setLocation(dashboardPath);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erreur de connexion');
+      throw new Error(error.message || error.response?.data?.message || 'Erreur de connexion');
     }
   };
 
@@ -75,8 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: true,
         userType,
       });
+
+      // Redirect to appropriate dashboard after successful registration
+      const dashboardPath = userType === 'admin' ? '/admin/dashboard' : '/patient/dashboard';
+      setLocation(dashboardPath);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erreur d\'inscription');
+      throw new Error(error.message || error.response?.data?.message || 'Erreur d\'inscription');
     }
   };
 

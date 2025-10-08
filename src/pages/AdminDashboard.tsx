@@ -50,16 +50,18 @@ export function AdminDashboard() {
   const totalPatients = new Set(appointments?.map(apt => apt.patientId)).size || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-teal-900">
       {/* Header */}
-      <header className="bg-gray-800 shadow-sm border-b">
+      <header className="bg-gray-800/95 backdrop-blur-md shadow-lg border-b border-teal-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <Heart className="h-8 w-8 text-medical-400 mr-3" />
+              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-2 rounded-lg mr-3">
+                <Heart className="h-6 w-6 text-white" />
+              </div>
               <div>
-                <h1 className="text-xl font-bold text-white">MedPlan Admin</h1>
-                <p className="text-sm text-gray-300">Tableau de bord administrateur</p>
+                <h1 className="text-xl font-bold text-white">Administration - Dorian Sarry</h1>
+                <p className="text-sm text-teal-400">Gestion des rendez-vous thérapeutiques</p>
               </div>
             </div>
             
