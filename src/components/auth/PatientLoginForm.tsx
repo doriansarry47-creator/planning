@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { LoginForm } from '@/types';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Heart } from 'lucide-react';
 
 interface PatientLoginFormProps {
   onSwitchToRegister?: () => void;
@@ -32,13 +32,16 @@ export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) 
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-medical-600">
+    <Card className="w-full max-w-md mx-auto shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+      <CardHeader className="text-center pb-6">
+        <div className="bg-gradient-to-r from-green-500 to-teal-600 p-3 rounded-xl w-fit mx-auto mb-4">
+          <Heart className="h-8 w-8 text-white" />
+        </div>
+        <CardTitle className="text-2xl font-bold text-gray-900">
           Connexion Patient
         </CardTitle>
         <p className="text-gray-600 mt-2">
-          Connectez-vous pour gérer vos rendez-vous
+          Accédez à votre espace personnel et gérez vos rendez-vous thérapeutiques
         </p>
       </CardHeader>
       
@@ -91,7 +94,7 @@ export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) 
           
           <Button 
             type="submit" 
-            className="w-full medical-button" 
+            className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white py-3 rounded-xl shadow-lg hover:shadow-xl transition-all" 
             disabled={loading}
           >
             {loading ? 'Connexion...' : 'Se connecter'}

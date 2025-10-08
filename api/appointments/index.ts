@@ -1,12 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { eq, and } from 'drizzle-orm';
-import { db, appointments, patients, practitioners, insertAppointmentSchema } from '../_lib/db';
+import { z } from 'zod';
+import { mockDb } from '../_lib/mock-db';
 import { requireAuth, requirePatientAuth, requireAdminAuth } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   if (req.method === 'OPTIONS') {
-    return handleCors(res);
+    return res.status(200).end();
   }
 
   try {
@@ -28,63 +33,67 @@ async function getAppointments(req: VercelRequest, res: VercelResponse) {
   
   if (payload.userType === 'patient') {
     // Les patients ne voient que leurs propres rendez-vous
-    const patientAppointments = await db.select({
-      id: appointments.id,
-      appointmentDate: appointments.appointmentDate,
-      startTime: appointments.startTime,
-      endTime: appointments.endTime,
-      status: appointments.status,
-      reason: appointments.reason,
-      notes: appointments.notes,
-      createdAt: appointments.createdAt,
-      practitioner: {
-        id: practitioners.id,
-        firstName: practitioners.firstName,
-        lastName: practitioners.lastName,
-        specialization: practitioners.specialization,
-      },
-    })
-    .from(appointments)
-    .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
-    .where(eq(appointments.patientId, payload.userId))
-    .orderBy(appointments.appointmentDate, appointments.startTime);
+    const patientAppointments = await mockDb.findAppointmentsByPatient(payload.userId);
+    
+    // Enrichir avec les informations du praticien
+    const enrichedAppointments = await Promise.all(
+      patientAppointments.map(async (appointment) => {
+        const practitioner = await mockDb.findPractitionerById(appointment.practitionerId);
+        return {
+          ...appointment,
+          practitioner: practitioner ? {
+            id: practitioner.id,
+            firstName: practitioner.firstName,
+            lastName: practitioner.lastName,
+            specialization: practitioner.specialization,
+          } : null
+        };
+      })
+    );
 
-    return sendSuccess(res, patientAppointments);
+    return sendSuccess(res, enrichedAppointments);
     
   } else if (payload.userType === 'admin') {
     // Les admins voient tous les rendez-vous
-    const allAppointments = await db.select({
-      id: appointments.id,
-      appointmentDate: appointments.appointmentDate,
-      startTime: appointments.startTime,
-      endTime: appointments.endTime,
-      status: appointments.status,
-      reason: appointments.reason,
-      notes: appointments.notes,
-      createdAt: appointments.createdAt,
-      patient: {
-        id: patients.id,
-        firstName: patients.firstName,
-        lastName: patients.lastName,
-        email: patients.email,
-      },
-      practitioner: {
-        id: practitioners.id,
-        firstName: practitioners.firstName,
-        lastName: practitioners.lastName,
-        specialization: practitioners.specialization,
-      },
-    })
-    .from(appointments)
-    .innerJoin(patients, eq(appointments.patientId, patients.id))
-    .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
-    .orderBy(appointments.appointmentDate, appointments.startTime);
+    const allAppointments = await mockDb.findAllAppointments();
+    
+    // Enrichir avec les informations du patient et du praticien
+    const enrichedAppointments = await Promise.all(
+      allAppointments.map(async (appointment) => {
+        const patient = await mockDb.findUserById(appointment.patientId);
+        const practitioner = await mockDb.findPractitionerById(appointment.practitionerId);
+        
+        return {
+          ...appointment,
+          patient: patient ? {
+            id: patient.id,
+            firstName: patient.firstName,
+            lastName: patient.lastName,
+            email: patient.email,
+          } : null,
+          practitioner: practitioner ? {
+            id: practitioner.id,
+            firstName: practitioner.firstName,
+            lastName: practitioner.lastName,
+            specialization: practitioner.specialization,
+          } : null
+        };
+      })
+    );
 
-    return sendSuccess(res, allAppointments);
+    return sendSuccess(res, enrichedAppointments);
   }
 
   return sendError(res, 'Type d\'utilisateur non autorisé', 403);
 }
+
+const insertAppointmentSchema = z.object({
+  patientId: z.string(),
+  practitionerId: z.string(),
+  appointmentDate: z.string(),
+  startTime: z.string(),
+  reason: z.string().optional(),
+});
 
 async function createAppointment(req: VercelRequest, res: VercelResponse) {
   const payload = requirePatientAuth(req);
@@ -95,37 +104,16 @@ async function createAppointment(req: VercelRequest, res: VercelResponse) {
   });
   
   if (!validationResult.success) {
-    return sendError(res, 'Données invalides', 400);
+    return sendError(res, 'Données invalides: ' + validationResult.error.issues[0].message, 400);
   }
 
   const appointmentData = validationResult.data;
 
   // Vérifier que le praticien existe et est actif
-  const [practitioner] = await db.select()
-    .from(practitioners)
-    .where(and(
-      eq(practitioners.id, appointmentData.practitionerId),
-      eq(practitioners.isActive, true)
-    ))
-    .limit(1);
+  const practitioner = await mockDb.findPractitionerById(appointmentData.practitionerId);
 
-  if (!practitioner) {
+  if (!practitioner || !practitioner.isActive) {
     return sendError(res, 'Praticien non trouvé ou inactif', 404);
-  }
-
-  // Vérifier qu'il n'y a pas déjà un rendez-vous à ce créneau
-  const existingAppointment = await db.select()
-    .from(appointments)
-    .where(and(
-      eq(appointments.practitionerId, appointmentData.practitionerId),
-      eq(appointments.appointmentDate, appointmentData.appointmentDate),
-      eq(appointments.startTime, appointmentData.startTime),
-      eq(appointments.status, 'scheduled')
-    ))
-    .limit(1);
-
-  if (existingAppointment.length > 0) {
-    return sendError(res, 'Ce créneau n\'est plus disponible', 409);
   }
 
   // Calculer l'heure de fin basée sur la durée de consultation
@@ -133,12 +121,11 @@ async function createAppointment(req: VercelRequest, res: VercelResponse) {
   const endTime = new Date(startTime.getTime() + practitioner.consultationDuration * 60000);
   const endTimeString = endTime.toTimeString().slice(0, 8);
 
-  const [newAppointment] = await db.insert(appointments)
-    .values({
-      ...appointmentData,
-      endTime: endTimeString,
-    })
-    .returning();
+  const newAppointment = await mockDb.createAppointment({
+    ...appointmentData,
+    endTime: endTimeString,
+    status: 'scheduled',
+  });
 
   return sendSuccess(res, newAppointment, 'Rendez-vous créé avec succès', 201);
 }

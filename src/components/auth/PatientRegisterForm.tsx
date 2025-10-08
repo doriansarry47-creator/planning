@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { PatientRegistrationForm } from '@/types';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Heart } from 'lucide-react';
 
 interface PatientRegisterFormProps {
   onSwitchToLogin?: () => void;
@@ -40,13 +40,16 @@ export function PatientRegisterForm({ onSwitchToLogin }: PatientRegisterFormProp
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-medical-600">
+    <Card className="w-full max-w-md mx-auto shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+      <CardHeader className="text-center pb-6">
+        <div className="bg-gradient-to-r from-green-500 to-teal-600 p-3 rounded-xl w-fit mx-auto mb-4">
+          <Heart className="h-8 w-8 text-white" />
+        </div>
+        <CardTitle className="text-2xl font-bold text-gray-900">
           Inscription Patient
         </CardTitle>
         <p className="text-gray-600 mt-2">
-          Créez votre compte pour prendre rendez-vous
+          Créez votre compte pour commencer votre parcours thérapeutique
         </p>
       </CardHeader>
       
@@ -169,7 +172,7 @@ export function PatientRegisterForm({ onSwitchToLogin }: PatientRegisterFormProp
           
           <Button 
             type="submit" 
-            className="w-full medical-button" 
+            className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white py-3 rounded-xl shadow-lg hover:shadow-xl transition-all" 
             disabled={loading}
           >
             {loading ? 'Inscription...' : 'S\'inscrire'}

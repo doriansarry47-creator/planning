@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import { db, users, patients } from '../_lib/db';
-import { comparePassword, generateToken } from '../_lib/auth';
+import bcrypt from 'bcryptjs';
+import { mockDb } from '../_lib/mock-db';
+import { generateToken } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
 
 const loginSchema = z.object({
@@ -11,8 +11,13 @@ const loginSchema = z.object({
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   if (req.method === 'OPTIONS') {
-    return handleCors(res);
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
@@ -43,19 +48,15 @@ async function loginAdmin(req: VercelRequest, res: VercelResponse) {
 
   const { email, password } = validationResult.data;
 
-  // Trouver l'utilisateur
-  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  // Trouver l'utilisateur admin
+  const user = await mockDb.findUserByEmail(email);
   
   if (!user) {
     return sendError(res, 'Email ou mot de passe incorrect', 401);
   }
 
-  if (!user.isActive) {
-    return sendError(res, 'Compte désactivé', 401);
-  }
-
   // Vérifier le mot de passe
-  const isPasswordValid = await comparePassword(password, user.password);
+  const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     return sendError(res, 'Email ou mot de passe incorrect', 401);
   }
@@ -86,18 +87,14 @@ async function loginPatient(req: VercelRequest, res: VercelResponse) {
   const { email, password } = validationResult.data;
 
   // Trouver le patient
-  const [patient] = await db.select().from(patients).where(eq(patients.email, email)).limit(1);
+  const patient = await mockDb.findPatientByEmail(email);
   
   if (!patient) {
     return sendError(res, 'Email ou mot de passe incorrect', 401);
   }
 
-  if (!patient.isActive) {
-    return sendError(res, 'Compte désactivé', 401);
-  }
-
   // Vérifier le mot de passe
-  const isPasswordValid = await comparePassword(password, patient.password);
+  const isPasswordValid = await bcrypt.compare(password, patient.password);
   if (!isPasswordValid) {
     return sendError(res, 'Email ou mot de passe incorrect', 401);
   }
