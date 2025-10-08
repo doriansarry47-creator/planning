@@ -1,0 +1,165 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+import bcrypt from 'bcryptjs';
+import * as schema from '../shared/schema';
+
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is required');
+}
+
+const sql = neon(process.env.DATABASE_URL);
+const db = drizzle(sql, { schema });
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  try {
+    // Créer les tables (avec CREATE TABLE IF NOT EXISTS)
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        full_name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'admin',
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS patients (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        phone_number TEXT,
+        date_of_birth DATE,
+        address TEXT,
+        emergency_contact TEXT,
+        emergency_phone TEXT,
+        medical_history TEXT,
+        allergies TEXT,
+        medications TEXT,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS practitioners (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        specialization TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        phone_number TEXT,
+        license_number TEXT,
+        biography TEXT,
+        consultation_duration INTEGER NOT NULL DEFAULT 30,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
+    // Vérifier si les données existent déjà
+    const existingUsers = await db.select().from(schema.users).limit(1);
+    
+    if (existingUsers.length === 0) {
+      // Créer un administrateur de test
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await db.insert(schema.users).values({
+        username: 'admin',
+        password: hashedPassword,
+        email: 'admin@medplan.fr',
+        fullName: 'Administrateur MedPlan',
+        role: 'admin'
+      });
+
+      // Créer un patient de test
+      const patientPassword = await bcrypt.hash('patient123', 10);
+      await db.insert(schema.patients).values({
+        email: 'patient@test.fr',
+        password: patientPassword,
+        firstName: 'Marie',
+        lastName: 'Dupont',
+        phoneNumber: '0123456789',
+        dateOfBirth: '1985-06-15',
+        address: '123 Rue de la Santé, 75001 Paris',
+        emergencyContact: 'Pierre Dupont',
+        emergencyPhone: '0987654321'
+      });
+
+      // Créer des praticiens de test
+      await db.insert(schema.practitioners).values([
+        {
+          firstName: 'Dr. Jean',
+          lastName: 'Martin',
+          specialization: 'Médecine générale',
+          email: 'dr.martin@medplan.fr',
+          phoneNumber: '0145678901',
+          licenseNumber: 'MG001',
+          biography: 'Médecin généraliste avec 15 ans d\'expérience.',
+          consultationDuration: 30
+        },
+        {
+          firstName: 'Dr. Sophie',
+          lastName: 'Durand',
+          specialization: 'Cardiologie',
+          email: 'dr.durand@medplan.fr',
+          phoneNumber: '0145678902',
+          licenseNumber: 'CARD001',
+          biography: 'Cardiologue spécialisée dans les maladies cardiovasculaires.',
+          consultationDuration: 45
+        }
+      ]);
+
+      return res.status(200).json({ 
+        message: 'Base de données initialisée avec succès',
+        testAccounts: {
+          admin: {
+            username: 'admin',
+            password: 'admin123',
+            email: 'admin@medplan.fr'
+          },
+          patient: {
+            email: 'patient@test.fr',
+            password: 'patient123',
+            name: 'Marie Dupont'
+          }
+        }
+      });
+    } else {
+      return res.status(200).json({ 
+        message: 'Base de données déjà initialisée',
+        testAccounts: {
+          admin: {
+            username: 'admin',
+            password: 'admin123',
+            email: 'admin@medplan.fr'
+          },
+          patient: {
+            email: 'patient@test.fr',
+            password: 'patient123',
+            name: 'Marie Dupont'
+          }
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Erreur lors de l\'initialisation:', error);
+    return res.status(500).json({ 
+      message: 'Erreur lors de l\'initialisation de la base de données',
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    });
+  }
+}
