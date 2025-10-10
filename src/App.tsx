@@ -4,6 +4,9 @@ import { Router, Route, Switch } from 'wouter';
 import { AuthProvider } from '@/hooks/useAuth';
 import { PatientLoginPage } from '@/pages/PatientLoginPage';
 import { PatientDashboard } from '@/pages/PatientDashboard';
+import { PatientAppointmentsPage } from '@/pages/PatientAppointmentsPage';
+import { PatientFollowUpPage } from '@/pages/PatientFollowUpPage';
+import { PatientProfilePage } from '@/pages/PatientProfilePage';
 import { AdminLoginPage } from '@/pages/AdminLoginPage';
 import { TherapyLandingPage } from '@/pages/TherapyLandingPage';
 import { TherapyAdminDashboard } from '@/pages/TherapyAdminDashboard';
@@ -42,6 +45,25 @@ function App() {
               <Route path="/patient/dashboard">
                 <ProtectedRoute userType="patient">
                   <PatientDashboard />
+                </ProtectedRoute>
+              </Route>
+              
+              {/* Pages patient protégées */}
+              <Route path="/patient/appointments">
+                <ProtectedRoute userType="patient">
+                  <PatientAppointmentsPage />
+                </ProtectedRoute>
+              </Route>
+              
+              <Route path="/patient/follow-up">
+                <ProtectedRoute userType="patient">
+                  <PatientFollowUpPage />
+                </ProtectedRoute>
+              </Route>
+              
+              <Route path="/patient/profile">
+                <ProtectedRoute userType="patient">
+                  <PatientProfilePage />
                 </ProtectedRoute>
               </Route>
               

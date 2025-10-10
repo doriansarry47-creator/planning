@@ -24,7 +24,7 @@ const createTransporter = () => {
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false, // true pour port 465, false pour autres ports
     auth: {
-      user: process.env.SMTP_USER || 'dorian.sarry@example.com',
+      user: process.env.SMTP_USER || 'doriansarry@yahoo.fr',
       pass: process.env.SMTP_PASS || 'your-app-password'
     }
   };
@@ -108,9 +108,9 @@ export const generateAppointmentConfirmationEmail = (
                 <h3>🏢 Adresse du cabinet :</h3>
                 <p>
                   Dorian Sarry<br>
-                  [Adresse à compléter]<br>
-                  [Code postal] [Ville]<br>
-                  📞 [Téléphone]
+                  20 rue des Jacobins<br>
+                  24000 Périgueux<br>
+                  📞 06.45.15.63.68
                 </p>
               </div>
             ` : `
@@ -143,7 +143,7 @@ export const generateAppointmentConfirmationEmail = (
 
         <div class="footer">
           <p><strong>Dorian Sarry</strong> - Praticien en Thérapie Sensorimotrice</p>
-          <p>📧 [Email de contact] | 📞 [Téléphone] | 🌐 [Site web]</p>
+          <p>📧 doriansarry@yahoo.fr | 📞 06.45.15.63.68</p>
           <p style="font-size: 12px; opacity: 0.8; margin-top: 15px;">
             Ce message vous a été envoyé automatiquement. Merci de ne pas y répondre directement.
           </p>
@@ -166,7 +166,7 @@ export const generateAppointmentConfirmationEmail = (
       - N° : ${appointmentId}
       
       ${sessionType === 'cabinet' ? 
-        'Adresse du cabinet : [À compléter]' : 
+        'Adresse du cabinet : 20 rue des Jacobins, 24000 Périgueux' : 
         'Le lien de visioconférence vous sera envoyé 24h avant le rendez-vous.'
       }
       
@@ -231,7 +231,7 @@ export const generateAppointmentReminderEmail = (
 
         <div class="footer">
           <p><strong>Dorian Sarry</strong> - Thérapie Sensorimotrice</p>
-          <p>📧 [Email] | 📞 [Téléphone]</p>
+          <p>📧 doriansarry@yahoo.fr | 📞 06.45.15.63.68</p>
         </div>
       </body>
       </html>
@@ -292,7 +292,7 @@ export const generateAppointmentCancellationEmail = (
 
         <div class="footer">
           <p><strong>Dorian Sarry</strong> - Thérapie Sensorimotrice</p>
-          <p>📧 [Email] | 📞 [Téléphone]</p>
+          <p>📧 doriansarry@yahoo.fr | 📞 06.45.15.63.68</p>
         </div>
       </body>
       </html>

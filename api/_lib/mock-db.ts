@@ -55,10 +55,13 @@ export function initializeMockData() {
     // Add default admin user
     mockUsers.push({
       id: 'admin-1',
-      username: 'admin',
-      email: 'doriansarry47@gmail.com',
-      password: bcrypt.hashSync('admin123', 10),
+      username: 'doriansarry',
+      email: 'doriansarry@yahoo.fr',
+      password: bcrypt.hashSync('Dorian010195', 10),
       fullName: 'Dorian Sarry',
+      firstName: 'Dorian',
+      lastName: 'Sarry',
+      phoneNumber: '0645156368',
       role: 'admin',
       createdAt: new Date().toISOString()
     });
@@ -79,11 +82,11 @@ export function initializeMockData() {
       id: 'practitioner-1',
       firstName: 'Dorian',
       lastName: 'Sarry',
-      specialization: 'Thérapie sensori-motrice',
-      email: 'doriansarry47@gmail.com',
-      phoneNumber: '0123456789',
+      specialization: 'Thérapie Sensorimotrice',
+      email: 'doriansarry@yahoo.fr',
+      phoneNumber: '0645156368',
       licenseNumber: 'THER001',
-      biography: 'Spécialiste en thérapie sensori-motrice, stabilisation émotionnelle et traitement du psycho-traumatisme.',
+      biography: 'Spécialiste en thérapie sensorimotrice, stabilisation émotionnelle et traitement du psycho-traumatisme.',
       consultationDuration: 60,
       isActive: true,
       createdAt: new Date().toISOString()
@@ -194,6 +197,31 @@ export const mockDb = {
       return true;
     }
     return false;
+  },
+
+  findAppointmentById: async (id: string) => {
+    initializeMockData();
+    return mockAppointments.find(a => a.id === id);
+  },
+
+  findPatientById: async (id: string) => {
+    initializeMockData();
+    return mockUsers.find(u => u.id === id && !u.role);
+  },
+
+  findAllPatients: async () => {
+    initializeMockData();
+    return mockUsers.filter(u => !u.role);
+  },
+
+  findAppointmentsByDateRange: async (startDate: string, endDate: string) => {
+    initializeMockData();
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return mockAppointments.filter(a => {
+      const appointmentDate = new Date(a.appointmentDate);
+      return appointmentDate >= start && appointmentDate <= end;
+    });
   }
 };
 

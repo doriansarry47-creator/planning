@@ -6,7 +6,6 @@ import {
   Users, 
   Calendar, 
   CheckCircle, 
-  Monitor, 
   MapPin,
   Brain,
   Leaf,
@@ -161,23 +160,24 @@ export function TherapyLandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Modalités de Consultation</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Consultation en Cabinet</h2>
             <p className="text-xl text-gray-600">
-              Choisissez la formule qui vous convient le mieux
+              Toutes les séances se déroulent uniquement en présentiel dans le cabinet
             </p>
           </div>
           
-          <div className="grid lg:grid-cols-2 gap-8">
-            <Card className="border-2 border-teal-200 hover:border-teal-400 transition-colors">
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-2 border-teal-200 hover:border-teal-400 transition-colors shadow-xl">
               <CardHeader className="text-center">
                 <div className="bg-teal-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <MapPin className="h-8 w-8 text-teal-600" />
                 </div>
-                <CardTitle className="text-2xl text-gray-900">Consultation en Cabinet</CardTitle>
+                <CardTitle className="text-2xl text-gray-900">Séances en Cabinet</CardTitle>
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-gray-600 mb-6">
-                  Séances en présentiel dans un cadre thérapeutique sécurisant et confidentiel.
+                  Séances en présentiel dans un cadre thérapeutique sécurisant et confidentiel, 
+                  au cœur de Périgueux.
                 </p>
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center justify-center">
@@ -186,38 +186,14 @@ export function TherapyLandingPage() {
                   </div>
                   <div className="flex items-center justify-center">
                     <MapPin className="h-5 w-5 text-teal-600 mr-2" />
-                    <span>Cabinet à [Ville]</span>
+                    <span>20 rue des Jacobins, 24000 Périgueux</span>
                   </div>
                 </div>
-                <Button className="w-full bg-teal-600 hover:bg-teal-700">
-                  Réserver en cabinet
-                </Button>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-2 border-blue-200 hover:border-blue-400 transition-colors">
-              <CardHeader className="text-center">
-                <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Monitor className="h-8 w-8 text-blue-600" />
-                </div>
-                <CardTitle className="text-2xl text-gray-900">Consultation en Visioconférence</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-gray-600 mb-6">
-                  Séances à distance dans le confort de votre domicile, avec la même qualité d'accompagnement.
-                </p>
-                <div className="space-y-4 mb-8">
-                  <div className="flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-blue-600 mr-2" />
-                    <span>60 minutes par séance</span>
-                  </div>
-                  <div className="flex items-center justify-center">
-                    <Monitor className="h-5 w-5 text-blue-600 mr-2" />
-                    <span>Plateforme sécurisée</span>
-                  </div>
-                </div>
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                  Réserver en visio
+                <Button 
+                  className="w-full bg-teal-600 hover:bg-teal-700"
+                  onClick={() => window.location.href = '/patient/book-appointment'}
+                >
+                  Prendre rendez-vous
                 </Button>
               </CardContent>
             </Card>
@@ -283,12 +259,12 @@ export function TherapyLandingPage() {
             Je serai ravi(e) de vous accompagner dans votre cheminement vers un mieux-être durable.
           </p>
           
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
             <div className="flex items-center justify-center">
               <Mail className="h-6 w-6 mr-3" />
               <div>
                 <div className="font-semibold">Email</div>
-                <div className="opacity-90">dorian.sarry@example.com</div>
+                <div className="opacity-90">doriansarry@yahoo.fr</div>
               </div>
             </div>
             
@@ -296,7 +272,15 @@ export function TherapyLandingPage() {
               <Phone className="h-6 w-6 mr-3" />
               <div>
                 <div className="font-semibold">Téléphone</div>
-                <div className="opacity-90">06 XX XX XX XX</div>
+                <div className="opacity-90">06.45.15.63.68</div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center">
+              <MapPin className="h-6 w-6 mr-3" />
+              <div>
+                <div className="font-semibold">Adresse</div>
+                <div className="opacity-90">20 rue des Jacobins, 24000 Périgueux</div>
               </div>
             </div>
           </div>

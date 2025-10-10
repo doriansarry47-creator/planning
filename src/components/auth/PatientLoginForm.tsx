@@ -99,6 +99,16 @@ export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) 
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </Button>
+          
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              className="text-sm text-gray-600 hover:text-gray-900 underline"
+              onClick={() => alert('Fonctionnalité de récupération de mot de passe à implémenter')}
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
         </form>
       </CardContent>
       

@@ -2,6 +2,12 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "crons": [
+    {
+      "path": "/api/cron/appointment-reminders",
+      "schedule": "0 18 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

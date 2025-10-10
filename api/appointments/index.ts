@@ -4,6 +4,7 @@ import { verifyToken } from '../_lib/auth';
 import { mockDb } from '../_lib/mock-db';
 import { sendSuccess, sendError, handleApiError } from '../_lib/response';
 import { sendAppointmentConfirmation, sendAppointmentCancellation } from '../_lib/email';
+import { sendSMS, formatPhoneNumber, createAppointmentConfirmationSMS } from '../_lib/sms';
 
 const createAppointmentSchema = z.object({
   slotId: z.string().optional(),
@@ -178,6 +179,27 @@ async function createAppointment(req: VercelRequest, res: VercelResponse, user: 
   } catch (emailError) {
     console.error('Erreur lors de l\'envoi de l\'email:', emailError);
     // On ne fait pas échouer la création du rendez-vous si l'email échoue
+  }
+
+  // Envoyer le SMS de confirmation
+  if (patient.phone) {
+    try {
+      const appointmentDate = new Date(appointmentData.date);
+      const formattedPhone = formatPhoneNumber(patient.phone);
+      const smsMessage = createAppointmentConfirmationSMS(
+        patient.firstName,
+        appointmentDate.toLocaleDateString('fr-FR'),
+        appointmentDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      );
+      
+      await sendSMS({
+        to: formattedPhone,
+        message: smsMessage
+      });
+    } catch (smsError) {
+      console.error('Erreur lors de l\'envoi du SMS:', smsError);
+      // On ne fait pas échouer la création du rendez-vous si le SMS échoue
+    }
   }
 
   return sendSuccess(res, newAppointment, 'Rendez-vous créé avec succès', 201);

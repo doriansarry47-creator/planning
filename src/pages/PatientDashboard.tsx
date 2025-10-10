@@ -11,7 +11,10 @@ import {
   Plus,
   Heart,
   FileText,
-  Settings
+  Settings,
+  MapPin,
+  Phone,
+  Mail
 } from 'lucide-react';
 import api from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
@@ -79,14 +82,37 @@ export function PatientDashboard() {
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             Bonjour {user?.firstName} !
           </h2>
-          <p className="text-gray-600">
-            Gérez vos rendez-vous médicaux et votre suivi de santé
+          <p className="text-gray-600 mb-4">
+            Bienvenue sur votre espace thérapeutique. Ici, vous pouvez prendre rendez-vous, 
+            suivre votre progression et gérer votre parcours de soin avec Dorian Sarry.
           </p>
+          
+          {/* Coordonnées du praticien */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-green-200">
+            <h3 className="font-semibold text-gray-900 mb-2">Dorian Sarry — Thérapie Sensorimotrice</h3>
+            <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+              <div className="flex items-center">
+                <MapPin className="h-4 w-4 mr-1 text-green-600" />
+                <span>20 rue des Jacobins, 24000 Périgueux</span>
+              </div>
+              <div className="flex items-center">
+                <Phone className="h-4 w-4 mr-1 text-green-600" />
+                <span>06.45.15.63.68</span>
+              </div>
+              <div className="flex items-center">
+                <Mail className="h-4 w-4 mr-1 text-green-600" />
+                <span>doriansarry@yahoo.fr</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-green-50 to-teal-50 cursor-pointer">
+          <Card 
+            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-green-50 to-teal-50 cursor-pointer"
+            onClick={() => window.location.href = '/patient/book-appointment'}
+          >
             <CardContent className="p-6 text-center">
               <div className="bg-gradient-to-r from-green-500 to-teal-600 p-3 rounded-xl w-fit mx-auto mb-3">
                 <Plus className="h-6 w-6 text-white" />
@@ -96,7 +122,10 @@ export function PatientDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 cursor-pointer">
+          <Card 
+            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 cursor-pointer"
+            onClick={() => window.location.href = '/patient/appointments'}
+          >
             <CardContent className="p-6 text-center">
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl w-fit mx-auto mb-3">
                 <Calendar className="h-6 w-6 text-white" />
@@ -106,7 +135,10 @@ export function PatientDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50 cursor-pointer">
+          <Card 
+            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50 cursor-pointer"
+            onClick={() => window.location.href = '/patient/follow-up'}
+          >
             <CardContent className="p-6 text-center">
               <div className="bg-gradient-to-r from-purple-500 to-pink-600 p-3 rounded-xl w-fit mx-auto mb-3">
                 <FileText className="h-6 w-6 text-white" />
@@ -116,7 +148,10 @@ export function PatientDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-red-50 cursor-pointer">
+          <Card 
+            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-red-50 cursor-pointer"
+            onClick={() => window.location.href = '/patient/profile'}
+          >
             <CardContent className="p-6 text-center">
               <div className="bg-gradient-to-r from-orange-500 to-red-600 p-3 rounded-xl w-fit mx-auto mb-3">
                 <Settings className="h-6 w-6 text-white" />

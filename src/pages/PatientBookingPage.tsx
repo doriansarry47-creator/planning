@@ -25,7 +25,7 @@ interface TimeSlot {
 }
 
 interface BookingStep {
-  step: 1 | 2 | 3 | 4;
+  step: 1 | 2 | 3;
   title: string;
 }
 
@@ -41,18 +41,17 @@ const AVAILABLE_TIMES = [
 ];
 
 export function PatientBookingPage() {
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<'cabinet' | 'visio' | null>(null);
+  const [selectedType, setSelectedType] = useState<'cabinet' | null>('cabinet');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
 
   const steps: BookingStep[] = [
-    { step: 1, title: 'Type de consultation' },
-    { step: 2, title: 'Date et heure' },
-    { step: 3, title: 'Informations personnelles' },
-    { step: 4, title: 'Confirmation' }
+    { step: 1, title: 'Date et heure' },
+    { step: 2, title: 'Informations personnelles' },
+    { step: 3, title: 'Confirmation' }
   ];
 
   // Générer les jours du mois
@@ -105,7 +104,7 @@ export function PatientBookingPage() {
     try {
       // Simuler l'envoi des données
       await new Promise(resolve => setTimeout(resolve, 2000));
-      setCurrentStep(4);
+      setCurrentStep(3);
     } catch (error) {
       console.error('Erreur lors de la création du compte:', error);
     } finally {
@@ -125,10 +124,8 @@ export function PatientBookingPage() {
   const canProceedToNext = () => {
     switch (currentStep) {
       case 1:
-        return selectedType !== null;
-      case 2:
         return selectedDate !== null && selectedTime !== '';
-      case 3:
+      case 2:
         return true; // Le formulaire gère sa propre validation
       default:
         return false;
@@ -197,89 +194,33 @@ export function PatientBookingPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Étape 1: Type de consultation */}
+        {/* Informations cabinet */}
+        <Card className="mb-8 border-0 bg-gradient-to-br from-teal-50 to-blue-50">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="bg-gradient-to-r from-teal-600 to-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MapPin className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Consultation en Cabinet</h3>
+              <p className="text-gray-600 mb-4">
+                Toutes les séances se déroulent en présentiel dans le cabinet thérapeutique
+              </p>
+              <div className="flex justify-center space-x-6 text-sm text-gray-700">
+                <div className="flex items-center">
+                  <Clock className="h-4 w-4 mr-2 text-teal-600" />
+                  <span>60 minutes par séance</span>
+                </div>
+                <div className="flex items-center">
+                  <MapPin className="h-4 w-4 mr-2 text-teal-600" />
+                  <span>20 rue des Jacobins, 24000 Périgueux</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Étape 1: Date et heure */}
         {currentStep === 1 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-center">Choisissez votre type de consultation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div 
-                  className={`p-6 border-2 rounded-lg cursor-pointer transition-all hover:shadow-lg ${
-                    selectedType === 'cabinet' 
-                      ? 'border-teal-600 bg-teal-50' 
-                      : 'border-gray-200 hover:border-teal-300'
-                  }`}
-                  onClick={() => setSelectedType('cabinet')}
-                >
-                  <div className="text-center">
-                    <div className="bg-teal-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MapPin className="h-8 w-8 text-teal-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">Consultation en Cabinet</h3>
-                    <p className="text-gray-600 mb-4">
-                      Séance en présentiel dans un environnement thérapeutique sécurisant
-                    </p>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="flex items-center justify-center">
-                        <Clock className="h-4 w-4 mr-2" />
-                        <span>60 minutes</span>
-                      </div>
-                      <div className="flex items-center justify-center">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        <span>Cabinet à [Ville]</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div 
-                  className={`p-6 border-2 rounded-lg cursor-pointer transition-all hover:shadow-lg ${
-                    selectedType === 'visio' 
-                      ? 'border-blue-600 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => setSelectedType('visio')}
-                >
-                  <div className="text-center">
-                    <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Monitor className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">Consultation en Visioconférence</h3>
-                    <p className="text-gray-600 mb-4">
-                      Séance à distance dans le confort de votre domicile
-                    </p>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="flex items-center justify-center">
-                        <Clock className="h-4 w-4 mr-2" />
-                        <span>60 minutes</span>
-                      </div>
-                      <div className="flex items-center justify-center">
-                        <Monitor className="h-4 w-4 mr-2" />
-                        <span>Plateforme sécurisée</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end mt-8">
-                <Button 
-                  onClick={() => setCurrentStep(2)}
-                  disabled={!canProceedToNext()}
-                  className="bg-teal-600 hover:bg-teal-700"
-                >
-                  Continuer
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Étape 2: Date et heure */}
-        {currentStep === 2 && (
           <div className="grid lg:grid-cols-2 gap-8">
             <Card>
               <CardHeader>
@@ -385,16 +326,9 @@ export function PatientBookingPage() {
               </CardContent>
             </Card>
             
-            <div className="lg:col-span-2 flex justify-between">
+            <div className="lg:col-span-2 flex justify-end">
               <Button 
-                variant="outline" 
-                onClick={() => setCurrentStep(1)}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Retour
-              </Button>
-              <Button 
-                onClick={() => setCurrentStep(3)}
+                onClick={() => setCurrentStep(2)}
                 disabled={!canProceedToNext()}
                 className="bg-teal-600 hover:bg-teal-700"
               >
@@ -405,13 +339,13 @@ export function PatientBookingPage() {
           </div>
         )}
 
-        {/* Étape 3: Formulaire d'informations */}
-        {currentStep === 3 && (
+        {/* Étape 2: Formulaire d'informations */}
+        {currentStep === 2 && (
           <div>
             <div className="mb-6">
               <Button 
                 variant="outline" 
-                onClick={() => setCurrentStep(2)}
+                onClick={() => setCurrentStep(1)}
                 className="mb-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -428,8 +362,8 @@ export function PatientBookingPage() {
           </div>
         )}
 
-        {/* Étape 4: Confirmation */}
-        {currentStep === 4 && (
+        {/* Étape 3: Confirmation */}
+        {currentStep === 3 && (
           <Card className="text-center">
             <CardContent className="p-12">
               <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -441,7 +375,7 @@ export function PatientBookingPage() {
               </h2>
               
               <p className="text-xl text-gray-600 mb-8">
-                Votre compte a été créé et votre rendez-vous a été programmé avec succès.
+                Votre rendez-vous avec Dorian Sarry est bien enregistré. Vous recevrez une confirmation par SMS et e-mail.
               </p>
               
               <div className="bg-teal-50 border border-teal-200 rounded-lg p-6 mb-8">
@@ -449,8 +383,9 @@ export function PatientBookingPage() {
                 <div className="space-y-2 text-teal-700">
                   <p><strong>Date :</strong> {selectedDate && formatDate(selectedDate)}</p>
                   <p><strong>Heure :</strong> {selectedTime}</p>
-                  <p><strong>Type :</strong> {selectedType === 'cabinet' ? 'Consultation en cabinet' : 'Visioconférence'}</p>
+                  <p><strong>Type :</strong> Consultation en cabinet</p>
                   <p><strong>Praticien :</strong> Dorian Sarry</p>
+                  <p><strong>Lieu :</strong> 20 rue des Jacobins, 24000 Périgueux</p>
                 </div>
               </div>
               
@@ -458,10 +393,8 @@ export function PatientBookingPage() {
                 <h3 className="font-semibold text-blue-900 mb-4">Prochaines étapes :</h3>
                 <div className="text-left space-y-2 text-blue-700">
                   <p>✅ Un email de confirmation vous a été envoyé</p>
-                  <p>✅ Vous recevrez un rappel 24h avant votre rendez-vous</p>
-                  {selectedType === 'visio' && (
-                    <p>✅ Le lien de visioconférence vous sera envoyé la veille</p>
-                  )}
+                  <p>✅ Vous recevrez un SMS de confirmation</p>
+                  <p>✅ Vous recevrez un rappel SMS 24h avant votre rendez-vous</p>
                   <p>✅ Vous pouvez gérer vos rendez-vous depuis votre espace patient</p>
                 </div>
               </div>
@@ -489,11 +422,11 @@ export function PatientBookingPage() {
                 <div className="flex justify-center space-x-6 text-sm">
                   <div className="flex items-center text-gray-600">
                     <Mail className="h-4 w-4 mr-2" />
-                    dorian.sarry@example.com
+                    doriansarry@yahoo.fr
                   </div>
                   <div className="flex items-center text-gray-600">
                     <Phone className="h-4 w-4 mr-2" />
-                    06 XX XX XX XX
+                    06.45.15.63.68
                   </div>
                 </div>
               </div>

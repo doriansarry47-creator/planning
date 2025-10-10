@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Heart, User, Calendar, MessageCircle, HelpCircle, Monitor, MapPin } from 'lucide-react';
+import { Heart, User, Calendar, MessageCircle, HelpCircle, MapPin } from 'lucide-react';
 
 interface TherapyIntakeFormData {
   // Informations de base
@@ -20,7 +20,7 @@ interface TherapyIntakeFormData {
   referringProfessional?: string;
   consultationReason: string;
   symptomsStartDate: string;
-  preferredSessionType: 'cabinet' | 'visio';
+  preferredSessionType: 'cabinet';
   
   // Questions supplémentaires pour la thérapie sensorimotrice
   hasPhysicalSymptoms: boolean;
@@ -245,11 +245,7 @@ export function TherapyIntakeForm({ onSubmit, isLoading = false, selectedDate, s
               <textarea
                 id="consultationReason"
                 {...register('consultationReason', { 
-                  required: 'Veuillez décrire votre motif de consultation',
-                  minLength: {
-                    value: 20,
-                    message: 'Veuillez détailler davantage (minimum 20 caractères)'
-                  }
+                  required: 'Veuillez décrire votre motif de consultation'
                 })}
                 rows={4}
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
@@ -270,44 +266,18 @@ export function TherapyIntakeForm({ onSubmit, isLoading = false, selectedDate, s
               />
             </div>
 
-            {/* Préférence consultation */}
-            <div>
-              <Label className="text-base font-medium">Préférez-vous une consultation :</Label>
-              <div className="mt-2 grid md:grid-cols-2 gap-4">
-                <label className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="radio"
-                    {...register('preferredSessionType', { required: 'Veuillez choisir un type de consultation' })}
-                    value="cabinet"
-                    className="mr-3"
-                  />
-                  <div className="flex items-center">
-                    <MapPin className="h-5 w-5 mr-2 text-teal-600" />
-                    <div>
-                      <div className="font-medium">En cabinet</div>
-                      <div className="text-sm text-gray-600">Consultation en présentiel</div>
-                    </div>
+            {/* Note sur la consultation */}
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <MapPin className="h-5 w-5 mr-2 text-teal-600" />
+                <div>
+                  <div className="font-medium text-teal-900">Consultation en cabinet uniquement</div>
+                  <div className="text-sm text-teal-700 mt-1">
+                    Toutes les séances de thérapie sensorimotrice se déroulent en présentiel dans le cabinet 
+                    situé au 20 rue des Jacobins, 24000 Périgueux.
                   </div>
-                </label>
-                <label className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="radio"
-                    {...register('preferredSessionType', { required: 'Veuillez choisir un type de consultation' })}
-                    value="visio"
-                    className="mr-3"
-                  />
-                  <div className="flex items-center">
-                    <Monitor className="h-5 w-5 mr-2 text-teal-600" />
-                    <div>
-                      <div className="font-medium">En visioconférence</div>
-                      <div className="text-sm text-gray-600">Consultation à distance</div>
-                    </div>
-                  </div>
-                </label>
+                </div>
               </div>
-              {errors.preferredSessionType && (
-                <p className="text-red-500 text-sm mt-1">{errors.preferredSessionType.message}</p>
-              )}
             </div>
 
             {/* Symptômes physiques */}

@@ -1,9 +1,12 @@
 // Types pour l'authentification
 export interface User {
   id: string;
-  username: string;
+  username?: string;
   email: string;
-  fullName: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
   role: 'admin' | 'practitioner';
 }
 
@@ -12,6 +15,7 @@ export interface Patient {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   phoneNumber?: string;
   dateOfBirth?: string;
   address?: string;
@@ -20,9 +24,9 @@ export interface Patient {
   medicalHistory?: string;
   allergies?: string;
   medications?: string;
-  isActive: boolean;
+  isActive?: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Practitioner {
@@ -47,7 +51,7 @@ export interface Appointment {
   appointmentDate: string;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'pending' | 'confirmed';
   reason?: string;
   notes?: string;
   diagnosis?: string;
