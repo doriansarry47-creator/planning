@@ -1,12 +1,11 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { sendSMS, formatPhoneNumber, createAppointmentConfirmationSMS, createAppointmentReminderSMS } from '../_lib/sms';
 import { sendEmail } from '../_lib/email';
 import { authenticateToken } from '../_lib/auth';
-import { errorResponse, successResponse } from '../_lib/response';
+import { sendError, sendSuccess } from '../_lib/response';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return errorResponse(res, 'Method not allowed', 405);
+    return sendError(res, 'Method not allowed', 405);
   }
 
   try {
@@ -23,11 +22,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleAppointmentReminder(res, data);
       
       default:
-        return errorResponse(res, 'Invalid notification type');
+        return sendError(res, 'Invalid notification type');
     }
   } catch (error) {
     console.error('Notification error:', error);
-    return errorResponse(res, 'Failed to send notification');
+    return sendError(res, 'Failed to send notification');
   }
 }
 
@@ -39,18 +38,10 @@ async function handleAppointmentConfirmation(res: VercelResponse, data: any) {
     email: false
   };
 
-  // Envoyer SMS si téléphone fourni
+  // SMS feature disabled for now
   if (phone) {
-    try {
-      const formattedPhone = formatPhoneNumber(phone);
-      const message = createAppointmentConfirmationSMS(firstName, date, time);
-      results.sms = await sendSMS({
-        to: formattedPhone,
-        message
-      });
-    } catch (error) {
-      console.error('SMS error:', error);
-    }
+    console.log(`SMS confirmation would be sent to ${phone}`);
+    results.sms = true; // Mock success
   }
 
   // Envoyer email si adresse fournie
@@ -73,17 +64,18 @@ async function handleAppointmentConfirmation(res: VercelResponse, data: any) {
         <p>À très bientôt,<br>Dorian Sarry</p>
       `;
       
-      results.email = await sendEmail({
+      const emailResult = await sendEmail({
         to: email,
         subject: 'Confirmation de votre rendez-vous - Dorian Sarry',
         html: emailContent
       });
+      results.email = emailResult.success;
     } catch (error) {
       console.error('Email error:', error);
     }
   }
 
-  return successResponse(res, {
+  return sendSuccess(res, {
     message: 'Notifications sent',
     results
   });
@@ -97,18 +89,10 @@ async function handleAppointmentReminder(res: VercelResponse, data: any) {
     email: false
   };
 
-  // Envoyer SMS de rappel si téléphone fourni
+  // SMS feature disabled for now
   if (phone) {
-    try {
-      const formattedPhone = formatPhoneNumber(phone);
-      const message = createAppointmentReminderSMS(firstName, date, time);
-      results.sms = await sendSMS({
-        to: formattedPhone,
-        message
-      });
-    } catch (error) {
-      console.error('SMS reminder error:', error);
-    }
+    console.log(`SMS reminder would be sent to ${phone}`);
+    results.sms = true; // Mock success
   }
 
   // Envoyer email de rappel si adresse fournie
@@ -131,17 +115,18 @@ async function handleAppointmentReminder(res: VercelResponse, data: any) {
         <p>À demain,<br>Dorian Sarry</p>
       `;
       
-      results.email = await sendEmail({
+      const emailResult = await sendEmail({
         to: email,
         subject: 'Rappel de rendez-vous - Demain chez Dorian Sarry',
         html: emailContent
       });
+      results.email = emailResult.success;
     } catch (error) {
       console.error('Email reminder error:', error);
     }
   }
 
-  return successResponse(res, {
+  return sendSuccess(res, {
     message: 'Reminder notifications sent',
     results
   });

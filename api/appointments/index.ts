@@ -2,9 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { verifyToken, extractTokenFromRequest } from '../_lib/auth';
 import { mockDb } from '../_lib/mock-db';
+import type { MockUser, MockAppointment } from '../_lib/mock-types';
 import { sendSuccess, sendError, handleApiError } from '../_lib/response';
 import { sendAppointmentConfirmation, sendAppointmentCancellation } from '../_lib/email';
-import { sendSMS, formatPhoneNumber, createAppointmentConfirmationSMS } from '../_lib/sms';
 
 const createAppointmentSchema = z.object({
   slotId: z.string().optional(),
@@ -68,11 +68,11 @@ async function getAppointments(req: VercelRequest, res: VercelResponse, user: an
     
     // Filtrer par date si spécifiée
     if (startDate) {
-      appointments = appointments.filter(apt => apt.date >= startDate);
+      appointments = appointments.filter(apt => (apt.appointmentDate || apt.date || '') >= startDate);
     }
     
     if (endDate) {
-      appointments = appointments.filter(apt => apt.date <= endDate);
+      appointments = appointments.filter(apt => (apt.appointmentDate || apt.date || '') <= endDate);
     }
     
     return sendSuccess(res, {
@@ -96,7 +96,7 @@ async function getAppointments(req: VercelRequest, res: VercelResponse, user: an
             firstName: patient.firstName,
             lastName: patient.lastName,
             email: patient.email,
-            phone: patient.phone,
+            phone: patient.phone || undefined,
           } : null
         };
       })
@@ -109,11 +109,11 @@ async function getAppointments(req: VercelRequest, res: VercelResponse, user: an
     
     // Filtrer par date si spécifiée
     if (startDate) {
-      enrichedAppointments = enrichedAppointments.filter(apt => apt.date >= startDate);
+      enrichedAppointments = enrichedAppointments.filter(apt => (apt.appointmentDate || apt.date || '') >= startDate);
     }
     
     if (endDate) {
-      enrichedAppointments = enrichedAppointments.filter(apt => apt.date <= endDate);
+      enrichedAppointments = enrichedAppointments.filter(apt => (apt.appointmentDate || apt.date || '') <= endDate);
     }
     
     return sendSuccess(res, {
@@ -152,10 +152,8 @@ async function createAppointment(req: VercelRequest, res: VercelResponse, user: 
   }
 
   const newAppointment = await mockDb.createAppointment({
-    id: generateId(),
     patientId: user.userId,
-    slotId: appointmentData.slotId,
-    date: appointmentData.date,
+    appointmentDate: appointmentData.date,
     duration: appointmentData.duration,
     status: 'pending', // En attente de confirmation par le thérapeute
     type: appointmentData.type,
@@ -163,7 +161,6 @@ async function createAppointment(req: VercelRequest, res: VercelResponse, user: 
     isReferredByProfessional: appointmentData.isReferredByProfessional,
     referringProfessional: appointmentData.referringProfessional,
     symptomsStartDate: appointmentData.symptomsStartDate,
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
 
@@ -183,26 +180,8 @@ async function createAppointment(req: VercelRequest, res: VercelResponse, user: 
     // On ne fait pas échouer la création du rendez-vous si l'email échoue
   }
 
-  // Envoyer le SMS de confirmation
-  if (patient.phone) {
-    try {
-      const appointmentDate = new Date(appointmentData.date);
-      const formattedPhone = formatPhoneNumber(patient.phone);
-      const smsMessage = createAppointmentConfirmationSMS(
-        patient.firstName,
-        appointmentDate.toLocaleDateString('fr-FR'),
-        appointmentDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-      );
-      
-      await sendSMS({
-        to: formattedPhone,
-        message: smsMessage
-      });
-    } catch (smsError) {
-      console.error('Erreur lors de l\'envoi du SMS:', smsError);
-      // On ne fait pas échouer la création du rendez-vous si le SMS échoue
-    }
-  }
+  // SMS feature disabled for now
+  // TODO: Implement SMS functionality if needed
 
   return sendSuccess(res, newAppointment, 'Rendez-vous créé avec succès', 201);
 }
@@ -274,7 +253,7 @@ async function cancelAppointment(req: VercelRequest, res: VercelResponse, user: 
   try {
     const patient = await mockDb.findPatientById(appointment.patientId);
     if (patient) {
-      const appointmentDate = new Date(appointment.date);
+      const appointmentDate = new Date(appointment.appointmentDate || appointment.date || '');
       await sendAppointmentCancellation(
         patient.email,
         `${patient.firstName} ${patient.lastName}`,
@@ -322,7 +301,7 @@ async function getStatistics(req: VercelRequest, res: VercelResponse, user: any)
   
   // Filtrer par période
   const periodAppointments = allAppointments.filter(
-    apt => new Date(apt.date) >= startDate
+    apt => new Date(apt.appointmentDate || apt.date || '') >= startDate
   );
 
   const statistics = {
@@ -337,12 +316,12 @@ async function getStatistics(req: VercelRequest, res: VercelResponse, user: any)
     sessionTypes: [
       {
         type: 'cabinet',
-        count: periodAppointments.filter(apt => apt.type === 'cabinet').length,
+        count: periodAppointments.filter(apt => (apt as any).type === 'cabinet').length,
         color: '#0d9488'
       },
       {
         type: 'visio',
-        count: periodAppointments.filter(apt => apt.type === 'visio').length,
+        count: periodAppointments.filter(apt => (apt as any).type === 'visio').length,
         color: '#3b82f6'
       }
     ],
@@ -371,15 +350,15 @@ async function getStatistics(req: VercelRequest, res: VercelResponse, user: any)
     referralSources: [
       {
         source: 'Médecin traitant',
-        count: allPatients.filter(p => p.isReferredByProfessional && p.referringProfessional?.includes('Médecin')).length
+        count: allPatients.filter(p => (p as any).isReferredByProfessional && (p as any).referringProfessional?.includes('Médecin')).length
       },
       {
         source: 'Psychologue',
-        count: allPatients.filter(p => p.isReferredByProfessional && p.referringProfessional?.includes('Psychologue')).length
+        count: allPatients.filter(p => (p as any).isReferredByProfessional && (p as any).referringProfessional?.includes('Psychologue')).length
       },
       {
         source: 'Recherche personnelle',
-        count: allPatients.filter(p => !p.isReferredByProfessional).length
+        count: allPatients.filter(p => !(p as any).isReferredByProfessional).length
       },
       {
         source: 'Bouche à oreille',

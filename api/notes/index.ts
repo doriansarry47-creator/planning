@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { verifyToken } from '../_lib/auth';
+import { authenticateToken } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError } from '../_lib/response';
 
 // Schéma de validation pour une note
@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const authResult = await verifyToken(req);
+    const authResult = authenticateToken(req);
     if (!authResult.success) {
       return sendError(res, 'Token d\'authentification invalide', 401);
     }

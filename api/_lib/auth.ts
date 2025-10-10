@@ -61,3 +61,23 @@ export function requirePatientAuth(req: VercelRequest): JwtPayload {
   }
   return payload;
 }
+
+// Custom JWT decode function that handles the token properly
+export function authenticateToken(token: string): { success: boolean; payload?: JwtPayload } {
+  try {
+    const decoded = verifyToken(token);
+    return { success: true, payload: decoded };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+// Overload for VercelRequest
+export function authenticateToken(req: VercelRequest): { success: boolean; payload?: JwtPayload } {
+  try {
+    const payload = requireAuth(req);
+    return { success: true, payload };
+  } catch (error) {
+    return { success: false };
+  }
+}

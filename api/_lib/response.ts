@@ -29,6 +29,10 @@ export function sendError(
   });
 }
 
+// Aliases for backward compatibility
+export const successResponse = sendSuccess;
+export const errorResponse = sendError;
+
 export function handleApiError(res: VercelResponse, error: any) {
   if (error.message === 'Token d\'authentification requis') {
     return sendError(res, error.message, 401);

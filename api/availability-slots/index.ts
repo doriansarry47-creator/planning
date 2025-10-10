@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { verifyToken } from '../_lib/auth';
+import { authenticateToken } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError } from '../_lib/response';
 
 // Schéma de validation pour un créneau
@@ -132,7 +132,7 @@ async function getAvailabilitySlots(req: VercelRequest, res: VercelResponse) {
 // Créer un nouveau créneau de disponibilité
 async function createAvailabilitySlot(req: VercelRequest, res: VercelResponse) {
   // Vérifier l'authentification admin
-  const authResult = await verifyToken(req);
+  const authResult = authenticateToken(req);
   if (!authResult.success || authResult.payload?.userType !== 'admin') {
     return sendError(res, 'Accès non autorisé', 401);
   }
@@ -178,7 +178,7 @@ async function createAvailabilitySlot(req: VercelRequest, res: VercelResponse) {
 
 // Mettre à jour un créneau de disponibilité
 async function updateAvailabilitySlot(req: VercelRequest, res: VercelResponse) {
-  const authResult = await verifyToken(req);
+  const authResult = authenticateToken(req);
   if (!authResult.success || authResult.payload?.userType !== 'admin') {
     return sendError(res, 'Accès non autorisé', 401);
   }
@@ -202,7 +202,7 @@ async function updateAvailabilitySlot(req: VercelRequest, res: VercelResponse) {
 
 // Supprimer un créneau de disponibilité
 async function deleteAvailabilitySlot(req: VercelRequest, res: VercelResponse) {
-  const authResult = await verifyToken(req);
+  const authResult = authenticateToken(req);
   if (!authResult.success || authResult.payload?.userType !== 'admin') {
     return sendError(res, 'Accès non autorisé', 401);
   }

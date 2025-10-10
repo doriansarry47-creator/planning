@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { eq } from 'drizzle-orm';
-import { db, users, patients } from '../_lib/db';
+import { db, patients, admins } from '../_lib/db';
 import { requireAuth } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
 
@@ -18,10 +18,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     if (payload.userType === 'admin') {
       // Trouver l'utilisateur admin
-      const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
+      const [user] = await db.select().from(admins).where(eq(admins.id, payload.userId)).limit(1);
       
-      if (!user || !user.isActive) {
-        return sendError(res, 'Utilisateur non trouvé ou inactif', 404);
+      if (!user) {
+        return sendError(res, 'Utilisateur non trouvé', 404);
       }
 
       const { password: _, ...userWithoutPassword } = user;
@@ -34,8 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Trouver le patient
       const [patient] = await db.select().from(patients).where(eq(patients.id, payload.userId)).limit(1);
       
-      if (!patient || !patient.isActive) {
-        return sendError(res, 'Patient non trouvé ou inactif', 404);
+      if (!patient) {
+        return sendError(res, 'Patient non trouvé', 404);
       }
 
       const { password: _, ...patientWithoutPassword } = patient;

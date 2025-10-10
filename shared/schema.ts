@@ -166,12 +166,69 @@ export const unavailabilities = pgTable("unavailabilities", {
 //   reason: true,
 // });
 
-export const insertAdminSchema = createInsertSchema(admins);
-export const insertPatientSchema = createInsertSchema(patients);
-export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots);
-export const insertAppointmentSchema = createInsertSchema(appointments);
-export const insertNoteSchema = createInsertSchema(notes);
-export const insertUnavailabilitySchema = createInsertSchema(unavailabilities);
+// Schémas de validation manuels pour éviter les erreurs drizzle-zod
+export const insertAdminSchema = z.object({
+  name: z.string().optional(),
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+export const insertPatientSchema = z.object({
+  firstName: z.string().min(2),
+  lastName: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+  phone: z.string().optional(),
+  isReferredByProfessional: z.boolean().optional(),
+  referringProfessional: z.string().optional(),
+  consultationReason: z.string().min(10),
+  symptomsStartDate: z.string().optional(),
+  preferredSessionType: z.enum(["cabinet", "visio"]),
+  therapistNotes: z.string().optional(),
+});
+
+export const insertAppointmentSchema = z.object({
+  patientId: z.string(),
+  slotId: z.string().optional(),
+  date: z.date(),
+  duration: z.number().default(60),
+  status: z.string().default("pending"),
+  type: z.string(),
+  reason: z.string(),
+  isReferredByProfessional: z.boolean().optional(),
+  referringProfessional: z.string().optional(),
+  symptomsStartDate: z.string().optional(),
+  therapistNotes: z.string().optional(),
+  sessionSummary: z.string().optional(),
+});
+
+export const insertAvailabilitySlotSchema = z.object({
+  date: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  duration: z.number().default(60),
+  isAvailable: z.boolean().default(true),
+  isRecurring: z.boolean().default(false),
+  recurringPattern: z.string().optional(),
+  dayOfWeek: z.number().optional(),
+  notes: z.string().optional(),
+});
+
+export const insertNoteSchema = z.object({
+  patientId: z.string(),
+  content: z.string(),
+  isPrivate: z.boolean().default(true),
+  sessionDate: z.string().optional(),
+});
+
+export const insertUnavailabilitySchema = z.object({
+  startDate: z.string(),
+  endDate: z.string(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  isFullDay: z.boolean().default(true),
+  reason: z.string().optional(),
+});
 
 // Types TypeScript
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;

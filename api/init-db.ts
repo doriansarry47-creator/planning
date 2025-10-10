@@ -98,37 +98,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         emergencyPhone: '0987654321'
       });
 
-      // Créer des praticiens de test
-      await db.insert(schema.practitioners).values([
-        {
-          firstName: 'Dr. Jean',
-          lastName: 'Martin',
-          specialization: 'Médecine générale',
-          email: 'dr.martin@medplan.fr',
-          phoneNumber: '0145678901',
-          licenseNumber: 'MG001',
-          biography: 'Médecin généraliste avec 15 ans d\'expérience.',
-          consultationDuration: 30
-        },
-        {
-          firstName: 'Dr. Sophie',
-          lastName: 'Durand',
-          specialization: 'Cardiologie',
-          email: 'dr.durand@medplan.fr',
-          phoneNumber: '0145678902',
-          licenseNumber: 'CARD001',
-          biography: 'Cardiologue spécialisée dans les maladies cardiovasculaires.',
-          consultationDuration: 45
-        }
-      ]);
+      // Pas de praticiens pour cette application de thérapie sensorimotrice
 
       return res.status(200).json({ 
         message: 'Base de données initialisée avec succès',
         testAccounts: {
           admin: {
-            username: 'admin',
+            name: 'Dorian Sarry',
             password: 'admin123',
-            email: 'admin@medplan.fr'
+            email: 'doriansarry@yahoo.fr'
           },
           patient: {
             email: 'patient@test.fr',
@@ -142,9 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         message: 'Base de données déjà initialisée',
         testAccounts: {
           admin: {
-            username: 'admin',
+            name: 'Dorian Sarry',
             password: 'admin123',
-            email: 'admin@medplan.fr'
+            email: 'doriansarry@yahoo.fr'
           },
           patient: {
             email: 'patient@test.fr',

@@ -88,10 +88,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           try {
             await sendAppointmentReminder(
               patient.email,
-              `${patient.firstName} ${patient.lastName}`,
+              `${(patient as MockUser).firstName || ''} ${(patient as MockUser).lastName || ''}`,
               dateStr,
               timeStr,
-              appointment.type
+              (appointment as any).type || 'cabinet'
             );
             remindersSent.email++;
           } catch (emailError) {
@@ -102,8 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Marquer le rappel comme envoyé dans la base de données
         await mockDb.updateAppointment(appointment.id, {
-          reminderSent: true,
-          reminderSentAt: new Date().toISOString()
+          updatedAt: new Date().toISOString()
         });
 
       } catch (error) {
@@ -112,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    return successResponse(res, {
+    return sendSuccess(res, {
       message: `Rappels envoyés avec succès`,
       appointmentsProcessed: tomorrowAppointments.length,
       remindersSent,
@@ -121,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('Erreur lors de l\'envoi des rappels:', error);
-    return errorResponse(res, 'Erreur lors de l\'envoi des rappels');
+    return sendError(res, 'Erreur lors de l\'envoi des rappels');
   }
 }
 

@@ -1,228 +1,144 @@
-// Mock database for demo purposes
-// This is a simple implementation that stores data in memory and localStorage
+import type { MockUser, MockAppointment } from './mock-types';
 
-import bcrypt from 'bcryptjs';
+// Mock database pour le développement et les tests
+class MockDatabase {
+  private patients: MockUser[] = [];
+  private appointments: MockAppointment[] = [];
 
-// Mock data structure
-interface MockUser {
-  id: string;
-  username?: string;
-  email: string;
-  password: string;
-  fullName?: string;
-  firstName?: string;
-  lastName?: string;
-  role?: string;
-  phoneNumber?: string;
-  createdAt: string;
-}
-
-interface MockAppointment {
-  id: string;
-  patientId: string;
-  practitionerId: string;
-  appointmentDate: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  reason?: string;
-  notes?: string;
-  createdAt: string;
-}
-
-interface MockPractitioner {
-  id: string;
-  firstName: string;
-  lastName: string;
-  specialization: string;
-  email: string;
-  phoneNumber?: string;
-  licenseNumber?: string;
-  biography?: string;
-  consultationDuration: number;
-  isActive: boolean;
-  createdAt: string;
-}
-
-// In-memory storage
-let mockUsers: MockUser[] = [];
-let mockAppointments: MockAppointment[] = [];
-let mockPractitioners: MockPractitioner[] = [];
-
-// Initialize with default data
-export function initializeMockData() {
-  if (mockUsers.length === 0) {
-    // Add default admin user
-    mockUsers.push({
-      id: 'admin-1',
-      username: 'doriansarry',
-      email: 'doriansarry@yahoo.fr',
-      password: bcrypt.hashSync('Dorian010195', 10),
-      fullName: 'Dorian Sarry',
-      firstName: 'Dorian',
-      lastName: 'Sarry',
-      phoneNumber: '0645156368',
-      role: 'admin',
-      createdAt: new Date().toISOString()
-    });
-
-    // Add test patient
-    mockUsers.push({
-      id: 'patient-1',
-      email: 'patient@test.fr',
-      password: bcrypt.hashSync('patient123', 10),
-      firstName: 'Jean',
-      lastName: 'Dupont',
-      phoneNumber: '0123456789',
-      createdAt: new Date().toISOString()
-    });
-
-    // Add practitioners
-    mockPractitioners.push({
-      id: 'practitioner-1',
-      firstName: 'Dorian',
-      lastName: 'Sarry',
-      specialization: 'Thérapie Sensorimotrice',
-      email: 'doriansarry@yahoo.fr',
-      phoneNumber: '0645156368',
-      licenseNumber: 'THER001',
-      biography: 'Spécialiste en thérapie sensorimotrice, stabilisation émotionnelle et traitement du psycho-traumatisme.',
-      consultationDuration: 60,
-      isActive: true,
-      createdAt: new Date().toISOString()
-    });
+  // Patients methods
+  async findPatientById(id: string): Promise<MockUser | null> {
+    return this.patients.find(p => p.id === id) || null;
   }
-}
 
-// Mock database functions
-export const mockDb = {
-  // Users/Admins
-  findUserByEmail: async (email: string) => {
-    initializeMockData();
-    return mockUsers.find(u => u.email === email && u.role === 'admin');
-  },
+  async findPatientByEmail(email: string): Promise<MockUser | null> {
+    return this.patients.find(p => p.email === email) || null;
+  }
 
-  findUserById: async (id: string) => {
-    initializeMockData();
-    return mockUsers.find(u => u.id === id);
-  },
+  async findAllPatients(): Promise<MockUser[]> {
+    return [...this.patients];
+  }
 
-  createUser: async (userData: Omit<MockUser, 'id' | 'createdAt'>) => {
-    initializeMockData();
-    const newUser = {
-      ...userData,
-      id: `user-${Date.now()}`,
-      createdAt: new Date().toISOString()
-    };
-    mockUsers.push(newUser);
-    return newUser;
-  },
-
-  // Patients
-  findPatientByEmail: async (email: string) => {
-    initializeMockData();
-    return mockUsers.find(u => u.email === email && !u.role);
-  },
-
-  createPatient: async (patientData: Omit<MockUser, 'id' | 'createdAt'>) => {
-    initializeMockData();
-    const newPatient = {
+  async createPatient(patientData: Omit<MockUser, 'id' | 'createdAt'>): Promise<MockUser> {
+    const newPatient: MockUser = {
       ...patientData,
-      id: `patient-${Date.now()}`,
-      createdAt: new Date().toISOString()
+      id: this.generateId(),
+      createdAt: new Date()
     };
-    mockUsers.push(newPatient);
+    this.patients.push(newPatient);
     return newPatient;
-  },
+  }
 
-  // Practitioners
-  findAllPractitioners: async () => {
-    initializeMockData();
-    return mockPractitioners.filter(p => p.isActive);
-  },
-
-  findPractitionerById: async (id: string) => {
-    initializeMockData();
-    return mockPractitioners.find(p => p.id === id);
-  },
-
-  createPractitioner: async (practitionerData: Omit<MockPractitioner, 'id' | 'createdAt'>) => {
-    initializeMockData();
-    const newPractitioner = {
-      ...practitionerData,
-      id: `practitioner-${Date.now()}`,
-      createdAt: new Date().toISOString()
-    };
-    mockPractitioners.push(newPractitioner);
-    return newPractitioner;
-  },
-
-  // Appointments
-  findAppointmentsByPatient: async (patientId: string) => {
-    initializeMockData();
-    return mockAppointments.filter(a => a.patientId === patientId);
-  },
-
-  findAllAppointments: async () => {
-    initializeMockData();
-    return mockAppointments;
-  },
-
-  createAppointment: async (appointmentData: Omit<MockAppointment, 'id' | 'createdAt'>) => {
-    initializeMockData();
-    const newAppointment = {
-      ...appointmentData,
-      id: `appointment-${Date.now()}`,
-      createdAt: new Date().toISOString()
-    };
-    mockAppointments.push(newAppointment);
-    return newAppointment;
-  },
-
-  updateAppointment: async (id: string, updates: Partial<MockAppointment>) => {
-    initializeMockData();
-    const index = mockAppointments.findIndex(a => a.id === id);
-    if (index !== -1) {
-      mockAppointments[index] = { ...mockAppointments[index], ...updates };
-      return mockAppointments[index];
+  // Appointments methods
+  async findAppointmentById(id: string): Promise<MockAppointment | null> {
+    const appointment = this.appointments.find(a => a.id === id) || null;
+    if (appointment) {
+      // Ensure appointmentDate is accessible as both appointmentDate and date
+      return {
+        ...appointment,
+        date: appointment.appointmentDate || appointment.date || appointment.appointmentDate
+      };
     }
     return null;
-  },
-
-  deleteAppointment: async (id: string) => {
-    initializeMockData();
-    const index = mockAppointments.findIndex(a => a.id === id);
-    if (index !== -1) {
-      mockAppointments.splice(index, 1);
-      return true;
-    }
-    return false;
-  },
-
-  findAppointmentById: async (id: string) => {
-    initializeMockData();
-    return mockAppointments.find(a => a.id === id);
-  },
-
-  findPatientById: async (id: string) => {
-    initializeMockData();
-    return mockUsers.find(u => u.id === id && !u.role);
-  },
-
-  findAllPatients: async () => {
-    initializeMockData();
-    return mockUsers.filter(u => !u.role);
-  },
-
-  findAppointmentsByDateRange: async (startDate: string, endDate: string) => {
-    initializeMockData();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return mockAppointments.filter(a => {
-      const appointmentDate = new Date(a.appointmentDate);
-      return appointmentDate >= start && appointmentDate <= end;
-    });
   }
-};
 
-export type { MockUser, MockAppointment, MockPractitioner };
+  async findAppointmentsByPatient(patientId: string): Promise<MockAppointment[]> {
+    return this.appointments
+      .filter(a => a.patientId === patientId)
+      .map(a => ({
+        ...a,
+        date: a.appointmentDate || a.date || a.appointmentDate
+      }));
+  }
+
+  async findAllAppointments(): Promise<MockAppointment[]> {
+    return this.appointments.map(a => ({
+      ...a,
+      date: a.appointmentDate || a.date || a.appointmentDate
+    }));
+  }
+
+  async createAppointment(appointmentData: Omit<MockAppointment, 'id' | 'createdAt'>): Promise<MockAppointment> {
+    const newAppointment: MockAppointment = {
+      ...appointmentData,
+      id: this.generateId(),
+      appointmentDate: appointmentData.appointmentDate || appointmentData.date || new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+    
+    // Ensure date field is set for compatibility
+    newAppointment.date = newAppointment.appointmentDate;
+    
+    this.appointments.push(newAppointment);
+    return newAppointment;
+  }
+
+  async updateAppointment(id: string, updateData: Partial<MockAppointment>): Promise<MockAppointment | null> {
+    const index = this.appointments.findIndex(a => a.id === id);
+    if (index === -1) return null;
+
+    this.appointments[index] = {
+      ...this.appointments[index],
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Ensure date field consistency
+    if (updateData.appointmentDate) {
+      this.appointments[index].date = updateData.appointmentDate;
+    }
+
+    return this.appointments[index];
+  }
+
+  async deleteAppointment(id: string): Promise<boolean> {
+    const index = this.appointments.findIndex(a => a.id === id);
+    if (index === -1) return false;
+    
+    this.appointments.splice(index, 1);
+    return true;
+  }
+
+  private generateId(): string {
+    return Math.random().toString(36).substr(2, 9);
+  }
+
+  // Initialize with some mock data
+  async initialize() {
+    // Add some mock patients
+    const mockPatients: Omit<MockUser, 'id' | 'createdAt'>[] = [
+      {
+        firstName: 'Marie',
+        lastName: 'Dupont',
+        email: 'marie.dupont@email.com',
+        password: 'hashedpassword',
+        phone: '06.12.34.56.78',
+        isReferredByProfessional: true,
+        referringProfessional: 'Dr. Martin - Médecin traitant',
+        consultationReason: 'Troubles anxieux avec manifestations somatiques',
+        symptomsStartDate: '2024-01-15',
+        preferredSessionType: 'cabinet',
+        isActive: true
+      },
+      {
+        firstName: 'Pierre',
+        lastName: 'Durand',
+        email: 'pierre.durand@email.com',
+        password: 'hashedpassword',
+        phone: '06.98.76.54.32',
+        isReferredByProfessional: false,
+        consultationReason: 'Difficultés de gestion du stress professionnel',
+        preferredSessionType: 'visio',
+        isActive: true
+      }
+    ];
+
+    for (const patient of mockPatients) {
+      await this.createPatient(patient);
+    }
+  }
+}
+
+export const mockDb = new MockDatabase();
+
+// Initialize mock data
+mockDb.initialize().catch(console.error);

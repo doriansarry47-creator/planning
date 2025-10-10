@@ -29,7 +29,7 @@ const createTransport = () => {
     }
   };
 
-  return nodemailer.createTransporter(config);
+  return nodemailer.createTransport(config);
 };
 
 // Template d'email de confirmation de rendez-vous
