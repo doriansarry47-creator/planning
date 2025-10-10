@@ -1,0 +1,20 @@
+# Configuration des variables d'environnement pour Vercel
+# Token Vercel: 3kz9fNzT1uuXw0qtqKjMUIO6
+
+# Variables d'environnement pour la production
+DATABASE_URL="postgresql://neondb_owner:npg_b3x4u5v6w7x8y9z0@ep-rapid-flower-a4b5c6d7.us-east-1.aws.neon.tech/neondb?sslmode=require"
+NEXTAUTH_SECRET="medical-planning-secret-key-2024"
+JWT_SECRET="medplan-jwt-secret-key-2024-production"
+VITE_FRONTEND_URL="https://planning-theta-five.vercel.app"
+
+# Configuration Email (SMTP)
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="doriansarry@yahoo.fr"
+SMTP_PASS="your-smtp-password-here"
+
+# Configuration pour les crons
+CRON_SECRET="cron-secret-2024-medplan"
+
+# Mode de développement
+NODE_ENV="production"
