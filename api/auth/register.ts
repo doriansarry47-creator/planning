@@ -15,15 +15,33 @@ const registerAdminSchema = z.object({
 });
 
 const registerPatientSchema = z.object({
-  email: z.string().email("Format d'email invalide"),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").regex(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-    "Le mot de passe doit contenir au moins une lettre minuscule, une majuscule et un chiffre"
-  ),
-  confirmPassword: z.string(),
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
   lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
-  phoneNumber: z.string().optional(),
+  email: z.string().email("Format d'email invalide"),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  confirmPassword: z.string(),
+  phone: z.string().optional(),
+  // Questionnaire thérapie sensorimotrice
+  isReferredByProfessional: z.boolean(),
+  referringProfessional: z.string().optional(),
+  consultationReason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
+  symptomsStartDate: z.string().optional(),
+  preferredSessionType: z.enum(["cabinet", "visio"], {
+    required_error: "Veuillez choisir votre préférence de consultation"
+  }),
+  // Questions supplémentaires
+  hasPhysicalSymptoms: z.boolean().optional(),
+  physicalSymptomsDescription: z.string().optional(),
+  hasEmotionalDifficulties: z.boolean().optional(),
+  emotionalDifficultiesDescription: z.string().optional(),
+  previousTherapyExperience: z.boolean().optional(),
+  previousTherapyDetails: z.string().optional(),
+  currentMedications: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  emergencyPhone: z.string().optional(),
+  // Consentement
+  consentToTreatment: z.boolean().refine(val => val === true, "Vous devez accepter le consentement au traitement"),
+  consentToDataProcessing: z.boolean().refine(val => val === true, "Vous devez accepter le traitement des données"),
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

@@ -5,8 +5,9 @@ import { AuthProvider } from '@/hooks/useAuth';
 import { PatientLoginPage } from '@/pages/PatientLoginPage';
 import { PatientDashboard } from '@/pages/PatientDashboard';
 import { AdminLoginPage } from '@/pages/AdminLoginPage';
-import { AdminDashboard } from '@/pages/AdminDashboard';
-import { LandingPage } from '@/pages/LandingPage';
+import { TherapyLandingPage } from '@/pages/TherapyLandingPage';
+import { TherapyAdminDashboard } from '@/pages/TherapyAdminDashboard';
+import { PatientBookingPage } from '@/pages/PatientBookingPage';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import './globals.css';
 
@@ -28,11 +29,14 @@ function App() {
           <div className="min-h-screen bg-gray-50">
             <Switch>
               {/* Page d'accueil */}
-              <Route path="/" component={LandingPage} />
+              <Route path="/" component={TherapyLandingPage} />
               
               {/* Pages de connexion */}
               <Route path="/login/patient" component={PatientLoginPage} />
               <Route path="/login/admin" component={AdminLoginPage} />
+              
+              {/* Page de prise de rendez-vous */}
+              <Route path="/patient/book-appointment" component={PatientBookingPage} />
               
               {/* Tableaux de bord protégés */}
               <Route path="/patient/dashboard">
@@ -43,7 +47,7 @@ function App() {
               
               <Route path="/admin/dashboard">
                 <ProtectedRoute userType="admin">
-                  <AdminDashboard />
+                  <TherapyAdminDashboard />
                 </ProtectedRoute>
               </Route>
               

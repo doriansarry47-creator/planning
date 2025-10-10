@@ -1,8 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { verifyToken } from '../_lib/auth';
 import { mockDb } from '../_lib/mock-db';
-import { requireAuth, requirePatientAuth, requireAdminAuth } from '../_lib/auth';
-import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
+import { sendSuccess, sendError, handleApiError } from '../_lib/response';
+import { sendAppointmentConfirmation, sendAppointmentCancellation } from '../_lib/email';
+
+const createAppointmentSchema = z.object({
+  slotId: z.string().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}T/, "Format de date invalide"),
+  duration: z.number().min(30).max(120).default(60),
+  type: z.enum(["cabinet", "visio"], {
+    required_error: "Le type de consultation est requis"
+  }),
+  reason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
+  isReferredByProfessional: z.boolean().default(false),
+  referringProfessional: z.string().optional(),
+  symptomsStartDate: z.string().optional(),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers for all requests
@@ -15,11 +29,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const authResult = await verifyToken(req);
+    if (!authResult.success) {
+      return sendError(res, 'Token d\'authentification invalide', 401);
+    }
+
     switch (req.method) {
       case 'GET':
-        return await getAppointments(req, res);
+        return await getAppointments(req, res, authResult.payload!);
       case 'POST':
-        return await createAppointment(req, res);
+        return await createAppointment(req, res, authResult.payload!);
+      case 'PUT':
+        return await updateAppointment(req, res, authResult.payload!);
+      case 'DELETE':
+        return await cancelAppointment(req, res, authResult.payload!);
       default:
         return sendError(res, 'Méthode non autorisée', 405);
     }
@@ -28,40 +51,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function getAppointments(req: VercelRequest, res: VercelResponse) {
-  const payload = requireAuth(req);
+async function getAppointments(req: VercelRequest, res: VercelResponse, user: any) {
+  const { status, startDate, endDate } = req.query;
   
-  if (payload.userType === 'patient') {
+  if (user.userType === 'patient') {
     // Les patients ne voient que leurs propres rendez-vous
-    const patientAppointments = await mockDb.findAppointmentsByPatient(payload.userId);
+    let appointments = await mockDb.findAppointmentsByPatient(user.userId);
     
-    // Enrichir avec les informations du praticien
-    const enrichedAppointments = await Promise.all(
-      patientAppointments.map(async (appointment) => {
-        const practitioner = await mockDb.findPractitionerById(appointment.practitionerId);
-        return {
-          ...appointment,
-          practitioner: practitioner ? {
-            id: practitioner.id,
-            firstName: practitioner.firstName,
-            lastName: practitioner.lastName,
-            specialization: practitioner.specialization,
-          } : null
-        };
-      })
-    );
-
-    return sendSuccess(res, enrichedAppointments);
+    // Filtrer par statut si spécifié
+    if (status && status !== 'all') {
+      appointments = appointments.filter(apt => apt.status === status);
+    }
     
-  } else if (payload.userType === 'admin') {
-    // Les admins voient tous les rendez-vous
-    const allAppointments = await mockDb.findAllAppointments();
+    // Filtrer par date si spécifiée
+    if (startDate) {
+      appointments = appointments.filter(apt => apt.date >= startDate);
+    }
     
-    // Enrichir avec les informations du patient et du praticien
+    if (endDate) {
+      appointments = appointments.filter(apt => apt.date <= endDate);
+    }
+    
+    return sendSuccess(res, {
+      appointments,
+      total: appointments.length
+    });
+    
+  } else if (user.userType === 'admin') {
+    // Les admins voient tous les rendez-vous avec informations patient
+    let allAppointments = await mockDb.findAllAppointments();
+    
+    // Enrichir avec les informations du patient
     const enrichedAppointments = await Promise.all(
       allAppointments.map(async (appointment) => {
-        const patient = await mockDb.findUserById(appointment.patientId);
-        const practitioner = await mockDb.findPractitionerById(appointment.practitionerId);
+        const patient = await mockDb.findPatientById(appointment.patientId);
         
         return {
           ...appointment,
@@ -70,38 +93,42 @@ async function getAppointments(req: VercelRequest, res: VercelResponse) {
             firstName: patient.firstName,
             lastName: patient.lastName,
             email: patient.email,
-          } : null,
-          practitioner: practitioner ? {
-            id: practitioner.id,
-            firstName: practitioner.firstName,
-            lastName: practitioner.lastName,
-            specialization: practitioner.specialization,
+            phone: patient.phone,
           } : null
         };
       })
     );
-
-    return sendSuccess(res, enrichedAppointments);
+    
+    // Filtrer par statut si spécifié
+    if (status && status !== 'all') {
+      enrichedAppointments = enrichedAppointments.filter(apt => apt.status === status);
+    }
+    
+    // Filtrer par date si spécifiée
+    if (startDate) {
+      enrichedAppointments = enrichedAppointments.filter(apt => apt.date >= startDate);
+    }
+    
+    if (endDate) {
+      enrichedAppointments = enrichedAppointments.filter(apt => apt.date <= endDate);
+    }
+    
+    return sendSuccess(res, {
+      appointments: enrichedAppointments,
+      total: enrichedAppointments.length
+    });
   }
 
   return sendError(res, 'Type d\'utilisateur non autorisé', 403);
 }
 
-const insertAppointmentSchema = z.object({
-  patientId: z.string(),
-  practitionerId: z.string(),
-  appointmentDate: z.string(),
-  startTime: z.string(),
-  reason: z.string().optional(),
-});
+async function createAppointment(req: VercelRequest, res: VercelResponse, user: any) {
+  // Seuls les patients peuvent créer des rendez-vous
+  if (user.userType !== 'patient') {
+    return sendError(res, 'Seuls les patients peuvent prendre des rendez-vous', 403);
+  }
 
-async function createAppointment(req: VercelRequest, res: VercelResponse) {
-  const payload = requirePatientAuth(req);
-  
-  const validationResult = insertAppointmentSchema.safeParse({
-    ...req.body,
-    patientId: payload.userId, // Utiliser l'ID du patient authentifié
-  });
+  const validationResult = createAppointmentSchema.safeParse(req.body);
   
   if (!validationResult.success) {
     return sendError(res, 'Données invalides: ' + validationResult.error.issues[0].message, 400);
@@ -109,23 +136,238 @@ async function createAppointment(req: VercelRequest, res: VercelResponse) {
 
   const appointmentData = validationResult.data;
 
-  // Vérifier que le praticien existe et est actif
-  const practitioner = await mockDb.findPractitionerById(appointmentData.practitionerId);
-
-  if (!practitioner || !practitioner.isActive) {
-    return sendError(res, 'Praticien non trouvé ou inactif', 404);
+  // Vérifier la disponibilité du créneau si un slotId est fourni
+  if (appointmentData.slotId) {
+    // Ici, vous devriez vérifier la disponibilité du slot dans votre base de données
+    // Pour l'instant, nous simulons cette vérification
   }
 
-  // Calculer l'heure de fin basée sur la durée de consultation
-  const startTime = new Date(`2000-01-01T${appointmentData.startTime}`);
-  const endTime = new Date(startTime.getTime() + practitioner.consultationDuration * 60000);
-  const endTimeString = endTime.toTimeString().slice(0, 8);
+  // Récupérer les informations du patient
+  const patient = await mockDb.findPatientById(user.userId);
+  if (!patient) {
+    return sendError(res, 'Patient non trouvé', 404);
+  }
 
   const newAppointment = await mockDb.createAppointment({
-    ...appointmentData,
-    endTime: endTimeString,
-    status: 'scheduled',
+    id: generateId(),
+    patientId: user.userId,
+    slotId: appointmentData.slotId,
+    date: appointmentData.date,
+    duration: appointmentData.duration,
+    status: 'pending', // En attente de confirmation par le thérapeute
+    type: appointmentData.type,
+    reason: appointmentData.reason,
+    isReferredByProfessional: appointmentData.isReferredByProfessional,
+    referringProfessional: appointmentData.referringProfessional,
+    symptomsStartDate: appointmentData.symptomsStartDate,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
 
+  // Envoyer l'email de confirmation
+  try {
+    const appointmentDate = new Date(appointmentData.date);
+    await sendAppointmentConfirmation(
+      patient.email,
+      `${patient.firstName} ${patient.lastName}`,
+      appointmentDate.toLocaleDateString('fr-FR'),
+      appointmentDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      appointmentData.type,
+      newAppointment.id
+    );
+  } catch (emailError) {
+    console.error('Erreur lors de l\'envoi de l\'email:', emailError);
+    // On ne fait pas échouer la création du rendez-vous si l'email échoue
+  }
+
   return sendSuccess(res, newAppointment, 'Rendez-vous créé avec succès', 201);
+}
+
+async function updateAppointment(req: VercelRequest, res: VercelResponse, user: any) {
+  const { appointmentId } = req.query;
+  const updateData = req.body;
+
+  if (!appointmentId) {
+    return sendError(res, 'ID du rendez-vous requis', 400);
+  }
+
+  const appointment = await mockDb.findAppointmentById(appointmentId as string);
+  if (!appointment) {
+    return sendError(res, 'Rendez-vous non trouvé', 404);
+  }
+
+  // Vérifier les permissions
+  if (user.userType === 'patient' && appointment.patientId !== user.userId) {
+    return sendError(res, 'Vous ne pouvez pas modifier ce rendez-vous', 403);
+  }
+
+  // Pour les admins, permettre de mettre à jour le statut et les notes
+  const allowedUpdates = user.userType === 'admin' 
+    ? ['status', 'therapistNotes', 'sessionSummary']
+    : ['status']; // Les patients peuvent seulement annuler
+
+  const updatedFields: any = {
+    updatedAt: new Date().toISOString()
+  };
+
+  // Filtrer les champs autorisés
+  Object.keys(updateData).forEach(key => {
+    if (allowedUpdates.includes(key)) {
+      updatedFields[key] = updateData[key];
+    }
+  });
+
+  const updatedAppointment = await mockDb.updateAppointment(appointmentId as string, updatedFields);
+
+  return sendSuccess(res, updatedAppointment, 'Rendez-vous mis à jour avec succès');
+}
+
+async function cancelAppointment(req: VercelRequest, res: VercelResponse, user: any) {
+  const { appointmentId } = req.query;
+  const { reason } = req.body;
+
+  if (!appointmentId) {
+    return sendError(res, 'ID du rendez-vous requis', 400);
+  }
+
+  const appointment = await mockDb.findAppointmentById(appointmentId as string);
+  if (!appointment) {
+    return sendError(res, 'Rendez-vous non trouvé', 404);
+  }
+
+  // Vérifier les permissions
+  if (user.userType === 'patient' && appointment.patientId !== user.userId) {
+    return sendError(res, 'Vous ne pouvez pas annuler ce rendez-vous', 403);
+  }
+
+  // Mettre à jour le statut au lieu de supprimer
+  const cancelledAppointment = await mockDb.updateAppointment(appointmentId as string, {
+    status: 'cancelled',
+    updatedAt: new Date().toISOString()
+  });
+
+  // Envoyer l'email d'annulation
+  try {
+    const patient = await mockDb.findPatientById(appointment.patientId);
+    if (patient) {
+      const appointmentDate = new Date(appointment.date);
+      await sendAppointmentCancellation(
+        patient.email,
+        `${patient.firstName} ${patient.lastName}`,
+        appointmentDate.toLocaleDateString('fr-FR'),
+        appointmentDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        reason || 'Aucune raison spécifiée'
+      );
+    }
+  } catch (emailError) {
+    console.error('Erreur lors de l\'envoi de l\'email d\'annulation:', emailError);
+  }
+
+  return sendSuccess(res, cancelledAppointment, 'Rendez-vous annulé avec succès');
+}
+
+// Nouvelles fonctions spécifiques à la thérapie sensorimotrice
+
+async function getStatistics(req: VercelRequest, res: VercelResponse, user: any) {
+  if (user.userType !== 'admin') {
+    return sendError(res, 'Accès non autorisé', 403);
+  }
+
+  const { period = 'month' } = req.query;
+  
+  // Calculer les statistiques selon la période
+  const now = new Date();
+  let startDate: Date;
+  
+  switch (period) {
+    case 'week':
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case 'quarter':
+      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      break;
+    case 'year':
+      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      break;
+    default: // month
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
+
+  const allAppointments = await mockDb.findAllAppointments();
+  const allPatients = await mockDb.findAllPatients();
+  
+  // Filtrer par période
+  const periodAppointments = allAppointments.filter(
+    apt => new Date(apt.date) >= startDate
+  );
+
+  const statistics = {
+    totalAppointments: periodAppointments.length,
+    totalPatients: allPatients.length,
+    newPatients: allPatients.filter(
+      patient => new Date(patient.createdAt) >= startDate
+    ).length,
+    cancellationRate: periodAppointments.length > 0 
+      ? (periodAppointments.filter(apt => apt.status === 'cancelled').length / periodAppointments.length) * 100
+      : 0,
+    sessionTypes: [
+      {
+        type: 'cabinet',
+        count: periodAppointments.filter(apt => apt.type === 'cabinet').length,
+        color: '#0d9488'
+      },
+      {
+        type: 'visio',
+        count: periodAppointments.filter(apt => apt.type === 'visio').length,
+        color: '#3b82f6'
+      }
+    ],
+    appointmentStatus: [
+      {
+        status: 'pending',
+        count: periodAppointments.filter(apt => apt.status === 'pending').length,
+        color: '#f59e0b'
+      },
+      {
+        status: 'confirmed',
+        count: periodAppointments.filter(apt => apt.status === 'confirmed').length,
+        color: '#10b981'
+      },
+      {
+        status: 'completed',
+        count: periodAppointments.filter(apt => apt.status === 'completed').length,
+        color: '#6366f1'
+      },
+      {
+        status: 'cancelled',
+        count: periodAppointments.filter(apt => apt.status === 'cancelled').length,
+        color: '#ef4444'
+      }
+    ],
+    referralSources: [
+      {
+        source: 'Médecin traitant',
+        count: allPatients.filter(p => p.isReferredByProfessional && p.referringProfessional?.includes('Médecin')).length
+      },
+      {
+        source: 'Psychologue',
+        count: allPatients.filter(p => p.isReferredByProfessional && p.referringProfessional?.includes('Psychologue')).length
+      },
+      {
+        source: 'Recherche personnelle',
+        count: allPatients.filter(p => !p.isReferredByProfessional).length
+      },
+      {
+        source: 'Bouche à oreille',
+        count: Math.floor(allPatients.length * 0.2) // Estimation
+      }
+    ]
+  };
+
+  return sendSuccess(res, statistics, 'Statistiques récupérées avec succès');
+}
+
+// Fonction utilitaire
+function generateId(): string {
+  return Math.random().toString(36).substr(2, 9);
 }

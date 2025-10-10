@@ -3,194 +3,188 @@ import { pgTable, text, varchar, timestamp, integer, boolean, date, time } from 
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Table des utilisateurs (administrateurs)
-export const users = pgTable("users", {
+// Table des administrateurs (Dorian Sarry)
+export const admins = pgTable("admins", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  name: text("name").notNull().default("Dorian Sarry"),
   email: text("email").notNull().unique(),
-  fullName: text("full_name").notNull(),
-  role: text("role").notNull().default("admin"), // "admin" ou "practitioner"
-  isActive: boolean("is_active").notNull().default(true),
+  password: text("password").notNull(),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Table des patients
+// Table des patients pour thérapie sensorimotrice
 export const patients = pgTable("patients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  phoneNumber: text("phone_number"),
-  dateOfBirth: date("date_of_birth"),
-  address: text("address"),
-  emergencyContact: text("emergency_contact"),
-  emergencyPhone: text("emergency_phone"),
-  medicalHistory: text("medical_history"),
-  allergies: text("allergies"),
-  medications: text("medications"),
-  isActive: boolean("is_active").notNull().default(true),
+  phone: text("phone"),
+  // Questionnaire d'accueil spécifique
+  isReferredByProfessional: boolean("is_referred_by_professional").notNull().default(false),
+  referringProfessional: text("referring_professional"), // Si référé par un professionnel
+  consultationReason: text("consultation_reason").notNull(),
+  symptomsStartDate: text("symptoms_start_date"), // Depuis quand ressent le besoin
+  preferredSessionType: text("preferred_session_type").notNull(), // "cabinet" ou "visio"
+  // Notes privées du thérapeute
+  therapistNotes: text("therapist_notes"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Table des praticiens
-export const practitioners = pgTable("practitioners", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  specialization: text("specialization").notNull(),
-  email: text("email").notNull().unique(),
-  phoneNumber: text("phone_number"),
-  licenseNumber: text("license_number"),
-  biography: text("biography"),
-  consultationDuration: integer("consultation_duration").notNull().default(30), // en minutes
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
-
-// Table des créneaux horaires disponibles (récurrents par jour de semaine)
-export const timeSlots = pgTable("time_slots", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  practitionerId: varchar("practitioner_id").notNull().references(() => practitioners.id),
-  dayOfWeek: integer("day_of_week").notNull(), // 0 = Dimanche, 1 = Lundi, etc.
-  startTime: time("start_time").notNull(),
-  endTime: time("end_time").notNull(),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
-
-// Table des créneaux de disponibilité spécifiques (Doctolib-like)
+// Table des créneaux de disponibilité pour Dorian Sarry
 export const availabilitySlots = pgTable("availability_slots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  practitionerId: varchar("practitioner_id").notNull().references(() => practitioners.id),
-  startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-  endTime: timestamp("end_time", { withTimezone: true }).notNull(),
-  recurringRule: text("recurring_rule"), // JSON ou RRULE format pour récurrence
-  capacity: integer("capacity").notNull().default(1), // nombre de patients par créneau
-  isBooked: boolean("is_booked").notNull().default(false),
+  date: date("date").notNull(),
+  startTime: time("start_time").notNull(),
+  endTime: time("end_time").notNull(),
+  duration: integer("duration").notNull().default(60), // durée en minutes
+  isAvailable: boolean("is_available").notNull().default(true),
+  isRecurring: boolean("is_recurring").notNull().default(false),
+  recurringPattern: text("recurring_pattern"), // ex: "weekly", "monthly"
+  dayOfWeek: integer("day_of_week"), // pour créneaux récurrents
   notes: text("notes"),
-  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Table des rendez-vous
+// Table des rendez-vous pour thérapie sensorimotrice
 export const appointments = pgTable("appointments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   patientId: varchar("patient_id").notNull().references(() => patients.id),
-  practitionerId: varchar("practitioner_id").notNull().references(() => practitioners.id),
-  slotId: varchar("slot_id").references(() => availabilitySlots.id), // référence au créneau réservé
-  appointmentDate: date("appointment_date").notNull(),
-  startTime: time("start_time").notNull(),
-  endTime: time("end_time").notNull(),
-  status: text("status").notNull().default("scheduled"), // "scheduled", "completed", "cancelled", "no_show"
-  reason: text("reason"),
-  notes: text("notes"),
-  diagnosis: text("diagnosis"),
-  treatment: text("treatment"),
-  followUpRequired: boolean("follow_up_required").notNull().default(false),
-  followUpDate: date("follow_up_date"),
-  googleEventId: text("google_event_id"), // ID de l'événement Google Calendar
+  slotId: varchar("slot_id").references(() => availabilitySlots.id),
+  date: timestamp("date", { withTimezone: true }).notNull(),
+  duration: integer("duration").notNull().default(60), // durée en minutes
+  status: text("status").notNull().default("pending"), // "pending", "confirmed", "cancelled", "completed"
+  type: text("type").notNull(), // "cabinet" ou "visio"
+  reason: text("reason").notNull(), // Motif de consultation
+  isReferredByProfessional: boolean("is_referred_by_professional").notNull().default(false),
+  referringProfessional: text("referring_professional"),
+  symptomsStartDate: text("symptoms_start_date"),
+  // Notes et suivi du thérapeute (privé)
+  therapistNotes: text("therapist_notes"),
+  sessionSummary: text("session_summary"), // Résumé de séance visible par le patient
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Table des exceptions d'horaires (congés, fermetures exceptionnelles)
-export const scheduleExceptions = pgTable("schedule_exceptions", {
+// Table des notes de suivi thérapeutique
+export const notes = pgTable("notes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  practitionerId: varchar("practitioner_id").notNull().references(() => practitioners.id),
-  exceptionDate: date("exception_date").notNull(),
+  patientId: varchar("patient_id").notNull().references(() => patients.id),
+  content: text("content").notNull(),
+  isPrivate: boolean("is_private").notNull().default(true), // visible uniquement par le thérapeute
+  sessionDate: date("session_date"),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Table des indisponibilités (congés, fermetures)
+export const unavailabilities = pgTable("unavailabilities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
   startTime: time("start_time"),
   endTime: time("end_time"),
-  isFullDay: boolean("is_full_day").notNull().default(false),
+  isFullDay: boolean("is_full_day").notNull().default(true),
   reason: text("reason"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
 // Schémas de validation Zod
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertAdminSchema = createInsertSchema(admins).pick({
   email: true,
-  fullName: true,
-  role: true,
+  password: true,
+  name: true,
 });
 
 export const insertPatientSchema = createInsertSchema(patients).pick({
+  firstName: true,
+  lastName: true,
   email: true,
   password: true,
-  firstName: true,
-  lastName: true,
-  phoneNumber: true,
-  dateOfBirth: true,
-  address: true,
-  emergencyContact: true,
-  emergencyPhone: true,
+  phone: true,
+  isReferredByProfessional: true,
+  referringProfessional: true,
+  consultationReason: true,
+  symptomsStartDate: true,
+  preferredSessionType: true,
 }).extend({
   email: z.string().email("Format d'email invalide").min(1, "L'email est requis"),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").regex(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-    "Le mot de passe doit contenir au moins une lettre minuscule, une majuscule et un chiffre"
-  ),
-  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").max(50, "Le prénom ne peut pas dépasser 50 caractères"),
-  lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(50, "Le nom ne peut pas dépasser 50 caractères"),
-  phoneNumber: z.string().optional().refine(
-    (phone) => !phone || /^(?:\+33|0)[1-9](?:[0-9]{8})$/.test(phone.replace(/\s/g, '')),
-    "Format de téléphone invalide (format français attendu)"
-  ),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
+  lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  phone: z.string().optional(),
+  consultationReason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
+  preferredSessionType: z.enum(["cabinet", "visio"], {
+    required_error: "Veuillez choisir votre préférence de consultation"
+  }),
+  symptomsStartDate: z.string().optional(),
+  referringProfessional: z.string().optional(),
 });
 
-export const insertPractitionerSchema = createInsertSchema(practitioners).pick({
-  firstName: true,
-  lastName: true,
-  specialization: true,
-  email: true,
-  phoneNumber: true,
-  licenseNumber: true,
-  biography: true,
-  consultationDuration: true,
+export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots).pick({
+  date: true,
+  startTime: true,
+  endTime: true,
+  duration: true,
+  isRecurring: true,
+  recurringPattern: true,
+  dayOfWeek: true,
+  notes: true,
 });
 
 export const insertAppointmentSchema = createInsertSchema(appointments).pick({
   patientId: true,
-  practitionerId: true,
-  appointmentDate: true,
+  slotId: true,
+  date: true,
+  duration: true,
+  type: true,
+  reason: true,
+  isReferredByProfessional: true,
+  referringProfessional: true,
+  symptomsStartDate: true,
+}).extend({
+  reason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
+  type: z.enum(["cabinet", "visio"]),
+});
+
+export const insertNoteSchema = createInsertSchema(notes).pick({
+  patientId: true,
+  content: true,
+  isPrivate: true,
+  sessionDate: true,
+});
+
+export const insertUnavailabilitySchema = createInsertSchema(unavailabilities).pick({
+  startDate: true,
+  endDate: true,
   startTime: true,
   endTime: true,
+  isFullDay: true,
   reason: true,
 });
 
-export const insertTimeSlotSchema = createInsertSchema(timeSlots).pick({
-  practitionerId: true,
-  dayOfWeek: true,
-  startTime: true,
-  endTime: true,
-});
-
-export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots).pick({
-  practitionerId: true,
-  startTime: true,
-  endTime: true,
-  recurringRule: true,
-  capacity: true,
-  notes: true,
-});
-
 // Types TypeScript
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+export type Admin = typeof admins.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
 export type Patient = typeof patients.$inferSelect;
-export type InsertPractitioner = z.infer<typeof insertPractitionerSchema>;
-export type Practitioner = typeof practitioners.$inferSelect;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
-export type InsertTimeSlot = z.infer<typeof insertTimeSlotSchema>;
-export type TimeSlot = typeof timeSlots.$inferSelect;
 export type InsertAvailabilitySlot = z.infer<typeof insertAvailabilitySlotSchema>;
 export type AvailabilitySlot = typeof availabilitySlots.$inferSelect;
-export type ScheduleException = typeof scheduleExceptions.$inferSelect;
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type Note = typeof notes.$inferSelect;
+export type InsertUnavailability = z.infer<typeof insertUnavailabilitySchema>;
+export type Unavailability = typeof unavailabilities.$inferSelect;
+
+// Types pour les vues avec jointures
+export type AppointmentWithPatient = Appointment & {
+  patient?: Patient;
+};
+
+export type PatientWithNotes = Patient & {
+  notes?: Note[];
+  appointments?: Appointment[];
+};
