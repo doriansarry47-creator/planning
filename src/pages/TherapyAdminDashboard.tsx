@@ -1,0 +1,602 @@
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { AdminCalendar } from '@/components/calendar/AdminCalendar';
+import { TherapyStatistics } from '@/components/statistics/TherapyStatistics';
+import { 
+  Calendar, 
+  Users, 
+  LogOut, 
+  Heart,
+  BarChart3,
+  Settings,
+  Clock,
+  UserCheck,
+  MessageCircle,
+  TrendingUp,
+  Bell,
+  Search,
+  Filter,
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+  Phone,
+  Mail
+} from 'lucide-react';
+import api from '@/lib/api';
+import { formatDate, formatTime } from '@/lib/utils';
+
+interface Appointment {
+  id: string;
+  patientId: string;
+  date: string;
+  duration: number;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  type: 'cabinet' | 'visio';
+  reason: string;
+  patient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+  };
+}
+
+export function TherapyAdminDashboard() {
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'appointments' | 'patients' | 'statistics'>('dashboard');
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+
+  // Récupérer les données
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ['admin-appointments'],
+    queryFn: async () => {
+      const response = await api.get('/appointments');
+      return response.data.appointments || [];
+    },
+  });
+
+  // Calculs des statistiques
+  const todayAppointments = appointments.filter(
+    apt => apt.date.split('T')[0] === new Date().toISOString().split('T')[0]
+  );
+
+  const upcomingAppointments = appointments.filter(
+    apt => apt.status !== 'cancelled' && new Date(apt.date) >= new Date()
+  );
+
+  const totalPatients = new Set(appointments.map(apt => apt.patientId)).size;
+
+  const pendingAppointments = appointments.filter(apt => apt.status === 'pending');
+
+  // Données pour les statistiques
+  const statisticsData = {
+    totalAppointments: appointments.length,
+    totalPatients,
+    newPatients: Math.floor(totalPatients * 0.3), // Estimation
+    cancellationRate: appointments.length > 0 
+      ? (appointments.filter(apt => apt.status === 'cancelled').length / appointments.length) * 100
+      : 0,
+    monthlyAppointments: [
+      { month: 'Jan', count: 12 },
+      { month: 'Fév', count: 18 },
+      { month: 'Mar', count: 22 },
+      { month: 'Avr', count: 25 },
+      { month: 'Mai', count: 30 },
+      { month: 'Juin', count: 28 }
+    ],
+    sessionTypes: [
+      { type: 'cabinet', count: appointments.filter(apt => apt.type === 'cabinet').length, color: '#0d9488' },
+      { type: 'visio', count: appointments.filter(apt => apt.type === 'visio').length, color: '#3b82f6' }
+    ],
+    appointmentStatus: [
+      { status: 'pending', count: appointments.filter(apt => apt.status === 'pending').length, color: '#f59e0b' },
+      { status: 'confirmed', count: appointments.filter(apt => apt.status === 'confirmed').length, color: '#10b981' },
+      { status: 'completed', count: appointments.filter(apt => apt.status === 'completed').length, color: '#6366f1' },
+      { status: 'cancelled', count: appointments.filter(apt => apt.status === 'cancelled').length, color: '#ef4444' }
+    ],
+    referralSources: [
+      { source: 'Médecin traitant', count: 15 },
+      { source: 'Psychologue', count: 8 },
+      { source: 'Recherche personnelle', count: 12 },
+      { source: 'Bouche à oreille', count: 6 }
+    ],
+    weeklyTrends: [
+      { week: 'S1', appointments: 8, newPatients: 2 },
+      { week: 'S2', appointments: 12, newPatients: 3 },
+      { week: 'S3', appointments: 10, newPatients: 1 },
+      { week: 'S4', appointments: 15, newPatients: 4 }
+    ]
+  };
+
+  // Préparer les événements pour le calendrier
+  const calendarEvents = appointments.map(apt => ({
+    id: apt.id,
+    title: apt.status === 'pending' ? '🟡 En attente' : 
+           apt.status === 'confirmed' ? `🟢 ${apt.patient?.firstName} ${apt.patient?.lastName}` :
+           apt.status === 'completed' ? '✅ Terminé' : '❌ Annulé',
+    start: apt.date,
+    end: new Date(new Date(apt.date).getTime() + apt.duration * 60000).toISOString(),
+    extendedProps: {
+      type: apt.status === 'pending' ? 'available' : 
+            apt.status === 'cancelled' ? 'unavailable' : 'booked',
+      patient: apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : 'Patient',
+      phone: apt.patient?.phone
+    }
+  }));
+
+  const handleEventClick = (event: any) => {
+    const appointment = appointments.find(apt => apt.id === event.id);
+    if (appointment) {
+      setSelectedAppointment(appointment);
+      setShowAppointmentModal(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-teal-900">
+      {/* Header */}
+      <header className="bg-gray-800/95 backdrop-blur-md shadow-lg border-b border-teal-700/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <div className="bg-gradient-to-r from-teal-500 to-blue-600 p-2 rounded-lg mr-3">
+                <Heart className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Dorian Sarry</h1>
+                <p className="text-sm text-teal-400">Thérapie Sensorimotrice</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {/* Notifications */}
+              <div className="relative">
+                <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
+                  <Bell className="h-5 w-5" />
+                  {pendingAppointments.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {pendingAppointments.length}
+                    </span>
+                  )}
+                </Button>
+              </div>
+              
+              <div className="flex items-center text-sm text-gray-300">
+                <UserCheck className="h-4 w-4 mr-2" />
+                <span>{user?.name || user?.fullName}</span>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={logout}
+                className="flex items-center text-gray-300 border-gray-600 hover:bg-gray-700"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
+              </Button>
+            </div>
+          </div>
+          
+          {/* Navigation */}
+          <nav className="pb-4">
+            <div className="flex space-x-1">
+              {[
+                { key: 'dashboard', label: 'Tableau de bord', icon: BarChart3 },
+                { key: 'calendar', label: 'Calendrier', icon: Calendar },
+                { key: 'appointments', label: 'Rendez-vous', icon: Clock },
+                { key: 'patients', label: 'Patients', icon: Users },
+                { key: 'statistics', label: 'Statistiques', icon: TrendingUp },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key as any)}
+                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === tab.key
+                        ? 'bg-teal-600 text-white'
+                        : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8">
+            {/* Métriques principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-600 mb-1">Aujourd'hui</p>
+                      <p className="text-3xl font-bold text-blue-900">{todayAppointments.length}</p>
+                      <p className="text-sm text-blue-600">Rendez-vous</p>
+                    </div>
+                    <Calendar className="h-12 w-12 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-600 mb-1">À venir</p>
+                      <p className="text-3xl font-bold text-green-900">{upcomingAppointments.length}</p>
+                      <p className="text-sm text-green-600">Rendez-vous</p>
+                    </div>
+                    <Clock className="h-12 w-12 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-purple-600 mb-1">Total</p>
+                      <p className="text-3xl font-bold text-purple-900">{totalPatients}</p>
+                      <p className="text-sm text-purple-600">Patients</p>
+                    </div>
+                    <Users className="h-12 w-12 text-purple-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-orange-600 mb-1">En attente</p>
+                      <p className="text-3xl font-bold text-orange-900">{pendingAppointments.length}</p>
+                      <p className="text-sm text-orange-600">Confirmations</p>
+                    </div>
+                    <MessageCircle className="h-12 w-12 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Rendez-vous du jour */}
+            <div className="grid lg:grid-cols-2 gap-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-5 w-5 text-teal-600 mr-2" />
+                    Rendez-vous d'aujourd'hui
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {todayAppointments.length > 0 ? (
+                    <div className="space-y-4">
+                      {todayAppointments.slice(0, 5).map((appointment) => (
+                        <div 
+                          key={appointment.id}
+                          className="flex items-center justify-between p-4 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => {
+                            setSelectedAppointment(appointment);
+                            setShowAppointmentModal(true);
+                          }}
+                        >
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {appointment.patient?.firstName} {appointment.patient?.lastName}
+                            </p>
+                            <p className="text-sm text-gray-600 capitalize">
+                              {appointment.type === 'cabinet' ? 'En cabinet' : 'Visioconférence'}
+                            </p>
+                            <p className="text-sm text-gray-500 flex items-center mt-1">
+                              <Clock className="h-4 w-4 mr-1" />
+                              {new Date(appointment.date).toLocaleTimeString('fr-FR', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {appointment.status === 'pending' ? 'En attente' :
+                               appointment.status === 'confirmed' ? 'Confirmé' :
+                               appointment.status === 'completed' ? 'Terminé' : 'Annulé'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">Aucun rendez-vous aujourd'hui</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Actions rapides */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Settings className="h-5 w-5 text-teal-600 mr-2" />
+                    Actions rapides
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Button 
+                      className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                      onClick={() => setActiveTab('calendar')}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Ajouter un créneau
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => setActiveTab('appointments')}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Voir tous les rendez-vous
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => setActiveTab('patients')}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Gérer les patients
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => setActiveTab('statistics')}
+                    >
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Voir les statistiques
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'calendar' && (
+          <AdminCalendar
+            events={calendarEvents}
+            onEventClick={handleEventClick}
+            onEventAdd={(eventData) => {
+              console.log('Nouvel événement:', eventData);
+              // Ici, vous ajouteriez la logique pour créer un nouveau créneau
+            }}
+          />
+        )}
+
+        {activeTab === 'appointments' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white">Gestion des Rendez-vous</h2>
+              <div className="flex space-x-2">
+                <Button variant="outline" className="text-gray-300 border-gray-600">
+                  <Search className="h-4 w-4 mr-2" />
+                  Rechercher
+                </Button>
+                <Button variant="outline" className="text-gray-300 border-gray-600">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtrer
+                </Button>
+              </div>
+            </div>
+            
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date & Heure</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {appointments.slice(0, 10).map((appointment) => (
+                        <tr key={appointment.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {appointment.patient?.firstName} {appointment.patient?.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">{appointment.patient?.email}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <div>{new Date(appointment.date).toLocaleDateString('fr-FR')}</div>
+                            <div className="text-gray-500">
+                              {new Date(appointment.date).toLocaleTimeString('fr-FR', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900 capitalize">
+                            {appointment.type === 'cabinet' ? 'Cabinet' : 'Visio'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {appointment.status === 'pending' ? 'En attente' :
+                               appointment.status === 'confirmed' ? 'Confirmé' :
+                               appointment.status === 'completed' ? 'Terminé' : 'Annulé'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium">
+                            <div className="flex space-x-2">
+                              <button 
+                                className="text-teal-600 hover:text-teal-900"
+                                onClick={() => {
+                                  setSelectedAppointment(appointment);
+                                  setShowAppointmentModal(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button className="text-blue-600 hover:text-blue-900">
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button className="text-red-600 hover:text-red-900">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'patients' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white">Gestion des Patients</h2>
+              <Button className="bg-teal-600 hover:bg-teal-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau patient
+              </Button>
+            </div>
+            
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-gray-600 text-center py-8">
+                  Interface de gestion des patients en cours de développement...
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'statistics' && (
+          <TherapyStatistics data={statisticsData} />
+        )}
+      </main>
+
+      {/* Modal détail rendez-vous */}
+      {showAppointmentModal && selectedAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto">
+            <CardHeader>
+              <CardTitle className="flex justify-between items-center">
+                <span>Détail du rendez-vous</span>
+                <button 
+                  onClick={() => setShowAppointmentModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-4">Informations patient</h3>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Nom :</span> {selectedAppointment.patient?.firstName} {selectedAppointment.patient?.lastName}</p>
+                    <p><span className="font-medium">Email :</span> {selectedAppointment.patient?.email}</p>
+                    {selectedAppointment.patient?.phone && (
+                      <p><span className="font-medium">Téléphone :</span> {selectedAppointment.patient.phone}</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-4">Informations rendez-vous</h3>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Date :</span> {new Date(selectedAppointment.date).toLocaleDateString('fr-FR')}</p>
+                    <p><span className="font-medium">Heure :</span> {new Date(selectedAppointment.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
+                    <p><span className="font-medium">Durée :</span> {selectedAppointment.duration} minutes</p>
+                    <p><span className="font-medium">Type :</span> {selectedAppointment.type === 'cabinet' ? 'En cabinet' : 'Visioconférence'}</p>
+                    <p><span className="font-medium">Statut :</span> 
+                      <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        selectedAppointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        selectedAppointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                        selectedAppointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {selectedAppointment.status === 'pending' ? 'En attente' :
+                         selectedAppointment.status === 'confirmed' ? 'Confirmé' :
+                         selectedAppointment.status === 'completed' ? 'Terminé' : 'Annulé'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-4">Motif de consultation</h3>
+                <p className="text-gray-600 bg-gray-50 p-4 rounded-lg">{selectedAppointment.reason}</p>
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                {selectedAppointment.status === 'pending' && (
+                  <>
+                    <Button className="bg-green-600 hover:bg-green-700">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Confirmer
+                    </Button>
+                    <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
+                      Annuler
+                    </Button>
+                  </>
+                )}
+                
+                {selectedAppointment.patient?.phone && (
+                  <Button variant="outline">
+                    <Phone className="h-4 w-4 mr-2" />
+                    Appeler
+                  </Button>
+                )}
+                
+                <Button variant="outline">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Envoyer un email
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
