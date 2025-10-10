@@ -18,7 +18,7 @@ interface EmailData {
 }
 
 // Configuration par défaut (à adapter selon votre fournisseur d'email)
-const createTransporter = () => {
+const createTransport = () => {
   const config: EmailConfig = {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
@@ -303,7 +303,7 @@ export const generateAppointmentCancellationEmail = (
 // Fonction pour envoyer un email
 export const sendEmail = async (emailData: EmailData) => {
   try {
-    const transporter = createTransporter();
+    const transporter = createTransport();
     
     const mailOptions = {
       from: `"Dorian Sarry - Thérapie Sensorimotrice" <${process.env.SMTP_USER}>`,

@@ -92,78 +92,86 @@ export const unavailabilities = pgTable("unavailabilities", {
 });
 
 // Schémas de validation Zod
-export const insertAdminSchema = createInsertSchema(admins).pick({
-  email: true,
-  password: true,
-  name: true,
-});
+// Schémas de validation Zod
+// export const insertAdminSchema = createInsertSchema(admins).pick({
+//   email: true,
+//   password: true,
+//   name: true,
+// });
 
-export const insertPatientSchema = createInsertSchema(patients).pick({
-  firstName: true,
-  lastName: true,
-  email: true,
-  password: true,
-  phone: true,
-  isReferredByProfessional: true,
-  referringProfessional: true,
-  consultationReason: true,
-  symptomsStartDate: true,
-  preferredSessionType: true,
-}).extend({
-  email: z.string().email("Format d'email invalide").min(1, "L'email est requis"),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
-  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
-  lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
-  phone: z.string().optional(),
-  consultationReason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
-  preferredSessionType: z.enum(["cabinet", "visio"], {
-    required_error: "Veuillez choisir votre préférence de consultation"
-  }),
-  symptomsStartDate: z.string().optional(),
-  referringProfessional: z.string().optional(),
-});
+// export const insertPatientSchema = createInsertSchema(patients).pick({
+//   firstName: true,
+//   lastName: true,
+//   email: true,
+//   password: true,
+//   phone: true,
+//   isReferredByProfessional: true,
+//   referringProfessional: true,
+//   consultationReason: true,
+//   symptomsStartDate: true,
+//   preferredSessionType: true,
+// }).extend({
+//   email: z.string().email("Format d'email invalide").min(1, "L'email est requis"),
+//   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+//   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
+//   lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+//   phone: z.string().optional(),
+//   consultationReason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
+//   preferredSessionType: z.enum(["cabinet", "visio"], {
+//     required_error: "Veuillez choisir votre préférence de consultation"
+//   }),
+//   symptomsStartDate: z.string().optional(),
+//   referringProfessional: z.string().optional(),
+// });
 
-export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots).pick({
-  date: true,
-  startTime: true,
-  endTime: true,
-  duration: true,
-  isRecurring: true,
-  recurringPattern: true,
-  dayOfWeek: true,
-  notes: true,
-});
+// export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots).pick({
+//   date: true,
+//   startTime: true,
+//   endTime: true,
+//   duration: true,
+//   isRecurring: true,
+//   recurringPattern: true,
+//   dayOfWeek: true,
+//   notes: true,
+// });
 
-export const insertAppointmentSchema = createInsertSchema(appointments).pick({
-  patientId: true,
-  slotId: true,
-  date: true,
-  duration: true,
-  type: true,
-  reason: true,
-  isReferredByProfessional: true,
-  referringProfessional: true,
-  symptomsStartDate: true,
-}).extend({
-  reason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
-  type: z.enum(["cabinet", "visio"]),
-});
+// export const insertAppointmentSchema = createInsertSchema(appointments).pick({
+//   patientId: true,
+//   slotId: true,
+//   date: true,
+//   duration: true,
+//   type: true,
+//   reason: true,
+//   isReferredByProfessional: true,
+//   referringProfessional: true,
+//   symptomsStartDate: true,
+// }).extend({
+//   reason: z.string().min(10, "Veuillez détailler votre motif de consultation"),
+//   type: z.enum(["cabinet", "visio"]),
+// });
 
-export const insertNoteSchema = createInsertSchema(notes).pick({
-  patientId: true,
-  content: true,
-  isPrivate: true,
-  sessionDate: true,
-});
+// export const insertNoteSchema = createInsertSchema(notes).pick({
+//   patientId: true,
+//   content: true,
+//   isPrivate: true,
+//   sessionDate: true,
+// });
 
-export const insertUnavailabilitySchema = createInsertSchema(unavailabilities).pick({
-  startDate: true,
-  endDate: true,
-  startTime: true,
-  endTime: true,
-  isFullDay: true,
-  reason: true,
-});
+// export const insertUnavailabilitySchema = createInsertSchema(unavailabilities).pick({
+//   startDate: true,
+//   endDate: true,
+//   startTime: true,
+//   endTime: true,
+//   isFullDay: true,
+//   reason: true,
+// });
+
+export const insertAdminSchema = createInsertSchema(admins);
+export const insertPatientSchema = createInsertSchema(patients);
+export const insertAvailabilitySlotSchema = createInsertSchema(availabilitySlots);
+export const insertAppointmentSchema = createInsertSchema(appointments);
+export const insertNoteSchema = createInsertSchema(notes);
+export const insertUnavailabilitySchema = createInsertSchema(unavailabilities);
 
 // Types TypeScript
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;

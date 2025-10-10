@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { verifyToken } from '../_lib/auth';
+import { verifyToken, extractTokenFromRequest } from '../_lib/auth';
 import { mockDb } from '../_lib/mock-db';
 import { sendSuccess, sendError, handleApiError } from '../_lib/response';
 import { sendAppointmentConfirmation, sendAppointmentCancellation } from '../_lib/email';
@@ -30,20 +30,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const authResult = await verifyToken(req);
-    if (!authResult.success) {
-      return sendError(res, 'Token d\'authentification invalide', 401);
+    const token = extractTokenFromRequest(req);
+    if (!token) {
+      return sendError(res, 'Token d\'authentification requis', 401);
     }
+    const authResult = await verifyToken(token);
+    const userPayload = authResult;
 
     switch (req.method) {
       case 'GET':
-        return await getAppointments(req, res, authResult.payload!);
+        return await getAppointments(req, res, userPayload);
       case 'POST':
-        return await createAppointment(req, res, authResult.payload!);
+        return await createAppointment(req, res, userPayload);
       case 'PUT':
-        return await updateAppointment(req, res, authResult.payload!);
+        return await updateAppointment(req, res, userPayload);
       case 'DELETE':
-        return await cancelAppointment(req, res, authResult.payload!);
+        return await cancelAppointment(req, res, userPayload);
       default:
         return sendError(res, 'Méthode non autorisée', 405);
     }
@@ -83,7 +85,7 @@ async function getAppointments(req: VercelRequest, res: VercelResponse, user: an
     let allAppointments = await mockDb.findAllAppointments();
     
     // Enrichir avec les informations du patient
-    const enrichedAppointments = await Promise.all(
+    let enrichedAppointments = await Promise.all(
       allAppointments.map(async (appointment) => {
         const patient = await mockDb.findPatientById(appointment.patientId);
         
