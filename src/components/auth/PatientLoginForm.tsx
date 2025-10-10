@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { LoginForm } from '@/types';
-import { AlertCircle, Heart } from 'lucide-react';
+import { AlertCircle, ShieldCheck, Mail } from 'lucide-react';
+import axios from 'axios';
 
 interface PatientLoginFormProps {
   onSwitchToRegister?: () => void;
@@ -15,6 +16,9 @@ interface PatientLoginFormProps {
 export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
   const { login } = useAuth();
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
@@ -31,11 +35,34 @@ export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) 
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!forgotPasswordEmail) {
+      setError('Veuillez entrer votre email');
+      return;
+    }
+
+    try {
+      setForgotPasswordLoading(true);
+      setError('');
+      
+      await axios.post('/api/auth/forgot-password', {
+        email: forgotPasswordEmail,
+        userType: 'patient'
+      });
+      
+      setForgotPasswordSuccess(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'envoi de l\'email');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
       <CardHeader className="text-center pb-6">
         <div className="bg-gradient-to-r from-green-500 to-teal-600 p-3 rounded-xl w-fit mx-auto mb-4">
-          <Heart className="h-8 w-8 text-white" />
+          <ShieldCheck className="h-8 w-8 text-white" />
         </div>
         <CardTitle className="text-2xl font-bold text-gray-900">
           Connexion Patient
@@ -101,13 +128,21 @@ export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) 
           </Button>
           
           <div className="text-center mt-4">
-            <button
-              type="button"
-              className="text-sm text-gray-600 hover:text-gray-900 underline"
-              onClick={() => alert('Fonctionnalité de récupération de mot de passe à implémenter')}
-            >
-              Mot de passe oublié ?
-            </button>
+            {!forgotPasswordSuccess ? (
+              <ForgotPasswordSection 
+                email={forgotPasswordEmail}
+                setEmail={setForgotPasswordEmail}
+                loading={forgotPasswordLoading}
+                onSubmit={handleForgotPassword}
+              />
+            ) : (
+              <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg">
+                <Mail className="h-4 w-4" />
+                <span className="text-sm">
+                  Instructions envoyées par email si le compte existe.
+                </span>
+              </div>
+            )}
           </div>
         </form>
       </CardContent>
@@ -127,5 +162,59 @@ export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) 
         </CardFooter>
       )}
     </Card>
+  );
+}
+
+interface ForgotPasswordSectionProps {
+  email: string;
+  setEmail: (email: string) => void;
+  loading: boolean;
+  onSubmit: () => void;
+}
+
+function ForgotPasswordSection({ email, setEmail, loading, onSubmit }: ForgotPasswordSectionProps) {
+  const [showForm, setShowForm] = useState(false);
+
+  if (!showForm) {
+    return (
+      <button
+        type="button"
+        className="text-sm text-gray-600 hover:text-gray-900 underline"
+        onClick={() => setShowForm(true)}
+      >
+        Mot de passe oublié ?
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+      <p className="text-sm text-gray-700 font-medium">Récupération de mot de passe</p>
+      <div className="flex gap-2">
+        <Input
+          type="email"
+          placeholder="Votre email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="flex-1"
+        />
+        <Button
+          type="button"
+          onClick={onSubmit}
+          disabled={loading || !email}
+          size="sm"
+          className="bg-green-600 hover:bg-green-700"
+        >
+          {loading ? 'Envoi...' : 'Envoyer'}
+        </Button>
+      </div>
+      <button
+        type="button"
+        onClick={() => setShowForm(false)}
+        className="text-xs text-gray-500 hover:text-gray-700"
+      >
+        Annuler
+      </button>
+    </div>
   );
 }

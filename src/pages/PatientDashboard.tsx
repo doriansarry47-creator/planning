@@ -9,7 +9,7 @@ import {
   User, 
   LogOut, 
   Plus,
-  Heart,
+  Stethoscope,
   FileText,
   Settings,
   MapPin,
@@ -48,11 +48,11 @@ export function PatientDashboard() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <div className="bg-gradient-to-r from-green-500 to-teal-600 p-2 rounded-lg mr-3">
-                <Heart className="h-6 w-6 text-white" />
+                <Stethoscope className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Dorian Sarry</h1>
-                <p className="text-sm text-green-600 font-medium">Thérapie sensori-motrice</p>
+                <p className="text-sm text-green-600 font-medium">Thérapie Sensorimotrice</p>
               </div>
             </div>
             
@@ -83,8 +83,8 @@ export function PatientDashboard() {
             Bonjour {user?.firstName} !
           </h2>
           <p className="text-gray-600 mb-4">
-            Bienvenue sur votre espace thérapeutique. Ici, vous pouvez prendre rendez-vous, 
-            suivre votre progression et gérer votre parcours de soin avec Dorian Sarry.
+            Bienvenue sur votre espace thérapeutique. Cet espace vous permet de prendre rendez-vous, 
+            suivre vos séances et rester en contact avec votre praticien.
           </p>
           
           {/* Coordonnées du praticien */}

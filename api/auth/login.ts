@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { mockDb } from '../_lib/mock-db';
+import { db, admins, patients } from '../_lib/db';
 import { generateToken } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
+import { eq } from 'drizzle-orm';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -48,33 +49,39 @@ async function loginAdmin(req: VercelRequest, res: VercelResponse) {
 
   const { email, password } = validationResult.data;
 
-  // Trouver l'utilisateur admin
-  const user = await mockDb.findUserByEmail(email);
-  
-  if (!user) {
-    return sendError(res, 'Email ou mot de passe incorrect', 401);
+  try {
+    // Trouver l'utilisateur admin dans la base PostgreSQL
+    const adminResults = await db.select().from(admins).where(eq(admins.email, email)).limit(1);
+    const admin = adminResults[0];
+    
+    if (!admin) {
+      return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
+    }
+
+    // Vérifier le mot de passe
+    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    if (!isPasswordValid) {
+      return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
+    }
+
+    // Générer le token
+    const token = generateToken({
+      userId: admin.id,
+      email: admin.email,
+      userType: 'admin',
+    });
+
+    // Retourner l'utilisateur sans le mot de passe
+    const { password: _, ...adminWithoutPassword } = admin;
+
+    return sendSuccess(res, {
+      user: adminWithoutPassword,
+      token,
+    }, 'Connexion réussie');
+  } catch (error) {
+    console.error('Erreur lors de la connexion admin:', error);
+    return sendError(res, 'Erreur interne du serveur', 500);
   }
-
-  // Vérifier le mot de passe
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    return sendError(res, 'Email ou mot de passe incorrect', 401);
-  }
-
-  // Générer le token
-  const token = generateToken({
-    userId: user.id,
-    email: user.email,
-    userType: 'admin',
-  });
-
-  // Retourner l'utilisateur sans le mot de passe
-  const { password: _, ...userWithoutPassword } = user;
-
-  return sendSuccess(res, {
-    user: userWithoutPassword,
-    token,
-  }, 'Connexion réussie');
 }
 
 async function loginPatient(req: VercelRequest, res: VercelResponse) {
@@ -86,31 +93,37 @@ async function loginPatient(req: VercelRequest, res: VercelResponse) {
 
   const { email, password } = validationResult.data;
 
-  // Trouver le patient
-  const patient = await mockDb.findPatientByEmail(email);
-  
-  if (!patient) {
-    return sendError(res, 'Email ou mot de passe incorrect', 401);
+  try {
+    // Trouver le patient dans la base PostgreSQL
+    const patientResults = await db.select().from(patients).where(eq(patients.email, email)).limit(1);
+    const patient = patientResults[0];
+    
+    if (!patient) {
+      return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
+    }
+
+    // Vérifier le mot de passe
+    const isPasswordValid = await bcrypt.compare(password, patient.password);
+    if (!isPasswordValid) {
+      return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
+    }
+
+    // Générer le token
+    const token = generateToken({
+      userId: patient.id,
+      email: patient.email,
+      userType: 'patient',
+    });
+
+    // Retourner le patient sans le mot de passe
+    const { password: _, ...patientWithoutPassword } = patient;
+
+    return sendSuccess(res, {
+      user: patientWithoutPassword,
+      token,
+    }, 'Connexion réussie');
+  } catch (error) {
+    console.error('Erreur lors de la connexion patient:', error);
+    return sendError(res, 'Erreur interne du serveur', 500);
   }
-
-  // Vérifier le mot de passe
-  const isPasswordValid = await bcrypt.compare(password, patient.password);
-  if (!isPasswordValid) {
-    return sendError(res, 'Email ou mot de passe incorrect', 401);
-  }
-
-  // Générer le token
-  const token = generateToken({
-    userId: patient.id,
-    email: patient.email,
-    userType: 'patient',
-  });
-
-  // Retourner le patient sans le mot de passe
-  const { password: _, ...patientWithoutPassword } = patient;
-
-  return sendSuccess(res, {
-    user: patientWithoutPassword,
-    token,
-  }, 'Connexion réussie');
 }

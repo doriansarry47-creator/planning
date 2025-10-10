@@ -11,6 +11,7 @@ import { AdminLoginPage } from '@/pages/AdminLoginPage';
 import { TherapyLandingPage } from '@/pages/TherapyLandingPage';
 import { TherapyAdminDashboard } from '@/pages/TherapyAdminDashboard';
 import { PatientBookingPage } from '@/pages/PatientBookingPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import './globals.css';
 
@@ -37,6 +38,7 @@ function App() {
               {/* Pages de connexion */}
               <Route path="/login/patient" component={PatientLoginPage} />
               <Route path="/login/admin" component={AdminLoginPage} />
+              <Route path="/reset-password" component={ResetPasswordPage} />
               
               {/* Page de prise de rendez-vous */}
               <Route path="/patient/book-appointment" component={PatientBookingPage} />

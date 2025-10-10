@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.19",
     "@fullcalendar/daygrid": "^6.1.19",
     "@fullcalendar/interaction": "^6.1.19",
     "@fullcalendar/react": "^6.1.19",
@@ -26,7 +27,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "drizzle-orm": "^0.33.0",
+    "drizzle-zod": "^0.8.3",
     "express": "^4.19.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.400.0",
@@ -34,6 +37,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.52.0",
+    "react-is": "^19.2.0",
     "recharts": "^3.2.1",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",

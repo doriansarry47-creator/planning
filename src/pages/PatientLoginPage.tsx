@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { PatientLoginForm } from '@/components/auth/PatientLoginForm';
 import { PatientRegisterForm } from '@/components/auth/PatientRegisterForm';
 import { Button } from '@/components/ui/button';
-import { Heart, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, User2 } from 'lucide-react';
 
 export function PatientLoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -22,11 +22,11 @@ export function PatientLoginPage() {
             </Link>
             <div className="flex items-center">
               <div className="bg-gradient-to-r from-green-500 to-teal-600 p-2 rounded-lg mr-3">
-                <Heart className="h-5 w-5 text-white" />
+                <User2 className="h-5 w-5 text-white" />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">Dorian Sarry</h1>
-                <p className="text-xs text-green-600 font-medium">Thérapie sensori-motrice</p>
+                <p className="text-xs text-green-600 font-medium">Thérapie Sensorimotrice</p>
               </div>
             </div>
           </div>

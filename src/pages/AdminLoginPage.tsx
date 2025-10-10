@@ -6,12 +6,15 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Heart, ArrowLeft, AlertCircle, Shield } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Shield, Stethoscope, Mail } from 'lucide-react';
 import { LoginForm } from '@/types';
+import axios from 'axios';
 
 export function AdminLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
   const { login } = useAuth();
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
@@ -28,6 +31,24 @@ export function AdminLoginPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    try {
+      setForgotPasswordLoading(true);
+      setError('');
+      
+      await axios.post('/api/auth/forgot-password', {
+        email: 'doriansarry@yahoo.fr', // Email admin fixe
+        userType: 'admin'
+      });
+      
+      setForgotPasswordSuccess(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'envoi de l\'email');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-teal-900">
       {/* Header */}
@@ -41,12 +62,12 @@ export function AdminLoginPage() {
               </Button>
             </Link>
             <div className="flex items-center">
-              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-2 rounded-lg mr-3">
-                <Heart className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-teal-500 to-blue-600 p-2 rounded-lg mr-3">
+                <Stethoscope className="h-5 w-5 text-white" />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-white">Administration</h1>
-                <p className="text-xs text-teal-400">Dorian Sarry - Thérapie</p>
+                <p className="text-xs text-teal-400">Dorian Sarry - Thérapie Sensorimotrice</p>
               </div>
             </div>
           </div>
@@ -123,6 +144,26 @@ export function AdminLoginPage() {
                 >
                   {loading ? 'Connexion...' : 'Accéder à l\'administration'}
                 </Button>
+                
+                <div className="text-center mt-4">
+                  {!forgotPasswordSuccess ? (
+                    <button
+                      type="button"
+                      className="text-sm text-gray-600 hover:text-gray-900 underline"
+                      onClick={handleForgotPassword}
+                      disabled={forgotPasswordLoading}
+                    >
+                      {forgotPasswordLoading ? 'Envoi en cours...' : 'Mot de passe oublié ?'}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg">
+                      <Mail className="h-4 w-4" />
+                      <span className="text-sm">
+                        Instructions envoyées à doriansarry@yahoo.fr
+                      </span>
+                    </div>
+                  )}
+                </div>
               </form>
               
               <div className="mt-6 p-4 bg-teal-50 border border-teal-200 rounded-xl">
