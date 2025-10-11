@@ -5,6 +5,7 @@ import { OrganicBackground } from '@/components/ui/organic-background';
 import { TherapyIntakeForm } from '@/components/therapy/TherapyIntakeForm';
 import { QuickAppointmentForm } from '@/components/therapy/QuickAppointmentForm';
 import { useAuth } from '@/hooks/useAuth';
+import api from '@/lib/api';
 import { 
   Calendar, 
   Clock, 
@@ -113,11 +114,36 @@ export function PatientBookingPage() {
   const handleFormSubmit = async (data: any) => {
     setIsLoading(true);
     try {
-      // Simuler l'envoi des données
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!selectedDate || !selectedTime) {
+        throw new Error('Veuillez sélectionner une date et un horaire');
+      }
+
+      // Si le patient est connecté, créer un vrai rendez-vous côté API mock
+      if (isExistingPatient && user) {
+        const appointmentDate = selectedDate.toISOString().slice(0, 10);
+        const startTime = selectedTime; // format HH:MM
+        const isReferred = String(data.isReferredByProfessional) === 'true' || data.isReferredByProfessional === true;
+
+        await api.post('/appointments', {
+          patientId: user.id,
+          practitionerId: 'practitioner-1',
+          appointmentDate,
+          startTime,
+          status: 'scheduled',
+          reason: data.consultationReason,
+          type: selectedType || 'cabinet',
+          isReferredByProfessional: isReferred,
+          referringProfessional: data.referringProfessional || undefined,
+          symptomsStartDate: data.symptomsStartDate || undefined,
+        });
+      } else {
+        // Sinon, conserver le flux simulé pour l'inscription + confirmation
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
+
       setCurrentStep(3);
     } catch (error) {
-      console.error('Erreur lors de la création du compte:', error);
+      console.error('Erreur lors de la création du rendez-vous:', error);
     } finally {
       setIsLoading(false);
     }

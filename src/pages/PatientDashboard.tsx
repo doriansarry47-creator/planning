@@ -28,7 +28,9 @@ export function PatientDashboard() {
     queryKey: ['appointments'],
     queryFn: async () => {
       const response = await api.get('/appointments');
-      return response.data.data;
+      const payload = response.data?.data || response.data;
+      const list = payload?.appointments || payload;
+      return list as Appointment[];
     },
   });
 

@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const endpoint = `/auth/login?userType=${userType}`;
       const response = await api.post(endpoint, { email, password });
-      
-      const { token, user: userData } = response.data;
+      const payload = response.data?.data || response.data; // support both mock and real API
+      const { token, user: userData } = payload;
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -60,7 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const dashboardPath = userType === 'admin' ? '/admin/dashboard' : '/patient/dashboard';
       setLocation(dashboardPath);
     } catch (error: any) {
-      throw new Error(error.message || error.response?.data?.message || 'Erreur de connexion');
+      const apiMessage = error?.response?.data?.message || error?.response?.data?.error;
+      throw new Error(apiMessage || error.message || 'Erreur de connexion');
     }
   };
 
@@ -68,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const endpoint = `/auth/register?userType=${userType}`;
       const response = await api.post(endpoint, userData);
-      
-      const { token, user: newUser } = response.data;
+      const payload = response.data?.data || response.data;
+      const { token, user: newUser } = payload;
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(newUser));
@@ -86,7 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const dashboardPath = userType === 'admin' ? '/admin/dashboard' : '/patient/dashboard';
       setLocation(dashboardPath);
     } catch (error: any) {
-      throw new Error(error.message || error.response?.data?.message || 'Erreur d\'inscription');
+      const apiMessage = error?.response?.data?.message || error?.response?.data?.error;
+      throw new Error(apiMessage || error.message || 'Erreur d\'inscription');
     }
   };
 
