@@ -158,6 +158,16 @@ export function AdminCalendar({ events = [], onEventClick, onDateSelect, onEvent
               startTime: '09:00',
               endTime: '18:00'
             }}
+            select={(selectionInfo) => {
+              setSelectedDate(selectionInfo.startStr.slice(0, 10));
+              setNewSlot(prev => ({
+                ...prev,
+                date: selectionInfo.startStr.slice(0, 10),
+                startTime: selectionInfo.startStr.slice(11, 16),
+                endTime: selectionInfo.endStr?.slice(11, 16) || prev.endTime,
+              }));
+              setShowAddSlotModal(true);
+            }}
             eventContent={(eventInfo) => {
               const { event } = eventInfo;
               const type = event.extendedProps?.type;

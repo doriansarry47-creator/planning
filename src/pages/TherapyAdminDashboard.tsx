@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -29,6 +29,7 @@ import {
   Mail
 } from 'lucide-react';
 import api from '@/lib/api';
+import { generateICS, downloadICS } from '@/lib/ics';
 import { formatDate, formatTime } from '@/lib/utils';
 
 interface Appointment {
@@ -50,17 +51,31 @@ interface Appointment {
 
 export function TherapyAdminDashboard() {
   const { user, logout } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'appointments' | 'patients' | 'statistics'>('dashboard');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   // Récupérer les données
   const { data: appointments = [] } = useQuery<Appointment[]>({
     queryKey: ['admin-appointments'],
     queryFn: async () => {
       const response = await api.get('/appointments');
-      return response.data.appointments || [];
+      return response.data.appointments || response.data || [];
     },
+  });
+
+  // Load availability slots (mocked via localStorage when using mock API)
+  const { data: availability = { slots: [], total: 0 } } = useQuery<{ slots: any[]; total: number}>({
+    queryKey: ['availability-slots'],
+    queryFn: async () => {
+      const today = new Date();
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+      const end = new Date(today.getFullYear(), today.getMonth() + 3, 0).toISOString().slice(0, 10);
+      const response = await api.get(`/availability-slots?startDate=${startDate}&endDate=${end}`);
+      return response.data;
+    }
   });
 
   // Calculs des statistiques
@@ -116,8 +131,8 @@ export function TherapyAdminDashboard() {
     ]
   };
 
-  // Préparer les événements pour le calendrier
-  const calendarEvents = appointments.map(apt => ({
+  // Préparer les événements pour le calendrier (rendez-vous + disponibilités)
+  const appointmentEvents = useMemo(() => appointments.map(apt => ({
     id: apt.id,
     title: apt.status === 'pending' ? '🟡 En attente' : 
            apt.status === 'confirmed' ? `🟢 ${apt.patient?.firstName} ${apt.patient?.lastName}` :
@@ -130,7 +145,21 @@ export function TherapyAdminDashboard() {
       patient: apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : 'Patient',
       phone: apt.patient?.phone
     }
-  }));
+  })), [appointments]);
+
+  const availabilityEvents = useMemo(() =>
+    (availability.slots || []).map((slot: any) => ({
+      id: `slot-${slot.id}`,
+      title: '🟢 Disponible',
+      start: `${slot.date}T${slot.startTime}:00`,
+      end: `${slot.date}T${slot.endTime}:00`,
+      extendedProps: {
+        type: slot.isAvailable ? 'available' : 'unavailable',
+      }
+    })),
+  [availability]);
+
+  const calendarEvents = useMemo(() => [...availabilityEvents, ...appointmentEvents], [availabilityEvents, appointmentEvents]);
 
   const handleEventClick = (event: any) => {
     const appointment = appointments.find(apt => apt.id === event.id);
@@ -158,7 +187,7 @@ export function TherapyAdminDashboard() {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4">
               {/* Notifications */}
               <div className="relative">
                 <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
@@ -170,6 +199,30 @@ export function TherapyAdminDashboard() {
                   )}
                 </Button>
               </div>
+                {/* Export ICS */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-gray-300 border-gray-600 hover:bg-gray-700"
+                  onClick={() => {
+                    const events = appointments.map((apt) => {
+                      const startIso = apt.date;
+                      const endIso = new Date(new Date(apt.date).getTime() + apt.duration * 60000).toISOString();
+                      return {
+                        uid: `apt-${apt.id}@doriansarry`,
+                        title: `RDV ${apt.patient ? (apt.patient.firstName + ' ' + apt.patient.lastName) : ''}`.trim(),
+                        start: startIso,
+                        end: endIso,
+                        description: `Statut: ${apt.status} — Type: ${apt.type} — Motif: ${apt.reason}`,
+                        location: 'Cabinet — 20 rue des Jacobins, 24000 Périgueux',
+                      };
+                    });
+                    const ics = generateICS(events);
+                    downloadICS(ics);
+                  }}
+                >
+                  Export ICS
+                </Button>
               
               <div className="flex items-center text-sm text-gray-300">
                 <UserCheck className="h-4 w-4 mr-2" />
@@ -375,9 +428,29 @@ export function TherapyAdminDashboard() {
           <AdminCalendar
             events={calendarEvents}
             onEventClick={handleEventClick}
-            onEventAdd={(eventData) => {
-              console.log('Nouvel événement:', eventData);
-              // Ici, vous ajouteriez la logique pour créer un nouveau créneau
+            onEventAdd={async (eventData) => {
+              try {
+                setAvailabilityLoading(true);
+                // Persist new availability slot via mock API
+                const start = new Date(eventData.start);
+                const end = new Date(eventData.end);
+                const date = start.toISOString().slice(0, 10);
+                const startTime = start.toTimeString().slice(0, 5);
+                const endTime = end.toTimeString().slice(0, 5);
+                await api.post('/availability-slots', {
+                  date,
+                  startTime,
+                  endTime,
+                  duration: Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000)),
+                  isRecurring: !!eventData.extendedProps?.isRecurring,
+                  recurringPattern: eventData.extendedProps?.recurringPattern,
+                });
+                await queryClient.invalidateQueries({ queryKey: ['availability-slots'] });
+              } catch (e) {
+                console.error(e);
+              } finally {
+                setAvailabilityLoading(false);
+              }
             }}
           />
         )}
