@@ -52,6 +52,24 @@ const initializeMockData = () => {
         userType: 'admin'
       },
       {
+        id: 'admin-2',
+        email: 'doriansarry@yahoo.fr',
+        password: 'admin123',
+        fullName: 'Dorian Sarry',
+        username: 'admin2',
+        role: 'admin',
+        userType: 'admin'
+      },
+      {
+        id: 'admin-3',
+        email: 'admin@medplan.fr',
+        password: 'admin123',
+        fullName: 'Admin Medplan',
+        username: 'admin3',
+        role: 'admin',
+        userType: 'admin'
+      },
+      {
         id: 'patient-1',
         email: 'patient@test.fr',
         password: 'patient123',

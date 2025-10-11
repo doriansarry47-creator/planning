@@ -59,7 +59,35 @@ export function TherapyAdminDashboard() {
     queryKey: ['admin-appointments'],
     queryFn: async () => {
       const response = await api.get('/appointments');
-      return response.data.appointments || [];
+      const payload = response.data?.data || response.data;
+      const raw = (payload.appointments || payload?.appointments || []) as any[];
+      // Normaliser différentes formes de RDV (mock vs API réelle)
+      return raw.map((apt: any) => {
+        if (apt.date) {
+          // Déjà au bon format
+          return apt as Appointment;
+        }
+        const hasTimes = !!apt.appointmentDate && !!apt.startTime;
+        const startIso = hasTimes
+          ? new Date(`${apt.appointmentDate}T${apt.startTime}`).toISOString()
+          : new Date().toISOString();
+        let duration = 60;
+        if (apt.startTime && apt.endTime) {
+          const start = new Date(`2000-01-01T${apt.startTime}`);
+          const end = new Date(`2000-01-01T${apt.endTime}`);
+          duration = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000));
+        }
+        return {
+          id: apt.id,
+          patientId: apt.patientId,
+          date: startIso,
+          duration,
+          status: (apt.status || 'pending') as Appointment['status'],
+          type: (apt.type || 'cabinet') as Appointment['type'],
+          reason: apt.reason || '',
+          patient: apt.patient,
+        } as Appointment;
+      });
     },
   });
 
@@ -123,7 +151,7 @@ export function TherapyAdminDashboard() {
            apt.status === 'confirmed' ? `🟢 ${apt.patient?.firstName} ${apt.patient?.lastName}` :
            apt.status === 'completed' ? '✅ Terminé' : '❌ Annulé',
     start: apt.date,
-    end: new Date(new Date(apt.date).getTime() + apt.duration * 60000).toISOString(),
+    end: new Date(new Date(apt.date).getTime() + (apt.duration || 60) * 60000).toISOString(),
     extendedProps: {
       type: apt.status === 'pending' ? 'available' : 
             apt.status === 'cancelled' ? 'unavailable' : 'booked',

@@ -27,7 +27,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Par défaut, renvoyer vers la connexion patient
+      window.location.href = '/login/patient';
     }
     return Promise.reject(error);
   }
@@ -42,23 +43,23 @@ export const mockApiWrapper = {
     if (endpoint.includes('/auth/login')) {
       const userType = new URLSearchParams(endpoint.split('?')[1] || '').get('userType') as 'admin' | 'patient';
       const result = await mockAuth.login(data.email, data.password, userType);
-      return { data: result };
+      return { data: { success: true, data: result, message: 'Connexion réussie' } };
     }
     
     if (endpoint.includes('/auth/register')) {
       const userType = new URLSearchParams(endpoint.split('?')[1] || '').get('userType') as 'admin' | 'patient';
       const result = await mockAuth.register(data, userType);
-      return { data: result };
+      return { data: { success: true, data: result, message: 'Inscription réussie' } };
     }
     
     if (endpoint.includes('/practitioners')) {
       const result = await mockPractitioners.create(data);
-      return { data: result };
+      return { data: { success: true, data: result } };
     }
     
     if (endpoint.includes('/appointments')) {
       const result = await mockAppointments.create(data);
-      return { data: result };
+      return { data: { success: true, data: result, message: 'Rendez-vous créé avec succès' } };
     }
     
     throw new Error(`Endpoint ${endpoint} not mocked`);
@@ -69,7 +70,7 @@ export const mockApiWrapper = {
     
     if (endpoint.includes('/practitioners')) {
       const result = await mockPractitioners.getAll();
-      return { data: result };
+      return { data: { success: true, data: result } };
     }
     
     if (endpoint.includes('/appointments')) {
@@ -78,13 +79,13 @@ export const mockApiWrapper = {
         const payload = mockAuth.verifyToken(token);
         if (payload.userType === 'admin') {
           const result = await mockAppointments.getAll();
-          return { data: result };
+          return { data: { success: true, data: { appointments: result, total: result.length } } };
         } else {
           const result = await mockAppointments.getByPatient(payload.userId);
-          return { data: result };
+          return { data: { success: true, data: { appointments: result, total: result.length } } };
         }
       }
-      return { data: [] };
+      return { data: { success: true, data: { appointments: [], total: 0 } } };
     }
     
     throw new Error(`Endpoint ${endpoint} not mocked`);
@@ -97,10 +98,22 @@ export const mockApiWrapper = {
       const id = endpoint.split('/').pop();
       if (id) {
         const result = await mockAppointments.update(id, data);
-        return { data: result };
+        return { data: { success: true, data: result, message: 'Rendez-vous mis à jour' } };
       }
     }
     
+    throw new Error(`Endpoint ${endpoint} not mocked`);
+  },
+
+  patch: async (endpoint: string, data: any) => {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    if (endpoint.includes('/appointments/')) {
+      const id = endpoint.split('/').pop();
+      if (id) {
+        const result = await mockAppointments.update(id, data);
+        return { data: { success: true, data: result, message: 'Rendez-vous mis à jour' } };
+      }
+    }
     throw new Error(`Endpoint ${endpoint} not mocked`);
   },
 
@@ -111,7 +124,7 @@ export const mockApiWrapper = {
       const id = endpoint.split('/').pop();
       if (id) {
         await mockAppointments.delete(id);
-        return { data: { success: true } };
+        return { data: { success: true, data: true, message: 'Rendez-vous supprimé' } };
       }
     }
     
