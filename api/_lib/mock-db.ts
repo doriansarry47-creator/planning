@@ -98,6 +98,55 @@ class MockDatabase {
     return true;
   }
 
+  // Additional methods for auth and other features
+  async findUserByEmail(email: string): Promise<MockUser | null> {
+    return this.findPatientByEmail(email);
+  }
+
+  async createUser(userData: Omit<MockUser, 'id' | 'createdAt'>): Promise<MockUser> {
+    return this.createPatient(userData);
+  }
+
+  async findAppointmentsByDateRange(startDate: string, endDate: string): Promise<MockAppointment[]> {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    return this.appointments
+      .filter(a => {
+        const appointmentDate = new Date(a.appointmentDate || a.date || '');
+        return appointmentDate >= start && appointmentDate <= end;
+      })
+      .map(a => ({
+        ...a,
+        date: a.appointmentDate || a.date || a.appointmentDate
+      }));
+  }
+
+  async findAllPractitioners(): Promise<any[]> {
+    // Mock practitioners data
+    return [
+      {
+        id: '1',
+        firstName: 'Dr. Sarah',
+        lastName: 'Martin',
+        email: 'sarah.martin@cabinet.com',
+        speciality: 'Psychologue clinicienne',
+        phone: '01.23.45.67.89',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      }
+    ];
+  }
+
+  async createPractitioner(practitionerData: any): Promise<any> {
+    const newPractitioner = {
+      ...practitionerData,
+      id: this.generateId(),
+      createdAt: new Date().toISOString()
+    };
+    return newPractitioner;
+  }
+
   private generateId(): string {
     return Math.random().toString(36).substr(2, 9);
   }

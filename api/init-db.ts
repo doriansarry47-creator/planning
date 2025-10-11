@@ -71,17 +71,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
 
     // Vérifier si les données existent déjà
-    const existingUsers = await db.select().from(schema.users).limit(1);
+    const existingAdmins = await db.select().from(schema.admins).limit(1);
     
-    if (existingUsers.length === 0) {
+    if (existingAdmins.length === 0) {
       // Créer un administrateur de test
       const hashedPassword = await bcrypt.hash('admin123', 10);
-      await db.insert(schema.users).values({
-        username: 'admin',
-        password: hashedPassword,
-        email: 'admin@medplan.fr',
-        fullName: 'Administrateur MedPlan',
-        role: 'admin'
+      await db.insert(schema.admins).values({
+        name: 'Dorian Sarry',
+        email: 'doriansarry@yahoo.fr',
+        password: hashedPassword
       });
 
       // Créer un patient de test
@@ -91,11 +89,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         password: patientPassword,
         firstName: 'Marie',
         lastName: 'Dupont',
-        phoneNumber: '0123456789',
-        dateOfBirth: '1985-06-15',
-        address: '123 Rue de la Santé, 75001 Paris',
-        emergencyContact: 'Pierre Dupont',
-        emergencyPhone: '0987654321'
+        phone: '0123456789',
+        isReferredByProfessional: false,
+        consultationReason: 'Test de consultation pour thérapie sensorimotrice',
+        preferredSessionType: 'cabinet'
       });
 
       // Pas de praticiens pour cette application de thérapie sensorimotrice

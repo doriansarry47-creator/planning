@@ -58,6 +58,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
+    // Créer la table password_resets si elle n'existe pas
+    await sql`
+      CREATE TABLE IF NOT EXISTS password_resets (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        user_type TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    // Supprimer les tokens expirés
+    await sql`DELETE FROM password_resets WHERE expires_at < CURRENT_TIMESTAMP`;
+
     // Sauvegarder le token dans la base de données
     await sql`
       INSERT INTO password_resets (email, token, user_type, expires_at)

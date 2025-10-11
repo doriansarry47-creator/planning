@@ -1,18 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { MockUser } from '../_lib/mock-types';
 import { mockDb } from '../_lib/mock-db';
 import { sendSMS, formatPhoneNumber, createAppointmentReminderSMS } from '../_lib/sms';
 import { sendAppointmentReminder } from '../_lib/email';
-import { successResponse, errorResponse } from '../_lib/response';
+import { sendSuccess, sendError } from '../_lib/response';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Vérifier que c'est bien un appel cron (sécurité basique)
   const authHeader = req.headers.authorization;
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return errorResponse(res, 'Unauthorized', 401);
+    return sendError(res, 'Unauthorized', 401);
   }
 
   if (req.method !== 'POST') {
-    return errorResponse(res, 'Method not allowed', 405);
+    return sendError(res, 'Method not allowed', 405);
   }
 
   try {
@@ -88,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           try {
             await sendAppointmentReminder(
               patient.email,
-              `${(patient as MockUser).firstName || ''} ${(patient as MockUser).lastName || ''}`,
+              `${patient.firstName || ''} ${patient.lastName || ''}`,
               dateStr,
               timeStr,
               (appointment as any).type || 'cabinet'
