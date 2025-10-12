@@ -315,6 +315,7 @@ export function TherapyLandingPage() {
               <h3 className="text-lg font-semibold mb-4">Liens rapides</h3>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="/patient/book-appointment" className="hover:text-white">Prendre rendez-vous</a></li>
+                <li><a href="/patient/register" className="hover:text-white">Créer un compte</a></li>
                 <li><a href="/login/patient" className="hover:text-white">Espace patient</a></li>
                 <li><a href="/login/admin" className="hover:text-white">Espace praticien</a></li>
               </ul>
@@ -323,9 +324,9 @@ export function TherapyLandingPage() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Informations légales</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Mentions légales</a></li>
-                <li><a href="#" className="hover:text-white">Politique de confidentialité</a></li>
-                <li><a href="#" className="hover:text-white">Conditions d'utilisation</a></li>
+                <li><a href="/mentions-legales" className="hover:text-white">Mentions légales</a></li>
+                <li><a href="/politique-confidentialite" className="hover:text-white">Politique de confidentialité</a></li>
+                <li><a href="/conditions-utilisation" className="hover:text-white">Conditions d'utilisation</a></li>
               </ul>
             </div>
           </div>

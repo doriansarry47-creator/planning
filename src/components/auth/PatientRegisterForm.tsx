@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/toast';
 import { PatientRegistrationForm } from '@/types';
-import { AlertCircle, Heart } from 'lucide-react';
+import { AlertCircle, Heart, Loader2 } from 'lucide-react';
 
 interface PatientRegisterFormProps {
   onSwitchToLogin?: () => void;
@@ -16,6 +17,7 @@ export function PatientRegisterForm({ onSwitchToLogin }: PatientRegisterFormProp
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register: registerUser } = useAuth();
+  const { addToast } = useToast();
   
   const { register, handleSubmit, formState: { errors }, watch } = useForm<PatientRegistrationForm>();
   const password = watch('password');
@@ -27,13 +29,38 @@ export function PatientRegisterForm({ onSwitchToLogin }: PatientRegisterFormProp
       
       if (data.password !== data.confirmPassword) {
         setError('Les mots de passe ne correspondent pas');
+        addToast({
+          type: 'error',
+          title: 'Erreur de saisie',
+          description: 'Les mots de passe ne correspondent pas'
+        });
         return;
       }
       
       const { confirmPassword, ...patientData } = data;
+      
+      addToast({
+        type: 'info',
+        title: 'Inscription en cours...',
+        description: 'Veuillez patienter pendant que nous créons votre compte'
+      });
+      
       await registerUser(patientData, 'patient');
+      
+      addToast({
+        type: 'success',
+        title: 'Inscription réussie !',
+        description: 'Votre compte a été créé avec succès. Vous êtes maintenant connecté.'
+      });
+      
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
+      const errorMessage = err.message || 'Une erreur est survenue';
+      setError(errorMessage);
+      addToast({
+        type: 'error',
+        title: 'Erreur d\'inscription',
+        description: errorMessage
+      });
     } finally {
       setLoading(false);
     }
@@ -172,10 +199,17 @@ export function PatientRegisterForm({ onSwitchToLogin }: PatientRegisterFormProp
           
           <Button 
             type="submit" 
-            className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white py-3 rounded-xl shadow-lg hover:shadow-xl transition-all" 
+            className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white py-3 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed" 
             disabled={loading}
           >
-            {loading ? 'Inscription...' : 'S\'inscrire'}
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Inscription...
+              </div>
+            ) : (
+              'S\'inscrire'
+            )}
           </Button>
         </form>
       </CardContent>

@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/toast';
 import { LoginForm } from '@/types';
-import { AlertCircle, ShieldCheck, Mail } from 'lucide-react';
+import { AlertCircle, ShieldCheck, Mail, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 interface PatientLoginFormProps {
@@ -20,6 +21,7 @@ export function PatientLoginForm({ onSwitchToRegister }: PatientLoginFormProps) 
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
   const { login } = useAuth();
+  const { addToast } = useToast();
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
