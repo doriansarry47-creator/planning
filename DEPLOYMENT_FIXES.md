@@ -1,6 +1,38 @@
 # Corrections de Déploiement Vercel - Octobre 2024
 
-## 🎯 Problèmes Résolus
+## ✅ DERNIER DÉPLOIEMENT RÉUSSI - 13 Octobre 2024
+
+**URL de Production:** https://webapp-5phduwqkf-ikips-projects.vercel.app
+**Status:** ✅ Déployé avec succès
+**Nombre de fonctions:** 8/12 (limite Hobby respectée)
+**Commit:** a5daeaf - Consolidation des fonctions auth
+
+### 🔧 Optimisations Octobre 2024
+
+#### Consolidation des Fonctions Auth (13 → 8 fonctions)
+- ✅ **Fusion de toutes les routes auth** dans `api/auth/index.ts`
+  - `/api/auth/login.ts` → `/api/auth?action=login`
+  - `/api/auth/register.ts` → `/api/auth?action=register`
+  - `/api/auth/verify.ts` → `/api/auth?action=verify`
+  - `/api/auth/forgot-password.ts` → `/api/auth?action=forgot-password`
+  - `/api/auth/reset-password.ts` → `/api/auth?action=reset-password`
+- ✅ **Suppression de `api/setup-admin.ts`** (fonctionnalité dans init-db)
+- ✅ **Réduction de 13 à 8 fonctions serverless**
+- ✅ **Routage par query parameters** pour actions multiples
+
+#### Fonctions API Déployées (8/12)
+1. `api/appointments/index.ts` - Gestion des rendez-vous
+2. `api/auth/index.ts` - Authentification complète (login, register, verify, password)
+3. `api/availability-slots/index.ts` - Créneaux de disponibilité
+4. `api/cron/appointment-reminders.ts` - Rappels automatiques
+5. `api/init-db.ts` - Initialisation de la base de données
+6. `api/notes/index.ts` - Notes de consultation
+7. `api/notifications/send.ts` - Envoi de notifications
+8. `api/practitioners/index.ts` - Gestion des praticiens
+
+---
+
+## 🎯 Problèmes Résolus (Historique)
 
 ### 1. Erreurs TypeScript dans les API
 - ✅ **Correction de `nodemailer.createTransporter`** → `nodemailer.createTransport`
