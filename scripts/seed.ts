@@ -12,7 +12,7 @@ async function seed() {
     const hashedAdminPassword = await hashPassword('admin123');
     await db.insert(admins).values({
       name: 'Dorian Sarry',
-      email: 'admin@doriansarry.fr',
+      email: 'doriansarry@yahoo.fr',
       password: hashedAdminPassword,
     }).onConflictDoNothing();
 
@@ -35,7 +35,7 @@ async function seed() {
     console.log('✅ Patient de test créé');
 
     console.log('🎉 Seeding terminé avec succès !');
-    console.log('📧 Connexion admin: admin@doriansarry.fr / admin123');
+    console.log('📧 Connexion admin: doriansarry@yahoo.fr / admin123');
     console.log('📧 Connexion patient: patient@test.fr / patient123');
 
     process.exit(0);
