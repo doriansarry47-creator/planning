@@ -1,17 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { mockDb } from '../_lib/mock-db';
+import { db, admins, patients } from '../_lib/db';
 import { generateToken } from '../_lib/auth';
 import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
+import { eq } from 'drizzle-orm';
 
 const registerAdminSchema = z.object({
   email: z.string().email("Format d'email invalide"),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
   confirmPassword: z.string(),
-  username: z.string().min(2, "Le nom d'utilisateur est requis"),
-  fullName: z.string().min(2, "Le nom complet est requis"),
-  role: z.string().optional().default('admin'),
+  name: z.string().min(2, "Le nom est requis").optional().default("Dorian Sarry"),
 });
 
 const registerPatientSchema = z.object({
@@ -86,33 +85,41 @@ async function registerAdmin(req: VercelRequest, res: VercelResponse) {
     return sendError(res, 'Les mots de passe ne correspondent pas', 400);
   }
 
-  // Vérifier si l'email existe déjà
-  const existingUser = await mockDb.findUserByEmail(userData.email);
-  if (existingUser) {
-    return sendError(res, 'Cette adresse email est déjà utilisée', 409);
+  try {
+    // Vérifier si l'email existe déjà
+    const existingAdmins = await db.select().from(admins).where(eq(admins.email, userData.email)).limit(1);
+    if (existingAdmins.length > 0) {
+      return sendError(res, 'Cette adresse email est déjà utilisée', 409);
+    }
+
+    // Hasher le mot de passe et créer l'utilisateur admin
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const newAdmins = await db.insert(admins).values({
+      name: userData.name || "Dorian Sarry",
+      email: userData.email,
+      password: hashedPassword,
+    }).returning();
+
+    const newAdmin = newAdmins[0];
+
+    // Générer le token
+    const token = generateToken({
+      userId: newAdmin.id,
+      email: newAdmin.email,
+      userType: 'admin',
+    });
+
+    // Retourner l'utilisateur sans le mot de passe
+    const { password: _, ...adminWithoutPassword } = newAdmin;
+
+    return sendSuccess(res, {
+      user: adminWithoutPassword,
+      token,
+    }, 'Compte administrateur créé avec succès', 201);
+  } catch (error) {
+    console.error('Erreur lors de la création du compte admin:', error);
+    return sendError(res, 'Erreur interne du serveur', 500);
   }
-
-  // Hasher le mot de passe et créer l'utilisateur
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = await mockDb.createUser({
-    ...userData,
-    password: hashedPassword,
-  });
-
-  // Générer le token
-  const token = generateToken({
-    userId: newUser.id,
-    email: newUser.email,
-    userType: 'admin',
-  });
-
-  // Retourner l'utilisateur sans le mot de passe
-  const { password: _, ...userWithoutPassword } = newUser;
-
-  return sendSuccess(res, {
-    user: userWithoutPassword,
-    token,
-  }, 'Compte administrateur créé avec succès', 201);
 }
 
 async function registerPatient(req: VercelRequest, res: VercelResponse) {
@@ -128,31 +135,46 @@ async function registerPatient(req: VercelRequest, res: VercelResponse) {
     return sendError(res, 'Les mots de passe ne correspondent pas', 400);
   }
 
-  // Vérifier si l'email existe déjà
-  const existingPatient = await mockDb.findPatientByEmail(patientData.email);
-  if (existingPatient) {
-    return sendError(res, 'Cette adresse email est déjà utilisée', 409);
+  try {
+    // Vérifier si l'email existe déjà
+    const existingPatients = await db.select().from(patients).where(eq(patients.email, patientData.email)).limit(1);
+    if (existingPatients.length > 0) {
+      return sendError(res, 'Cette adresse email est déjà utilisée', 409);
+    }
+
+    // Hasher le mot de passe et créer le patient
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const newPatients = await db.insert(patients).values({
+      firstName: patientData.firstName,
+      lastName: patientData.lastName,
+      email: patientData.email,
+      password: hashedPassword,
+      phone: patientData.phone || null,
+      isReferredByProfessional: patientData.isReferredByProfessional || false,
+      referringProfessional: patientData.referringProfessional || null,
+      consultationReason: patientData.consultationReason,
+      symptomsStartDate: patientData.symptomsStartDate || null,
+      preferredSessionType: patientData.preferredSessionType,
+    }).returning();
+
+    const newPatient = newPatients[0];
+
+    // Générer le token
+    const token = generateToken({
+      userId: newPatient.id,
+      email: newPatient.email,
+      userType: 'patient',
+    });
+
+    // Retourner le patient sans le mot de passe
+    const { password: _, ...patientWithoutPassword } = newPatient;
+
+    return sendSuccess(res, {
+      user: patientWithoutPassword,
+      token,
+    }, 'Compte patient créé avec succès', 201);
+  } catch (error) {
+    console.error('Erreur lors de la création du compte patient:', error);
+    return sendError(res, 'Erreur interne du serveur', 500);
   }
-
-  // Hasher le mot de passe et créer le patient
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newPatient = await mockDb.createPatient({
-    ...patientData,
-    password: hashedPassword,
-  });
-
-  // Générer le token
-  const token = generateToken({
-    userId: newPatient.id,
-    email: newPatient.email,
-    userType: 'patient',
-  });
-
-  // Retourner le patient sans le mot de passe
-  const { password: _, ...patientWithoutPassword } = newPatient;
-
-  return sendSuccess(res, {
-    user: patientWithoutPassword,
-    token,
-  }, 'Compte patient créé avec succès', 201);
 }
