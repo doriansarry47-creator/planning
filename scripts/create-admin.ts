@@ -24,7 +24,7 @@ async function createAdmin() {
     console.log('🔧 Création du compte administrateur...\n');
 
     const adminEmail = 'doriansarry@yahoo.fr';
-    const adminPassword = 'Admin123';
+    const adminPassword = 'admin123';
     const adminName = 'Dorian Sarry';
 
     // Vérifier si l'admin existe déjà
