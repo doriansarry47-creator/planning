@@ -61,14 +61,14 @@ export function AdminDashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">Administration - Dorian Sarry</h1>
-                <p className="text-sm text-teal-400">Gestion des rendez-vous thérapeutiques</p>
+                <p className="text-sm text-teal-400">Tableau de bord administrateur</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-4">
               <div className="flex items-center text-sm text-gray-300">
                 <UserCheck className="h-4 w-4 mr-2" />
-                <span>{user?.fullName}</span>
+                <span>{user?.email || user?.name || 'Admin'}</span>
               </div>
               <Button 
                 variant="outline" 
@@ -87,111 +87,151 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Tableau de bord
+        <div className="mb-8 bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-green-600 bg-clip-text text-transparent mb-2">
+            Tableau de bord administrateur
           </h2>
-          <p className="text-gray-600">
-            Vue d'ensemble de l'activité de la clinique
+          <p className="text-gray-700 font-medium">
+            🩺 Vue d'ensemble de votre pratique thérapeutique
           </p>
+          <div className="mt-4 flex items-center gap-4 text-sm">
+            <div className="flex items-center text-green-700">
+              <Calendar className="h-4 w-4 mr-2" />
+              {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+          </div>
         </div>
 
         {/* Statistics Cards */}
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+            <TrendingUp className="h-5 w-5 mr-2 text-teal-400" />
+            Statistiques en temps réel
+          </h3>
+        </div>
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-blue-600 mb-1">Aujourd'hui</p>
-                  <p className="text-3xl font-bold text-blue-900">{todayAppointments.length}</p>
-                  <p className="text-sm text-blue-600">Rendez-vous</p>
+                  <p className="text-sm font-medium text-blue-100 mb-1">Aujourd'hui</p>
+                  <p className="text-4xl font-bold text-white">{todayAppointments.length}</p>
+                  <p className="text-sm text-blue-100 mt-1">Rendez-vous</p>
                 </div>
-                <Calendar className="h-12 w-12 text-blue-500" />
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Calendar className="h-10 w-10 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <Card className="bg-gradient-to-br from-green-500 to-emerald-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-600 mb-1">À venir</p>
-                  <p className="text-3xl font-bold text-green-900">{upcomingAppointments.length}</p>
-                  <p className="text-sm text-green-600">Rendez-vous</p>
+                  <p className="text-sm font-medium text-green-100 mb-1">À venir</p>
+                  <p className="text-4xl font-bold text-white">{upcomingAppointments.length}</p>
+                  <p className="text-sm text-green-100 mt-1">Rendez-vous</p>
                 </div>
-                <Clock className="h-12 w-12 text-green-500" />
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Clock className="h-10 w-10 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-purple-600 mb-1">Total</p>
-                  <p className="text-3xl font-bold text-purple-900">{totalPatients}</p>
-                  <p className="text-sm text-purple-600">Patients</p>
+                  <p className="text-sm font-medium text-purple-100 mb-1">Total</p>
+                  <p className="text-4xl font-bold text-white">{totalPatients}</p>
+                  <p className="text-sm text-purple-100 mt-1">Patients</p>
                 </div>
-                <Users className="h-12 w-12 text-purple-500" />
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Users className="h-10 w-10 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <Card className="bg-gradient-to-br from-orange-500 to-red-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-orange-600 mb-1">Praticiens</p>
-                  <p className="text-3xl font-bold text-orange-900">{practitioners?.length || 0}</p>
-                  <p className="text-sm text-orange-600">Actifs</p>
+                  <p className="text-sm font-medium text-orange-100 mb-1">Thérapeutes</p>
+                  <p className="text-4xl font-bold text-white">{practitioners?.length || 0}</p>
+                  <p className="text-sm text-orange-100 mt-1">Actifs</p>
                 </div>
-                <UserCheck className="h-12 w-12 text-orange-500" />
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <UserCheck className="h-10 w-10 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Quick Actions */}
+        <div className="mb-4 mt-8">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+            <Settings className="h-5 w-5 mr-2 text-teal-400" />
+            Actions rapides
+          </h3>
+        </div>
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="bg-white/90 backdrop-blur-sm cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105 border-0 shadow-xl">
             <CardContent className="p-6 text-center">
-              <Calendar className="h-8 w-8 text-medical-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-900 mb-2">Rendez-vous</h3>
-              <p className="text-sm text-gray-600">Gérer les rendez-vous</p>
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <Calendar className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">Rendez-vous</h3>
+              <p className="text-sm text-gray-600">Gérer les séances</p>
             </CardContent>
           </Card>
 
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="bg-white/90 backdrop-blur-sm cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105 border-0 shadow-xl">
             <CardContent className="p-6 text-center">
-              <UserCheck className="h-8 w-8 text-medical-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-900 mb-2">Praticiens</h3>
-              <p className="text-sm text-gray-600">Gérer les praticiens</p>
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <UserCheck className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">Thérapeutes</h3>
+              <p className="text-sm text-gray-600">Gérer l'équipe</p>
             </CardContent>
           </Card>
 
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="bg-white/90 backdrop-blur-sm cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105 border-0 shadow-xl">
             <CardContent className="p-6 text-center">
-              <Users className="h-8 w-8 text-medical-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-900 mb-2">Patients</h3>
+              <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <Users className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">Patients</h3>
               <p className="text-sm text-gray-600">Gérer les patients</p>
             </CardContent>
           </Card>
 
-          <Card className="medical-card cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="bg-white/90 backdrop-blur-sm cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105 border-0 shadow-xl">
             <CardContent className="p-6 text-center">
-              <BarChart3 className="h-8 w-8 text-medical-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-900 mb-2">Statistiques</h3>
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 p-3 rounded-xl w-fit mx-auto mb-3">
+                <BarChart3 className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">Statistiques</h3>
               <p className="text-sm text-gray-600">Voir les rapports</p>
             </CardContent>
           </Card>
         </div>
 
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+            <Calendar className="h-5 w-5 mr-2 text-teal-400" />
+            Vue d'ensemble des activités
+          </h3>
+        </div>
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Today's Appointments */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calendar className="h-5 w-5 text-medical-600 mr-2" />
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
+              <CardTitle className="flex items-center text-blue-900">
+                <Calendar className="h-5 w-5 text-blue-600 mr-2" />
                 Rendez-vous d'aujourd'hui
               </CardTitle>
             </CardHeader>
@@ -233,11 +273,11 @@ export function AdminDashboard() {
           </Card>
 
           {/* Recent Practitioners */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <UserCheck className="h-5 w-5 text-medical-600 mr-2" />
-                Praticiens actifs
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-100">
+              <CardTitle className="flex items-center text-green-900">
+                <UserCheck className="h-5 w-5 text-green-600 mr-2" />
+                Thérapeutes actifs
               </CardTitle>
             </CardHeader>
             <CardContent>

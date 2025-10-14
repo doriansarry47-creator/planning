@@ -79,95 +79,117 @@ export function PatientDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Bonjour {user?.firstName} !
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Bienvenue sur votre espace thérapeutique. Cet espace vous permet de prendre rendez-vous, 
-            suivre vos séances et rester en contact avec votre praticien.
-          </p>
+          <div className="bg-gradient-to-r from-green-50 via-teal-50 to-blue-50 rounded-2xl p-8 shadow-2xl border-2 border-green-200">
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent mb-3">
+              👋 Bonjour {user?.firstName} !
+            </h2>
+            <p className="text-gray-700 text-lg mb-4 font-medium">
+              Bienvenue sur votre espace thérapeutique personnalisé. Cet espace vous permet de prendre rendez-vous, 
+              suivre vos séances et rester en contact avec votre praticien.
+            </p>
+            <div className="flex items-center gap-2 text-green-700 font-medium">
+              <Calendar className="h-5 w-5" />
+              <span>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            </div>
+          </div>
           
           {/* Coordonnées du praticien */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-green-200">
-            <h3 className="font-semibold text-gray-900 mb-2">Dorian Sarry — Thérapie Sensorimotrice</h3>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-700">
-              <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-1 text-green-600" />
-                <span>20 rue des Jacobins, 24000 Périgueux</span>
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border-2 border-teal-200 mt-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-gradient-to-r from-teal-500 to-green-600 p-3 rounded-xl">
+                <Stethoscope className="h-6 w-6 text-white" />
               </div>
-              <div className="flex items-center">
-                <Phone className="h-4 w-4 mr-1 text-green-600" />
-                <span>06.45.15.63.68</span>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Dorian Sarry</h3>
+                <p className="text-sm text-green-600 font-medium">Thérapie Sensorimotrice</p>
               </div>
-              <div className="flex items-center">
-                <Mail className="h-4 w-4 mr-1 text-green-600" />
-                <span>doriansarry@yahoo.fr</span>
+            </div>
+            <div className="flex flex-col gap-3 text-sm text-gray-700">
+              <div className="flex items-center bg-green-50 p-3 rounded-lg">
+                <MapPin className="h-5 w-5 mr-3 text-green-600" />
+                <span className="font-medium">20 rue des Jacobins, 24000 Périgueux</span>
+              </div>
+              <div className="flex items-center bg-teal-50 p-3 rounded-lg">
+                <Phone className="h-5 w-5 mr-3 text-teal-600" />
+                <a href="tel:0645156368" className="font-medium hover:text-teal-700 transition-colors">06.45.15.63.68</a>
+              </div>
+              <div className="flex items-center bg-blue-50 p-3 rounded-lg">
+                <Mail className="h-5 w-5 mr-3 text-blue-600" />
+                <a href="mailto:doriansarry@yahoo.fr" className="font-medium hover:text-blue-700 transition-colors">doriansarry@yahoo.fr</a>
               </div>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
+        <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+          <Settings className="h-6 w-6 mr-2 text-green-600" />
+          Actions rapides
+        </h3>
         <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card 
-            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-green-50 to-teal-50 cursor-pointer"
+            className="border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 bg-gradient-to-br from-green-50 to-teal-50 cursor-pointer hover:scale-110 hover:-translate-y-2"
             onClick={() => window.location.href = '/patient/book-appointment'}
           >
-            <CardContent className="p-6 text-center">
-              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-3 rounded-xl w-fit mx-auto mb-3">
-                <Plus className="h-6 w-6 text-white" />
+            <CardContent className="p-8 text-center">
+              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-4 rounded-2xl w-fit mx-auto mb-4 shadow-lg">
+                <Plus className="h-8 w-8 text-white" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Nouveau RDV</h3>
-              <p className="text-sm text-gray-600">Réserver une séance</p>
+              <h3 className="font-bold text-gray-900 mb-2 text-lg">Nouveau RDV</h3>
+              <p className="text-sm text-gray-600 font-medium">Réserver une séance</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 cursor-pointer"
+            className="border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 cursor-pointer hover:scale-110 hover:-translate-y-2"
             onClick={() => window.location.href = '/patient/appointments'}
           >
-            <CardContent className="p-6 text-center">
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl w-fit mx-auto mb-3">
-                <Calendar className="h-6 w-6 text-white" />
+            <CardContent className="p-8 text-center">
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-2xl w-fit mx-auto mb-4 shadow-lg">
+                <Calendar className="h-8 w-8 text-white" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Mes RDV</h3>
-              <p className="text-sm text-gray-600">Mes séances programmées</p>
+              <h3 className="font-bold text-gray-900 mb-2 text-lg">Mes RDV</h3>
+              <p className="text-sm text-gray-600 font-medium">Mes séances programmées</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50 cursor-pointer"
+            className="border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50 cursor-pointer hover:scale-110 hover:-translate-y-2"
             onClick={() => window.location.href = '/patient/follow-up'}
           >
-            <CardContent className="p-6 text-center">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-600 p-3 rounded-xl w-fit mx-auto mb-3">
-                <FileText className="h-6 w-6 text-white" />
+            <CardContent className="p-8 text-center">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-600 p-4 rounded-2xl w-fit mx-auto mb-4 shadow-lg">
+                <FileText className="h-8 w-8 text-white" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Suivi</h3>
-              <p className="text-sm text-gray-600">Mon parcours thérapeutique</p>
+              <h3 className="font-bold text-gray-900 mb-2 text-lg">Suivi</h3>
+              <p className="text-sm text-gray-600 font-medium">Mon parcours thérapeutique</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-red-50 cursor-pointer"
+            className="border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-red-50 cursor-pointer hover:scale-110 hover:-translate-y-2"
             onClick={() => window.location.href = '/patient/profile'}
           >
-            <CardContent className="p-6 text-center">
-              <div className="bg-gradient-to-r from-orange-500 to-red-600 p-3 rounded-xl w-fit mx-auto mb-3">
-                <Settings className="h-6 w-6 text-white" />
+            <CardContent className="p-8 text-center">
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 p-4 rounded-2xl w-fit mx-auto mb-4 shadow-lg">
+                <Settings className="h-8 w-8 text-white" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Profil</h3>
-              <p className="text-sm text-gray-600">Mes informations personnelles</p>
+              <h3 className="font-bold text-gray-900 mb-2 text-lg">Profil</h3>
+              <p className="text-sm text-gray-600 font-medium">Mes informations personnelles</p>
             </CardContent>
           </Card>
         </div>
 
+        <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+          <Calendar className="h-6 w-6 mr-2 text-green-600" />
+          Vue d'ensemble de mes rendez-vous
+        </h3>
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Upcoming Appointments */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calendar className="h-5 w-5 text-medical-600 mr-2" />
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-teal-100">
+              <CardTitle className="flex items-center text-green-900">
+                <Calendar className="h-5 w-5 text-green-600 mr-2" />
                 Prochains rendez-vous
               </CardTitle>
             </CardHeader>
@@ -221,10 +243,10 @@ export function PatientDashboard() {
           </Card>
 
           {/* Recent History */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <FileText className="h-5 w-5 text-medical-600 mr-2" />
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-100">
+              <CardTitle className="flex items-center text-purple-900">
+                <FileText className="h-5 w-5 text-purple-600 mr-2" />
                 Historique récent
               </CardTitle>
             </CardHeader>
