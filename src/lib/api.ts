@@ -2,7 +2,7 @@ import axios from 'axios';
 import { mockAuth, mockPractitioners, mockAppointments } from './mock-auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-const USE_MOCK_API = true; // Set to false when real API is available
+const USE_MOCK_API = false; // Set to false when real API is available
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
