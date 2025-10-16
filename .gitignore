@@ -117,4 +117,4 @@ backup/
 # yarn.lock
 
 # TypeScript
-*.tsbuildinfo
+*.tsbuildinfocore
