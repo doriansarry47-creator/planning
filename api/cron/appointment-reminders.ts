@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { MockUser } from '../_lib/mock-types';
-import { mockDb } from '../_lib/mock-db';
-import { sendSMS, formatPhoneNumber, createAppointmentReminderSMS } from '../_lib/sms';
-import { sendAppointmentReminder } from '../_lib/email';
-import { sendSuccess, sendError } from '../_lib/response';
+import type { MockUser } from '../_lib/mock-types.js';
+import { mockDb } from '../_lib/mock-db.js';
+import { sendSMS, formatPhoneNumber, createAppointmentReminderSMS } from '../_lib/sms.js';
+import { sendAppointmentReminder } from '../_lib/email.js';
+import { sendSuccess, sendError } from '../_lib/response.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Vérifier que c'est bien un appel cron (sécurité basique)

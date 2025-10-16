@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { sendEmail } from '../_lib/email';
-import { authenticateToken } from '../_lib/auth';
-import { sendError, sendSuccess } from '../_lib/response';
+import { sendEmail } from '../_lib/email.js';
+import { authenticateToken } from '../_lib/auth.js';
+import { sendError, sendSuccess } from '../_lib/response.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

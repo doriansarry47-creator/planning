@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { authenticateToken } from '../_lib/auth';
-import { sendSuccess, sendError, handleApiError } from '../_lib/response';
+import { authenticateToken } from '../_lib/auth.js';
+import { sendSuccess, sendError, handleApiError } from '../_lib/response.js';
 
 // Schéma de validation pour un créneau
 const availabilitySlotSchema = z.object({
