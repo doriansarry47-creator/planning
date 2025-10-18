@@ -26,7 +26,9 @@ export function AdminDashboard() {
     queryKey: ['admin-appointments'],
     queryFn: async () => {
       const response = await api.get('/appointments');
-      return response.data.data;
+      // L'API retourne { success: true, data: { appointments: [], total: N } }
+      const data = response.data.data || response.data;
+      return data.appointments || data || [];
     },
   });
 
@@ -34,7 +36,8 @@ export function AdminDashboard() {
     queryKey: ['practitioners'],
     queryFn: async () => {
       const response = await api.get('/practitioners');
-      return response.data.data;
+      // L'API retourne { success: true, data: [...] }
+      return response.data.data || response.data || [];
     },
   });
 

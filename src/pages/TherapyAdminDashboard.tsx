@@ -59,7 +59,8 @@ export function TherapyAdminDashboard() {
     queryKey: ['admin-appointments'],
     queryFn: async () => {
       const response = await api.get('/appointments');
-      return response.data.appointments || [];
+      // L'API retourne { success: true, data: { appointments: [], total: N } }
+      return response.data.data?.appointments || response.data.appointments || [];
     },
   });
 

@@ -27,13 +27,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user = localStorage.getItem('user');
     const userType = localStorage.getItem('userType') as 'admin' | 'patient' | null;
 
-    if (token && user && userType) {
-      setState({
-        user: JSON.parse(user),
-        token,
-        isAuthenticated: true,
-        userType,
-      });
+    if (token && user && userType && user !== 'undefined') {
+      try {
+        const parsedUser = JSON.parse(user);
+        setState({
+          user: parsedUser,
+          token,
+          isAuthenticated: true,
+          userType,
+        });
+      } catch (error) {
+        console.error('Erreur lors du parsing de l\'utilisateur:', error);
+        // Nettoyer le localStorage en cas d'erreur
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userType');
+      }
     }
     setLoading(false);
   }, []);
@@ -43,7 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const endpoint = `/auth?action=login&userType=${userType}`;
       const response = await api.post(endpoint, { email, password });
       
-      const { token, user: userData } = response.data;
+      // L'API retourne les données dans response.data.data
+      const responseData = response.data.data || response.data;
+      const { token, user: userData } = responseData;
+      
+      if (!token || !userData) {
+        throw new Error('Réponse du serveur invalide');
+      }
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -60,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const dashboardPath = userType === 'admin' ? '/admin/dashboard' : '/patient/dashboard';
       setLocation(dashboardPath);
     } catch (error: any) {
-      throw new Error(error.message || error.response?.data?.message || 'Erreur de connexion');
+      throw new Error(error.message || error.response?.data?.message || error.response?.data?.error || 'Erreur de connexion');
     }
   };
 
@@ -69,7 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const endpoint = `/auth?action=register&userType=${userType}`;
       const response = await api.post(endpoint, userData);
       
-      const { token, user: newUser } = response.data;
+      // L'API retourne les données dans response.data.data
+      const responseData = response.data.data || response.data;
+      const { token, user: newUser } = responseData;
+      
+      if (!token || !newUser) {
+        throw new Error('Réponse du serveur invalide');
+      }
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(newUser));
@@ -86,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const dashboardPath = userType === 'admin' ? '/admin/dashboard' : '/patient/dashboard';
       setLocation(dashboardPath);
     } catch (error: any) {
-      throw new Error(error.message || error.response?.data?.message || 'Erreur d\'inscription');
+      throw new Error(error.message || error.response?.data?.message || error.response?.data?.error || 'Erreur d\'inscription');
     }
   };
 
