@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, userType: 'admin' | 'patient') => {
     try {
+      console.log('🔑 Tentative de connexion:', { email, userType });
       const endpoint = `/auth?action=login&userType=${userType}`;
       const response = await api.post(endpoint, { email, password });
       
@@ -56,14 +57,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const responseData = response.data.data || response.data;
       const { token, user: userData } = responseData;
       
+      console.log('✅ Réponse API reçue:', { hasToken: !!token, hasUser: !!userData });
+      
       if (!token || !userData) {
         throw new Error('Réponse du serveur invalide');
       }
       
+      // Sauvegarder les données de session
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('userType', userType);
       
+      console.log('💾 Données sauvegardées dans localStorage');
+      
+      // Mettre à jour l'état local
       setState({
         user: userData,
         token,
@@ -71,10 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userType,
       });
 
+      console.log('🔄 État mis à jour, redirection vers dashboard...');
+      
+      // Petit délai pour s'assurer que l'état est bien mis à jour
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Redirect to appropriate dashboard after successful login
       const dashboardPath = userType === 'admin' ? '/admin/dashboard' : '/patient/dashboard';
+      console.log('📍 Redirection vers:', dashboardPath);
       setLocation(dashboardPath);
     } catch (error: any) {
+      console.error('❌ Erreur lors de la connexion:', error);
       throw new Error(error.message || error.response?.data?.message || error.response?.data?.error || 'Erreur de connexion');
     }
   };

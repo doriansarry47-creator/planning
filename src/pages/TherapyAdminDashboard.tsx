@@ -65,6 +65,17 @@ export function TherapyAdminDashboard() {
     },
   });
 
+  // Récupérer la liste des patients
+  const { data: patientsData, refetch: refetchPatients } = useQuery({
+    queryKey: ['admin-patients'],
+    queryFn: async () => {
+      const response = await api.get('/patients');
+      return response.data.data || response.data;
+    },
+  });
+
+  const patientsList = patientsData?.patients || [];
+
   // Calculs des statistiques
   const todayAppointments = appointments.filter(
     apt => apt.date.split('T')[0] === new Date().toISOString().split('T')[0]
@@ -139,6 +150,36 @@ export function TherapyAdminDashboard() {
     if (appointment) {
       setSelectedAppointment(appointment);
       setShowAppointmentModal(true);
+    }
+  };
+
+  const handleConfirmAppointment = async (appointmentId: string) => {
+    try {
+      await api.put(`/appointments?appointmentId=${appointmentId}`, {
+        status: 'confirmed'
+      });
+      // Recharger les rendez-vous
+      window.location.reload();
+    } catch (error) {
+      console.error('Erreur lors de la confirmation:', error);
+      alert('Erreur lors de la confirmation du rendez-vous');
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/appointments?appointmentId=${appointmentId}`, {
+        data: { reason: 'Annulé par le thérapeute' }
+      });
+      // Recharger les rendez-vous
+      window.location.reload();
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation:', error);
+      alert('Erreur lors de l\'annulation du rendez-vous');
     }
   };
 
@@ -481,17 +522,124 @@ export function TherapyAdminDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Gestion des Patients</h2>
-              <Button className="bg-gradient-to-r from-sage-600 to-therapy-600 hover:from-sage-700 hover:to-therapy-700 shadow-lg">
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau patient
-              </Button>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  className="text-gray-300 border-gray-600"
+                  onClick={() => refetchPatients()}
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Actualiser
+                </Button>
+              </div>
             </div>
             
             <Card className="backdrop-blur-sm bg-white/90 shadow-xl">
-              <CardContent className="p-6">
-                <p className="text-gray-600 text-center py-8">
-                  Interface de gestion des patients en cours de développement...
-                </p>
+              <CardContent className="p-0">
+                {patientsList.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type de séance</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référé par</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date d'inscription</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {patientsList.map((patient: any) => (
+                          <tr key={patient.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {patient.firstName} {patient.lastName}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {patient.consultationReason?.substring(0, 50)}
+                                  {patient.consultationReason?.length > 50 ? '...' : ''}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm">
+                                <div className="flex items-center text-gray-900">
+                                  <Mail className="h-4 w-4 mr-1 text-gray-400" />
+                                  {patient.email}
+                                </div>
+                                {patient.phone && (
+                                  <div className="flex items-center text-gray-600 mt-1">
+                                    <Phone className="h-4 w-4 mr-1 text-gray-400" />
+                                    {patient.phone}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                patient.preferredSessionType === 'cabinet' 
+                                  ? 'bg-teal-100 text-teal-800' 
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {patient.preferredSessionType === 'cabinet' ? 'Cabinet' : 'Visio'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              {patient.isReferredByProfessional ? (
+                                <div className="text-green-700">
+                                  <div className="font-medium">Oui</div>
+                                  {patient.referringProfessional && (
+                                    <div className="text-xs text-gray-600">
+                                      {patient.referringProfessional}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-500">Non</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {new Date(patient.createdAt).toLocaleDateString('fr-FR')}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium">
+                              <div className="flex space-x-2">
+                                <button 
+                                  className="text-teal-600 hover:text-teal-900"
+                                  title="Voir le dossier"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button 
+                                  className="text-blue-600 hover:text-blue-900"
+                                  title="Modifier"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button 
+                                  className="text-green-600 hover:text-green-900"
+                                  title="Créer un rendez-vous"
+                                  onClick={() => setActiveTab('calendar')}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 text-lg mb-2">Aucun patient enregistré</p>
+                    <p className="text-gray-500 text-sm">
+                      Les patients apparaîtront ici après leur inscription
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -561,24 +709,37 @@ export function TherapyAdminDashboard() {
               <div className="flex justify-end space-x-2">
                 {selectedAppointment.status === 'pending' && (
                   <>
-                    <Button className="bg-green-600 hover:bg-green-700">
+                    <Button 
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => handleConfirmAppointment(selectedAppointment.id)}
+                    >
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Confirmer
                     </Button>
-                    <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
+                    <Button 
+                      variant="outline" 
+                      className="text-red-600 border-red-600 hover:bg-red-50"
+                      onClick={() => handleCancelAppointment(selectedAppointment.id)}
+                    >
                       Annuler
                     </Button>
                   </>
                 )}
                 
                 {selectedAppointment.patient?.phone && (
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.location.href = `tel:${selectedAppointment.patient?.phone}`}
+                  >
                     <Phone className="h-4 w-4 mr-2" />
                     Appeler
                   </Button>
                 )}
                 
-                <Button variant="outline">
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.href = `mailto:${selectedAppointment.patient?.email}`}
+                >
                   <Mail className="h-4 w-4 mr-2" />
                   Envoyer un email
                 </Button>
