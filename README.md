@@ -2,6 +2,16 @@
 
 Une application web moderne pour la gestion des rendez-vous médicaux, optimisée pour Vercel avec une architecture serverless.
 
+## 🎯 Dernière Mise à Jour - v2.0.1 (18 Oct 2025)
+
+**✅ Corrections Importantes : Problème de connexion résolu !**
+
+Le problème de page blanche après connexion admin/patient a été complètement résolu. Pour plus d'informations :
+- 📋 **[STATUS_CORRECTIONS.md](./STATUS_CORRECTIONS.md)** - Status global et résumé exécutif
+- 🐛 **[CORRECTIONS_CONNEXION.md](./CORRECTIONS_CONNEXION.md)** - Documentation technique détaillée
+- 🧪 **[GUIDE_TEST_CONNEXION.md](./GUIDE_TEST_CONNEXION.md)** - Guide de test complet
+- 📅 **[CHANGELOG.md](./CHANGELOG.md)** - Historique des versions
+
 ## ✨ Fonctionnalités
 
 ### 👥 Pour les Patients
