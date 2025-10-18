@@ -26,7 +26,8 @@ import {
   Edit,
   Trash2,
   Phone,
-  Mail
+  Mail,
+  CheckCircle
 } from 'lucide-react';
 import api from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
@@ -230,7 +231,7 @@ export function TherapyAdminDashboard() {
                 label="Rendez-vous"
                 icon={Calendar}
                 color="sage"
-                illustration={<TherapyIllustrations.TimeFlow />}
+                illustration={TherapyIllustrations.TimeFlow}
               />
 
               <MetricCard
@@ -239,7 +240,7 @@ export function TherapyAdminDashboard() {
                 label="Rendez-vous"
                 icon={Clock}
                 color="therapy"
-                illustration={<TherapyIllustrations.HeartFlow />}
+                illustration={TherapyIllustrations.HeartFlow}
               />
 
               <MetricCard
@@ -248,7 +249,7 @@ export function TherapyAdminDashboard() {
                 label="Patients"
                 icon={Users}
                 color="cream"
-                illustration={<TherapyIllustrations.PersonAura />}
+                illustration={TherapyIllustrations.PersonAura}
               />
 
               <MetricCard
@@ -257,7 +258,7 @@ export function TherapyAdminDashboard() {
                 label="Confirmations"
                 icon={MessageCircle}
                 color="orange"
-                illustration={<TherapyIllustrations.SoundWave />}
+                illustration={TherapyIllustrations.SoundWave}
               />
             </div>
 

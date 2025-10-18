@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Connexion MedPlan</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #047857;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d1fae5;
+            border: 1px solid #059669;
+        }
+        .error {
+            background: #fee2e2;
+            border: 1px solid #dc2626;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏥 Test Connexion MedPlan</h1>
+    
+    <div class="test-section">
+        <h2>Connexion Admin</h2>
+        <input type="email" id="adminEmail" placeholder="Email admin" value="admin@medplan.fr">
+        <input type="password" id="adminPassword" placeholder="Mot de passe" value="admin123">
+        <button onclick="testAdminLogin()">Se connecter Admin</button>
+        <div id="adminResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Connexion Patient</h2>
+        <input type="email" id="patientEmail" placeholder="Email patient" value="patient@test.fr">
+        <input type="password" id="patientPassword" placeholder="Mot de passe" value="patient123">
+        <button onclick="testPatientLogin()">Se connecter Patient</button>
+        <div id="patientResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Vérification Token</h2>
+        <button onclick="verifyToken()">Vérifier Token Stocké</button>
+        <button onclick="clearStorage()">Effacer Storage</button>
+        <div id="tokenResult" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        async function testAdminLogin() {
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            const resultDiv = document.getElementById('adminResult');
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.textContent = 'Connexion en cours...';
+                
+                const response = await fetch(`${API_URL}/auth?action=login&userType=admin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    localStorage.setItem('userType', 'admin');
+                    
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Connexion réussie!\n\n' + JSON.stringify(data, null, 2);
+                    
+                    setTimeout(() => {
+                        window.location.href = '/admin/dashboard';
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || data.error || 'Erreur de connexion');
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Erreur: ' + error.message;
+            }
+        }
+
+        async function testPatientLogin() {
+            const email = document.getElementById('patientEmail').value;
+            const password = document.getElementById('patientPassword').value;
+            const resultDiv = document.getElementById('patientResult');
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.textContent = 'Connexion en cours...';
+                
+                const response = await fetch(`${API_URL}/auth?action=login&userType=patient`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    localStorage.setItem('userType', 'patient');
+                    
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Connexion réussie!\n\n' + JSON.stringify(data, null, 2);
+                    
+                    setTimeout(() => {
+                        window.location.href = '/patient/dashboard';
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || data.error || 'Erreur de connexion');
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Erreur: ' + error.message;
+            }
+        }
+
+        function verifyToken() {
+            const resultDiv = document.getElementById('tokenResult');
+            resultDiv.style.display = 'block';
+            
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            const userType = localStorage.getItem('userType');
+            
+            if (token && user && userType) {
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Token trouvé!\n\nType: ${userType}\n\nUser: ${user}\n\nToken: ${token.substring(0, 20)}...`;
+            } else {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Aucun token stocké';
+            }
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            document.getElementById('tokenResult').style.display = 'block';
+            document.getElementById('tokenResult').className = 'result success';
+            document.getElementById('tokenResult').textContent = '✅ Storage effacé!';
+        }
+    </script>
+</body>
+</html>
