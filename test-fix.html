@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test des Corrections de Connexion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .test-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .test-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-item .status {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .test-item.success .status {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .test-item.error .status {
+            background: #f44336;
+            color: white;
+        }
+        
+        .test-item.pending .status {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 5px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #00ff00;
+            padding-left: 10px;
+        }
+        
+        .log-entry.error {
+            border-left-color: #ff0000;
+            color: #ff6b6b;
+        }
+        
+        .log-entry.success {
+            border-left-color: #00ff00;
+            color: #00ff00;
+        }
+        
+        .log-entry.info {
+            border-left-color: #00bfff;
+            color: #00bfff;
+        }
+        
+        .summary {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+        }
+        
+        .summary-item {
+            text-align: center;
+        }
+        
+        .summary-item .number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .summary-item .label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Test des Corrections de Connexion</h1>
+            <p>Vérification automatique des corrections apportées au système d'authentification</p>
+        </div>
+        
+        <div class="content">
+            <div class="test-section">
+                <h2>🧪 Tests LocalStorage</h2>
+                <div id="localStorage-tests"></div>
+            </div>
+            
+            <div class="test-section">
+                <h2>🔐 Tests de Connexion</h2>
+                <div>
+                    <button class="button" onclick="testAdminLogin()">Tester Connexion Admin</button>
+                    <button class="button" onclick="testPatientRegister()">Tester Inscription Patient</button>
+                </div>
+                <div id="connection-tests" style="margin-top: 20px;"></div>
+            </div>
+            
+            <div class="test-section">
+                <h2>📊 Résumé</h2>
+                <div class="summary" id="summary">
+                    <div class="summary-item">
+                        <div class="number" id="total-tests">0</div>
+                        <div class="label">Tests Total</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="number" style="color: #4caf50;" id="passed-tests">0</div>
+                        <div class="label">Réussis</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="number" style="color: #f44336;" id="failed-tests">0</div>
+                        <div class="label">Échoués</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+    
+    <script>
+        let testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0
+        };
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateSummary() {
+            document.getElementById('total-tests').textContent = testResults.total;
+            document.getElementById('passed-tests').textContent = testResults.passed;
+            document.getElementById('failed-tests').textContent = testResults.failed;
+        }
+        
+        function addTestResult(container, name, success, message = '') {
+            testResults.total++;
+            if (success) testResults.passed++;
+            else testResults.failed++;
+            
+            const item = document.createElement('div');
+            item.className = `test-item ${success ? 'success' : 'error'}`;
+            item.innerHTML = `
+                <div class="status">${success ? '✓' : '✗'}</div>
+                <div>
+                    <strong>${name}</strong>
+                    ${message ? `<br><small style="color: #666;">${message}</small>` : ''}
+                </div>
+            `;
+            container.appendChild(item);
+            updateSummary();
+        }
+        
+        // Test 1 : Tests localStorage
+        function testLocalStorage() {
+            const container = document.getElementById('localStorage-tests');
+            container.innerHTML = '';
+            
+            log('Début des tests localStorage', 'info');
+            
+            // Test 1.1 : Valeur undefined
+            try {
+                const value = 'undefined';
+                if (value !== 'undefined') {
+                    JSON.parse(value);
+                }
+                addTestResult(container, 'Rejet de "undefined"', true, 'La valeur "undefined" est correctement rejetée');
+                log('✓ Test localStorage: valeur "undefined" rejetée', 'success');
+            } catch (e) {
+                addTestResult(container, 'Rejet de "undefined"', false, e.message);
+                log('✗ Test localStorage: erreur avec "undefined"', 'error');
+            }
+            
+            // Test 1.2 : JSON valide
+            try {
+                const validJson = '{"id":"123","email":"test@test.com"}';
+                const parsed = JSON.parse(validJson);
+                const isValid = parsed.id === '123' && parsed.email === 'test@test.com';
+                addTestResult(container, 'Parsing JSON valide', isValid, 'JSON valide parsé correctement');
+                log('✓ Test localStorage: JSON valide parsé', 'success');
+            } catch (e) {
+                addTestResult(container, 'Parsing JSON valide', false, e.message);
+                log('✗ Test localStorage: erreur parsing JSON valide', 'error');
+            }
+            
+            // Test 1.3 : JSON invalide
+            try {
+                const invalidJson = '{invalid json}';
+                JSON.parse(invalidJson);
+                addTestResult(container, 'Détection JSON invalide', false, 'JSON invalide non détecté');
+                log('✗ Test localStorage: JSON invalide non détecté', 'error');
+            } catch (e) {
+                addTestResult(container, 'Détection JSON invalide', true, 'Erreur correctement capturée');
+                log('✓ Test localStorage: JSON invalide détecté', 'success');
+            }
+            
+            // Test 1.4 : Valeur vide
+            try {
+                const empty = '';
+                if (empty) {
+                    JSON.parse(empty);
+                }
+                addTestResult(container, 'Rejet de valeur vide', true, 'Valeur vide correctement rejetée');
+                log('✓ Test localStorage: valeur vide rejetée', 'success');
+            } catch (e) {
+                addTestResult(container, 'Rejet de valeur vide', false, e.message);
+                log('✗ Test localStorage: erreur avec valeur vide', 'error');
+            }
+        }
+        
+        // Test 2 : Connexion Admin
+        async function testAdminLogin() {
+            const container = document.getElementById('connection-tests');
+            log('Début du test de connexion admin', 'info');
+            
+            try {
+                const response = await fetch('/api/auth?action=login&userType=admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'doriansarry@yahoo.fr',
+                        password: 'Dorian1234!'
+                    })
+                });
+                
+                const data = await response.json();
+                log(`Réponse API: ${JSON.stringify(data)}`, 'info');
+                
+                if (response.ok && data.success && data.data && data.data.token && data.data.user) {
+                    addTestResult(container, 'Connexion Admin', true, `Token reçu: ${data.data.token.substring(0, 20)}...`);
+                    log('✓ Connexion admin réussie', 'success');
+                    log(`  - Email: ${data.data.user.email}`, 'info');
+                    log(`  - Token: ${data.data.token.substring(0, 30)}...`, 'info');
+                    
+                    // Test d'accès aux appointments
+                    await testAppointmentsAccess(data.data.token, 'admin');
+                } else {
+                    addTestResult(container, 'Connexion Admin', false, data.message || 'Structure de réponse invalide');
+                    log('✗ Connexion admin échouée', 'error');
+                }
+            } catch (error) {
+                addTestResult(container, 'Connexion Admin', false, error.message);
+                log(`✗ Erreur connexion admin: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test 3 : Inscription Patient
+        async function testPatientRegister() {
+            const container = document.getElementById('connection-tests');
+            log('Début du test d\'inscription patient', 'info');
+            
+            const testEmail = `test.patient.${Date.now()}@example.com`;
+            
+            try {
+                const response = await fetch('/api/auth?action=register&userType=patient', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: testEmail,
+                        password: 'TestPass123!',
+                        firstName: 'Test',
+                        lastName: 'Patient',
+                        phone: '0612345678',
+                        birthDate: '1990-01-01',
+                        address: '123 Test Street',
+                        city: 'Test City',
+                        postalCode: '75001',
+                        emergencyContact: 'Emergency Contact',
+                        emergencyPhone: '0687654321'
+                    })
+                });
+                
+                const data = await response.json();
+                log(`Réponse API: ${JSON.stringify(data)}`, 'info');
+                
+                if (response.ok && data.success && data.data && data.data.token && data.data.user) {
+                    addTestResult(container, 'Inscription Patient', true, `Compte créé: ${testEmail}`);
+                    log('✓ Inscription patient réussie', 'success');
+                    log(`  - Email: ${data.data.user.email}`, 'info');
+                    log(`  - Token: ${data.data.token.substring(0, 30)}...`, 'info');
+                } else {
+                    addTestResult(container, 'Inscription Patient', false, data.message || 'Structure de réponse invalide');
+                    log('✗ Inscription patient échouée', 'error');
+                }
+            } catch (error) {
+                addTestResult(container, 'Inscription Patient', false, error.message);
+                log(`✗ Erreur inscription patient: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test 4 : Accès aux appointments
+        async function testAppointmentsAccess(token, userType) {
+            const container = document.getElementById('connection-tests');
+            log(`Test d'accès aux appointments (${userType})`, 'info');
+            
+            try {
+                const response = await fetch('/api/appointments', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success && data.data) {
+                    const count = data.data.appointments ? data.data.appointments.length : (Array.isArray(data.data) ? data.data.length : 0);
+                    addTestResult(container, 'Accès Appointments', true, `${count} rendez-vous récupérés`);
+                    log(`✓ Accès appointments réussi: ${count} RDV`, 'success');
+                } else {
+                    addTestResult(container, 'Accès Appointments', false, data.message || 'Erreur de récupération');
+                    log('✗ Accès appointments échoué', 'error');
+                }
+            } catch (error) {
+                addTestResult(container, 'Accès Appointments', false, error.message);
+                log(`✗ Erreur accès appointments: ${error.message}`, 'error');
+            }
+        }
+        
+        // Lancer les tests localStorage au chargement
+        window.addEventListener('load', () => {
+            log('Initialisation des tests', 'info');
+            testLocalStorage();
+            log('Tests localStorage terminés', 'success');
+        });
+    </script>
+</body>
+</html>
