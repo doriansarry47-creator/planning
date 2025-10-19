@@ -31,8 +31,9 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://planning-theta-five.vercel.app',
         changeOrigin: true,
+        secure: true,
       },
     },
   },

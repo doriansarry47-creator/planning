@@ -10,22 +10,10 @@ const PORT = process.env.API_PORT || 5000;
 
 // Dynamic imports of API handlers
 async function loadHandlers() {
-  const authIndexModule = await import('./api/auth/index.js');
-  const authLoginModule = await import('./api/auth/login.js');
-  const authRegisterModule = await import('./api/auth/register.js');
-  const authVerifyModule = await import('./api/auth/verify.js');
-  const healthModule = await import('./api/health.js');
-  const appointmentsModule = await import('./api/appointments/index.js');
-  const practitionersModule = await import('./api/practitioners/index.js');
+  const apiIndexModule = await import('./api/index');
   
   return {
-    authHandler: authIndexModule.default,
-    authLoginHandler: authLoginModule.default,
-    authRegisterHandler: authRegisterModule.default,
-    authVerifyHandler: authVerifyModule.default,
-    healthHandler: healthModule.default,
-    appointmentsHandler: appointmentsModule.default,
-    practitionersHandler: practitionersModule.default,
+    apiHandler: apiIndexModule.default,
   };
 }
 
@@ -102,18 +90,8 @@ async function startApiServer() {
     next();
   });
 
-  // Health check using new Vercel function
-  app.get('/api/health', wrapHandler(handlers.healthHandler));
-
-  // Mount API routes
-  app.all('/api/auth', wrapHandler(handlers.authHandler));
-  app.all('/api/auth/login', wrapHandler(handlers.authLoginHandler));
-  app.all('/api/auth/register', wrapHandler(handlers.authRegisterHandler));
-  app.all('/api/auth/verify', wrapHandler(handlers.authVerifyHandler));
-  app.all('/api/appointments', wrapHandler(handlers.appointmentsHandler));
-  app.all('/api/practitioners', wrapHandler(handlers.practitionersHandler));
-  app.all('/api/patients', wrapHandler(handlers.patientsHandler));
-  app.all('/api/availability-slots', wrapHandler(handlers.availabilitySlotsHandler));
+  // Mount all API routes through the main handler (same as Vercel)
+  app.all('/api/*', wrapHandler(handlers.apiHandler));
 
   // Error handling
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
