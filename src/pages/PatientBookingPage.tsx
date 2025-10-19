@@ -253,7 +253,7 @@ export function PatientBookingPage() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => window.location.href = '/auth/login?type=patient'}
+                    onClick={() => window.location.href = '/login/patient'}
                     className="border-sage-300 text-sage-700 hover:bg-sage-100"
                   >
                     Se connecter
