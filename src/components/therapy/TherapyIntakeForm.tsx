@@ -468,7 +468,6 @@ export function TherapyIntakeForm({ onSubmit, isLoading = false, selectedDate, s
                   </>
                 ) : (
                   <>
-                    <Heart className="h-5 w-5 mr-2" />
                     Finaliser et prendre rendez-vous
                   </>
                 )}
