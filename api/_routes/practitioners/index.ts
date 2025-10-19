@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { mockDb } from '../_lib/mock-db.js';
-import { requireAdminAuth } from '../_lib/auth.js';
-import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response.js';
+import { mockDb } from '../../_lib/mock-db';
+import { requireAdminAuth } from '../../_lib/auth';
+import { sendSuccess, sendError, handleApiError, handleCors } from '../../_lib/response';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers for all requests

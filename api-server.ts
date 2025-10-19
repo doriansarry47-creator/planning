@@ -10,13 +10,16 @@ const PORT = process.env.API_PORT || 5000;
 
 // Dynamic imports of API handlers
 async function loadHandlers() {
-  const authIndexModule = await import('./api/auth/index.js');
-  const authLoginModule = await import('./api/auth/login.js');
-  const authRegisterModule = await import('./api/auth/register.js');
-  const authVerifyModule = await import('./api/auth/verify.js');
-  const healthModule = await import('./api/health.js');
-  const appointmentsModule = await import('./api/appointments/index.js');
-  const practitionersModule = await import('./api/practitioners/index.js');
+  const authIndexModule = await import('./api/index');
+  const authLoginModule = await import('./api/_routes/auth/login');
+  const authRegisterModule = await import('./api/_routes/auth/register');
+  const authVerifyModule = await import('./api/_routes/auth/verify');
+  const healthModule = await import('./api/_routes/health');
+  const appointmentsModule = await import('./api/_routes/appointments/index');
+  const practitionersModule = await import('./api/_routes/practitioners/index');
+  const patientsModule = await import('./api/_routes/patients/index');
+  const availabilitySlotsModule = await import('./api/_routes/availability-slots/index');
+  const initDbModule = await import('./api/_routes/init-db');
   
   return {
     authHandler: authIndexModule.default,
@@ -26,6 +29,9 @@ async function loadHandlers() {
     healthHandler: healthModule.default,
     appointmentsHandler: appointmentsModule.default,
     practitionersHandler: practitionersModule.default,
+    patientsHandler: patientsModule.default,
+    availabilitySlotsHandler: availabilitySlotsModule.default,
+    initDbHandler: initDbModule.default,
   };
 }
 
@@ -114,6 +120,7 @@ async function startApiServer() {
   app.all('/api/practitioners', wrapHandler(handlers.practitionersHandler));
   app.all('/api/patients', wrapHandler(handlers.patientsHandler));
   app.all('/api/availability-slots', wrapHandler(handlers.availabilitySlotsHandler));
+  app.all('/api/init-db', wrapHandler(handlers.initDbHandler));
 
   // Error handling
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

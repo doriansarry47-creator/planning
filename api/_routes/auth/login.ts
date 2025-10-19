@@ -58,6 +58,41 @@ const loginSchema = z.object({
   password: z.string().min(6),
 });
 
+// Fonction de connexion générique
+const loginUser = async (db: any, userType: string, email: string, password_provided: string) => {
+  let userTable;
+  if (userType === 'admin') {
+    userTable = schema.admins;
+  } else if (userType === 'patient') {
+    userTable = schema.patients;
+  } else {
+    throw new Error('Type d\'utilisateur invalide');
+  }
+
+  const userResults = await db.select().from(userTable).where(eq(userTable.email, email)).limit(1);
+  const user = userResults[0];
+
+  if (!user) {
+    throw new Error('Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.');
+  }
+
+  const isPasswordValid = await bcrypt.compare(password_provided, user.password);
+  if (!isPasswordValid) {
+    throw new Error('Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.');
+  }
+
+  const token = generateToken({
+    userId: user.id,
+    email: user.email,
+    userType,
+  });
+
+  const { password, ...userWithoutPassword } = user;
+
+  return { user: userWithoutPassword, token };
+};
+
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers for all requests
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -83,65 +118,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { email, password } = validationResult.data;
 
-    const db = getDB();
-    
-    if (userType === 'admin') {
-      const adminResults = await db.select().from(schema.admins).where(eq(schema.admins.email, email)).limit(1);
-      const admin = adminResults[0];
-      
-      if (!admin) {
-        return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
-      }
-
-      const isPasswordValid = await bcrypt.compare(password, admin.password);
-      if (!isPasswordValid) {
-        return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
-      }
-
-      const token = generateToken({
-        userId: admin.id,
-        email: admin.email,
-        userType: 'admin',
-      });
-
-      const { password: _, ...adminWithoutPassword } = admin;
-
-      return sendSuccess(res, {
-        user: adminWithoutPassword,
-        token,
-      }, 'Connexion réussie');
-      
-    } else if (userType === 'patient') {
-      const patientResults = await db.select().from(schema.patients).where(eq(schema.patients.email, email)).limit(1);
-      const patient = patientResults[0];
-      
-      if (!patient) {
-        return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
-      }
-
-      const isPasswordValid = await bcrypt.compare(password, patient.password);
-      if (!isPasswordValid) {
-        return sendError(res, 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.', 401);
-      }
-
-      const token = generateToken({
-        userId: patient.id,
-        email: patient.email,
-        userType: 'patient',
-      });
-
-      const { password: _, ...patientWithoutPassword } = patient;
-
-      return sendSuccess(res, {
-        user: patientWithoutPassword,
-        token,
-      }, 'Connexion réussie');
-      
-    } else {
+    if (typeof userType !== 'string' || !['admin', 'patient'].includes(userType)) {
       return sendError(res, 'Type d\'utilisateur invalide', 400);
     }
+
+    const db = getDB();
+    const result = await loginUser(db, userType, email, password);
+    
+    return sendSuccess(res, result, 'Connexion réussie');
+
   } catch (error) {
     console.error('Erreur lors de la connexion:', error);
+    if (error instanceof Error && error.message.startsWith('Identifiants invalides')) {
+      return sendError(res, error.message, 401);
+    }
     return sendError(res, 'Erreur interne du serveur', 500);
   }
 }

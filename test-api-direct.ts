@@ -24,7 +24,7 @@ async function testApiDirect() {
   
   try {
     const adminResponse = await axios.post(
-      `${API_BASE_URL}/auth?action=login&userType=admin`,
+      `${API_BASE_URL}/auth/login?userType=admin`,
       {
         email: 'doriansarry@yahoo.fr',
         password: 'admin123'
@@ -63,7 +63,7 @@ async function testApiDirect() {
   
   try {
     const patientResponse = await axios.post(
-      `${API_BASE_URL}/auth?action=login&userType=patient`,
+      `${API_BASE_URL}/auth/login?userType=patient`,
       {
         email: 'patient.test@medplan.fr',
         password: 'patient123'
