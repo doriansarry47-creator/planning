@@ -3,9 +3,6 @@
   "version": "2.0.0",
   "type": "module",
   "private": true,
-  "engines": {
-    "node": "20.x"
-  },
   "scripts": {
     "dev": "vite",
     "dev:api": "tsx api-server.ts",
