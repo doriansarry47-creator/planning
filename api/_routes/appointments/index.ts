@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { verifyToken, extractTokenFromRequest } from '../_lib/auth.js';
-import * as dbHelpers from '../_lib/db-helpers.js';
-import { sendSuccess, sendError, handleApiError } from '../_lib/response.js';
-import { sendAppointmentConfirmation, sendAppointmentCancellation } from '../_lib/email.js';
+import { verifyToken, extractTokenFromRequest } from '../../_lib/auth';
+import * as dbHelpers from '../../_lib/db-helpers';
+import { sendSuccess, sendError, handleApiError } from '../../_lib/response';
+import { sendAppointmentConfirmation, sendAppointmentCancellation } from '../../_lib/email';
 
 const createAppointmentSchema = z.object({
   slotId: z.string().optional(),
