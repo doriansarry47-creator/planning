@@ -11,11 +11,20 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api"
+      "destination": "/api/index"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
