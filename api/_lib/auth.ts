@@ -8,6 +8,8 @@ export interface JwtPayload {
   userId: string;
   email: string;
   userType: 'admin' | 'patient';
+  role?: string;
+  permissions?: string[];
 }
 
 export function generateToken(payload: JwtPayload): string {
@@ -81,4 +83,30 @@ export function authenticateToken(input: string | VercelRequest): { success: boo
   } catch (error) {
     return { success: false };
   }
+}
+
+// Vérifier les permissions d'un utilisateur
+export function hasPermission(payload: JwtPayload, requiredPermission: string): boolean {
+  if (!payload.permissions) return false;
+  return payload.permissions.includes(requiredPermission) || payload.permissions.includes('all');
+}
+
+// Vérifier le rôle d'un utilisateur
+export function hasRole(payload: JwtPayload, requiredRole: string): boolean {
+  if (!payload.role) return false;
+  const roleHierarchy: Record<string, number> = {
+    'super_admin': 3,
+    'admin': 2,
+    'moderator': 1,
+  };
+  return (roleHierarchy[payload.role] || 0) >= (roleHierarchy[requiredRole] || 0);
+}
+
+// Middleware pour vérifier les permissions
+export function requirePermission(req: VercelRequest, permission: string): JwtPayload {
+  const payload = requireAuth(req);
+  if (!hasPermission(payload, permission)) {
+    throw new Error(`Permission requise: ${permission}`);
+  }
+  return payload;
 }

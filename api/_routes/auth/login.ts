@@ -58,7 +58,7 @@ const loginSchema = z.object({
   password: z.string().min(6),
 });
 
-// Fonction de connexion générique
+// Fonction de connexion générique avec gestion des tentatives
 const loginUser = async (db: any, userType: string, email: string, password_provided: string) => {
   let userTable;
   if (userType === 'admin') {
@@ -76,15 +76,85 @@ const loginUser = async (db: any, userType: string, email: string, password_prov
     throw new Error('Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.');
   }
 
+  // Pour les admins, vérifier si le compte est verrouillé
+  if (userType === 'admin' && user.lockedUntil) {
+    const now = new Date();
+    const lockedUntil = new Date(user.lockedUntil);
+    
+    if (now < lockedUntil) {
+      const minutesRemaining = Math.ceil((lockedUntil.getTime() - now.getTime()) / (1000 * 60));
+      throw new Error(`Compte verrouillé. Réessayez dans ${minutesRemaining} minute(s).`);
+    } else {
+      // Déverrouiller le compte
+      await db.update(userTable)
+        .set({ 
+          loginAttempts: 0, 
+          lockedUntil: null 
+        })
+        .where(eq(userTable.email, email));
+      user.loginAttempts = 0;
+      user.lockedUntil = null;
+    }
+  }
+
+  // Vérifier si le compte admin est actif
+  if (userType === 'admin' && user.isActive === false) {
+    throw new Error('Ce compte a été désactivé. Contactez un administrateur.');
+  }
+
   const isPasswordValid = await bcrypt.compare(password_provided, user.password);
+  
   if (!isPasswordValid) {
+    // Pour les admins, incrémenter les tentatives de connexion
+    if (userType === 'admin') {
+      const newAttempts = (user.loginAttempts || 0) + 1;
+      const maxAttempts = 5;
+      
+      if (newAttempts >= maxAttempts) {
+        // Verrouiller le compte pour 15 minutes
+        const lockedUntil = new Date();
+        lockedUntil.setMinutes(lockedUntil.getMinutes() + 15);
+        
+        await db.update(userTable)
+          .set({ 
+            loginAttempts: newAttempts,
+            lockedUntil: lockedUntil
+          })
+          .where(eq(userTable.email, email));
+        
+        throw new Error(`Trop de tentatives de connexion échouées. Compte verrouillé pour 15 minutes.`);
+      } else {
+        await db.update(userTable)
+          .set({ loginAttempts: newAttempts })
+          .where(eq(userTable.email, email));
+        
+        const attemptsLeft = maxAttempts - newAttempts;
+        throw new Error(`Mot de passe incorrect. ${attemptsLeft} tentative(s) restante(s).`);
+      }
+    }
+    
     throw new Error('Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.');
+  }
+
+  // Connexion réussie - réinitialiser les tentatives et mettre à jour lastLogin pour admin
+  if (userType === 'admin') {
+    await db.update(userTable)
+      .set({ 
+        loginAttempts: 0, 
+        lockedUntil: null,
+        lastLogin: new Date()
+      })
+      .where(eq(userTable.email, email));
   }
 
   const token = generateToken({
     userId: user.id,
     email: user.email,
     userType,
+    ...(userType === 'admin' && { 
+      role: user.role || 'admin',
+      permissions: user.permissions || ['read', 'write']
+    })
   });
 
   const { password, ...userWithoutPassword } = user;

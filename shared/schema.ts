@@ -3,12 +3,18 @@ import { pgTable, text, varchar, timestamp, integer, boolean, date, time } from 
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Table des administrateurs (Dorian Sarry)
+// Table des administrateurs (Dorian Sarry) avec rôles et permissions
 export const admins = pgTable("admins", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().default("Dorian Sarry"),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  role: text("role").notNull().default("admin"), // "super_admin", "admin", "moderator"
+  permissions: text("permissions").array().notNull().default(sql`ARRAY['read', 'write', 'delete']::text[]`),
+  isActive: boolean("is_active").notNull().default(true),
+  lastLogin: timestamp("last_login"),
+  loginAttempts: integer("login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -169,8 +175,11 @@ export const unavailabilities = pgTable("unavailabilities", {
 // Schémas de validation manuels pour éviter les erreurs drizzle-zod
 export const insertAdminSchema = z.object({
   name: z.string().optional(),
-  email: z.string().email(),
-  password: z.string().min(8),
+  email: z.string().email("Email invalide"),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  role: z.enum(["super_admin", "admin", "moderator"]).optional().default("admin"),
+  permissions: z.array(z.string()).optional().default(["read", "write"]),
+  isActive: z.boolean().optional().default(true),
 });
 
 export const insertPatientSchema = z.object({

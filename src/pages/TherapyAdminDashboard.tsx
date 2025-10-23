@@ -1,44 +1,38 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { OrganicBackground } from '@/components/ui/organic-background';
-import { MetricCard, TherapyIllustrations } from '@/components/admin/MetricCard';
-import { AdminCalendar } from '@/components/calendar/AdminCalendar';
-import { TherapyStatistics } from '@/components/statistics/TherapyStatistics';
 import { 
   Calendar, 
   Users, 
+  UserCheck, 
   LogOut, 
   Heart,
   BarChart3,
   Settings,
   Clock,
-  UserCheck,
-  MessageCircle,
   TrendingUp,
-  Bell,
-  Search,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
   Filter,
-  Plus,
-  Eye,
-  Edit,
-  Trash2,
-  Phone,
-  Mail,
-  CheckCircle
+  Download,
+  RefreshCw
 } from 'lucide-react';
 import api from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 
+// Types
 interface Appointment {
   id: string;
   patientId: string;
   date: string;
+  startTime?: string;
   duration: number;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  type: 'cabinet' | 'visio';
+  status: string;
+  type: string;
   reason: string;
   patient?: {
     id: string;
@@ -49,174 +43,168 @@ interface Appointment {
   };
 }
 
+interface Patient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  preferredSessionType?: string;
+  createdAt: string;
+}
+
+interface DashboardStats {
+  totalAppointments: number;
+  todayAppointments: number;
+  upcomingAppointments: number;
+  completedAppointments: number;
+  cancelledAppointments: number;
+  totalPatients: number;
+  newPatientsThisMonth: number;
+  cabinetSessions: number;
+  visioSessions: number;
+}
+
 export function TherapyAdminDashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'appointments' | 'patients' | 'statistics'>('dashboard');
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const queryClient = useQueryClient();
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterDate, setFilterDate] = useState<string>('all');
 
-  // Récupérer les données
-  const { data: appointments = [] } = useQuery<Appointment[]>({
+  // Récupérer les rendez-vous
+  const { data: appointments, isLoading: loadingAppointments, refetch: refetchAppointments } = useQuery<Appointment[]>({
     queryKey: ['admin-appointments'],
     queryFn: async () => {
       const response = await api.get('/appointments');
-      // L'API retourne { success: true, data: { appointments: [], total: N } }
-      return response.data.data?.appointments || response.data.appointments || [];
+      const data = response.data.data || response.data;
+      return data.appointments || data || [];
     },
   });
 
-  // Récupérer la liste des patients
-  const { data: patientsData, refetch: refetchPatients } = useQuery({
+  // Récupérer les patients
+  const { data: patients, isLoading: loadingPatients } = useQuery<Patient[]>({
     queryKey: ['admin-patients'],
     queryFn: async () => {
       const response = await api.get('/patients');
-      return response.data.data || response.data;
+      const data = response.data.data || response.data;
+      return data.patients || data || [];
     },
   });
 
-  const patientsList = patientsData?.patients || [];
+  // Calcul des statistiques avec useMemo pour optimisation
+  const stats = useMemo<DashboardStats>(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-  // Calculs des statistiques
-  const todayAppointments = appointments.filter(
-    apt => apt.date.split('T')[0] === new Date().toISOString().split('T')[0]
-  );
-
-  const upcomingAppointments = appointments.filter(
-    apt => apt.status !== 'cancelled' && new Date(apt.date) >= new Date()
-  );
-
-  const totalPatients = new Set(appointments.map(apt => apt.patientId)).size;
-
-  const pendingAppointments = appointments.filter(apt => apt.status === 'pending');
-
-  // Données pour les statistiques
-  const statisticsData = {
-    totalAppointments: appointments.length,
-    totalPatients,
-    newPatients: Math.floor(totalPatients * 0.3), // Estimation
-    cancellationRate: appointments.length > 0 
-      ? (appointments.filter(apt => apt.status === 'cancelled').length / appointments.length) * 100
-      : 0,
-    monthlyAppointments: [
-      { month: 'Jan', count: 12 },
-      { month: 'Fév', count: 18 },
-      { month: 'Mar', count: 22 },
-      { month: 'Avr', count: 25 },
-      { month: 'Mai', count: 30 },
-      { month: 'Juin', count: 28 }
-    ],
-    sessionTypes: [
-      { type: 'cabinet', count: appointments.filter(apt => apt.type === 'cabinet').length, color: '#0d9488' },
-      { type: 'visio', count: appointments.filter(apt => apt.type === 'visio').length, color: '#3b82f6' }
-    ],
-    appointmentStatus: [
-      { status: 'pending', count: appointments.filter(apt => apt.status === 'pending').length, color: '#f59e0b' },
-      { status: 'confirmed', count: appointments.filter(apt => apt.status === 'confirmed').length, color: '#10b981' },
-      { status: 'completed', count: appointments.filter(apt => apt.status === 'completed').length, color: '#6366f1' },
-      { status: 'cancelled', count: appointments.filter(apt => apt.status === 'cancelled').length, color: '#ef4444' }
-    ],
-    referralSources: [
-      { source: 'Médecin traitant', count: 15 },
-      { source: 'Psychologue', count: 8 },
-      { source: 'Recherche personnelle', count: 12 },
-      { source: 'Bouche à oreille', count: 6 }
-    ],
-    weeklyTrends: [
-      { week: 'S1', appointments: 8, newPatients: 2 },
-      { week: 'S2', appointments: 12, newPatients: 3 },
-      { week: 'S3', appointments: 10, newPatients: 1 },
-      { week: 'S4', appointments: 15, newPatients: 4 }
-    ]
-  };
-
-  // Préparer les événements pour le calendrier
-  const calendarEvents = appointments.map(apt => ({
-    id: apt.id,
-    title: apt.status === 'pending' ? '🟡 En attente' : 
-           apt.status === 'confirmed' ? `🟢 ${apt.patient?.firstName} ${apt.patient?.lastName}` :
-           apt.status === 'completed' ? '✅ Terminé' : '❌ Annulé',
-    start: apt.date,
-    end: new Date(new Date(apt.date).getTime() + apt.duration * 60000).toISOString(),
-    extendedProps: {
-      type: apt.status === 'pending' ? 'available' : 
-            apt.status === 'cancelled' ? 'unavailable' : 'booked',
-      patient: apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : 'Patient',
-      phone: apt.patient?.phone
-    }
-  }));
-
-  const handleEventClick = (event: any) => {
-    const appointment = appointments.find(apt => apt.id === event.id);
-    if (appointment) {
-      setSelectedAppointment(appointment);
-      setShowAppointmentModal(true);
-    }
-  };
-
-  const handleConfirmAppointment = async (appointmentId: string) => {
-    try {
-      await api.put(`/appointments?appointmentId=${appointmentId}`, {
-        status: 'confirmed'
-      });
-      // Recharger les rendez-vous
-      window.location.reload();
-    } catch (error) {
-      console.error('Erreur lors de la confirmation:', error);
-      alert('Erreur lors de la confirmation du rendez-vous');
-    }
-  };
-
-  const handleCancelAppointment = async (appointmentId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')) {
-      return;
-    }
+    const todayAppointments = appointments?.filter(apt => apt.date === today) || [];
+    const upcomingAppointments = appointments?.filter(
+      apt => apt.status === 'pending' && new Date(apt.date) >= new Date()
+    ) || [];
+    const completedAppointments = appointments?.filter(apt => apt.status === 'completed') || [];
+    const cancelledAppointments = appointments?.filter(apt => apt.status === 'cancelled') || [];
     
-    try {
-      await api.delete(`/appointments?appointmentId=${appointmentId}`, {
-        data: { reason: 'Annulé par le thérapeute' }
-      });
-      // Recharger les rendez-vous
-      window.location.reload();
-    } catch (error) {
-      console.error('Erreur lors de l\'annulation:', error);
-      alert('Erreur lors de l\'annulation du rendez-vous');
+    const newPatientsThisMonth = patients?.filter(
+      p => p.createdAt && p.createdAt >= firstDayOfMonth
+    ).length || 0;
+
+    const cabinetSessions = appointments?.filter(apt => apt.type === 'cabinet').length || 0;
+    const visioSessions = appointments?.filter(apt => apt.type === 'visio').length || 0;
+
+    return {
+      totalAppointments: appointments?.length || 0,
+      todayAppointments: todayAppointments.length,
+      upcomingAppointments: upcomingAppointments.length,
+      completedAppointments: completedAppointments.length,
+      cancelledAppointments: cancelledAppointments.length,
+      totalPatients: patients?.length || 0,
+      newPatientsThisMonth,
+      cabinetSessions,
+      visioSessions,
+    };
+  }, [appointments, patients]);
+
+  // Filtrage des rendez-vous
+  const filteredAppointments = useMemo(() => {
+    let filtered = appointments || [];
+
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(apt => apt.status === filterStatus);
     }
+
+    if (filterDate === 'today') {
+      const today = new Date().toISOString().split('T')[0];
+      filtered = filtered.filter(apt => apt.date === today);
+    } else if (filterDate === 'upcoming') {
+      filtered = filtered.filter(apt => new Date(apt.date) >= new Date());
+    } else if (filterDate === 'past') {
+      filtered = filtered.filter(apt => new Date(apt.date) < new Date());
+    }
+
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [appointments, filterStatus, filterDate]);
+
+  // Mutation pour mettre à jour le statut d'un rendez-vous
+  const updateAppointmentMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      await api.put(`/appointments/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-appointments'] });
+    },
+  });
+
+  const getStatusBadge = (status: string) => {
+    const styles = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      confirmed: 'bg-blue-100 text-blue-800',
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800',
+    };
+    const labels = {
+      pending: 'En attente',
+      confirmed: 'Confirmé',
+      completed: 'Terminé',
+      cancelled: 'Annulé',
+    };
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-800'}`}>
+        {labels[status as keyof typeof labels] || status}
+      </span>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-therapy-900 via-sage-800 to-cream-900 relative">
-      <OrganicBackground variant="prominent" />
-      
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-teal-900">
       {/* Header */}
-      <header className="relative bg-therapy-800/95 backdrop-blur-md shadow-lg border-b border-sage-700/50">
+      <header className="bg-gray-800/95 backdrop-blur-md shadow-lg border-b border-teal-700/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <div className="bg-gradient-to-r from-sage-600 to-therapy-600 p-2 rounded-lg mr-3 shadow-lg">
+              <div className="bg-gradient-to-r from-green-500 to-teal-600 p-2 rounded-lg mr-3">
                 <Heart className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Dorian Sarry</h1>
-                <p className="text-sm text-sage-400">Thérapie Sensorimotrice</p>
+                <h1 className="text-xl font-bold text-white">Administration - Dorian Sarry</h1>
+                <p className="text-sm text-teal-400">Thérapie Sensorimotrice</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <div className="relative">
-                <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
-                  <Bell className="h-5 w-5" />
-                  {pendingAppointments.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {pendingAppointments.length}
-                    </span>
-                  )}
-                </Button>
-              </div>
-              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  refetchAppointments();
+                  queryClient.invalidateQueries({ queryKey: ['admin-patients'] });
+                }}
+                className="flex items-center text-gray-300 border-gray-600 hover:bg-gray-700"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Actualiser
+              </Button>
               <div className="flex items-center text-sm text-gray-300">
                 <UserCheck className="h-4 w-4 mr-2" />
-                <span>{user?.name || user?.fullName}</span>
+                <span>{user?.email || user?.name || 'Admin'}</span>
               </div>
               <Button 
                 variant="outline" 
@@ -229,525 +217,269 @@ export function TherapyAdminDashboard() {
               </Button>
             </div>
           </div>
-          
-          {/* Navigation */}
-          <nav className="pb-4">
-            <div className="flex space-x-1">
-              {[
-                { key: 'dashboard', label: 'Tableau de bord', icon: BarChart3 },
-                { key: 'calendar', label: 'Calendrier', icon: Calendar },
-                { key: 'appointments', label: 'Rendez-vous', icon: Clock },
-                { key: 'patients', label: 'Patients', icon: Users },
-                { key: 'statistics', label: 'Statistiques', icon: TrendingUp },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key as any)}
-                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === tab.key
-                        ? 'bg-sage-600 text-white shadow-lg'
-                        : 'text-gray-300 hover:text-white hover:bg-therapy-700'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 mr-2" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
         </div>
       </header>
 
-      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            {/* Métriques principales */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <MetricCard
-                title="Aujourd'hui"
-                value={todayAppointments.length}
-                label="Rendez-vous"
-                icon={Calendar}
-                color="sage"
-                illustration={TherapyIllustrations.TimeFlow}
-              />
-
-              <MetricCard
-                title="À venir"
-                value={upcomingAppointments.length}
-                label="Rendez-vous"
-                icon={Clock}
-                color="therapy"
-                illustration={TherapyIllustrations.HeartFlow}
-              />
-
-              <MetricCard
-                title="Total"
-                value={totalPatients}
-                label="Patients"
-                icon={Users}
-                color="cream"
-                illustration={TherapyIllustrations.PersonAura}
-              />
-
-              <MetricCard
-                title="En attente"
-                value={pendingAppointments.length}
-                label="Confirmations"
-                icon={MessageCircle}
-                color="orange"
-                illustration={TherapyIllustrations.SoundWave}
-              />
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8 bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-green-600 bg-clip-text text-transparent mb-2">
+            Tableau de bord administrateur
+          </h2>
+          <p className="text-gray-700 font-medium">
+            🩺 Vue d'ensemble de votre pratique thérapeutique
+          </p>
+          <div className="mt-4 flex items-center gap-4 text-sm">
+            <div className="flex items-center text-green-700">
+              <Calendar className="h-4 w-4 mr-2" />
+              {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
-
-            {/* Rendez-vous du jour */}
-            <div className="grid lg:grid-cols-2 gap-8">
-              <Card className="backdrop-blur-sm bg-white/90 shadow-xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="h-5 w-5 text-sage-600 mr-2" />
-                    Rendez-vous d'aujourd'hui
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {todayAppointments.length > 0 ? (
-                    <div className="space-y-4">
-                      {todayAppointments.slice(0, 5).map((appointment) => (
-                        <div 
-                          key={appointment.id}
-                          className="flex items-center justify-between p-4 bg-sage-50 rounded-lg cursor-pointer hover:bg-sage-100 transition-colors shadow-sm"
-                          onClick={() => {
-                            setSelectedAppointment(appointment);
-                            setShowAppointmentModal(true);
-                          }}
-                        >
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {appointment.patient?.firstName} {appointment.patient?.lastName}
-                            </p>
-                            <p className="text-sm text-gray-600 capitalize">
-                              {appointment.type === 'cabinet' ? 'En cabinet' : 'Visioconférence'}
-                            </p>
-                            <p className="text-sm text-gray-500 flex items-center mt-1">
-                              <Clock className="h-4 w-4 mr-1" />
-                              {new Date(appointment.date).toLocaleTimeString('fr-FR', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                              appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {appointment.status === 'pending' ? 'En attente' :
-                               appointment.status === 'confirmed' ? 'Confirmé' :
-                               appointment.status === 'completed' ? 'Terminé' : 'Annulé'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">Aucun rendez-vous aujourd'hui</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Actions rapides */}
-              <Card className="backdrop-blur-sm bg-white/90 shadow-xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Settings className="h-5 w-5 text-sage-600 mr-2" />
-                    Actions rapides
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Button 
-                      className="w-full justify-start bg-gradient-to-r from-sage-600 to-therapy-600 hover:from-sage-700 hover:to-therapy-700 shadow-lg"
-                      onClick={() => setActiveTab('calendar')}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Ajouter un créneau
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => setActiveTab('appointments')}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Voir tous les rendez-vous
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => setActiveTab('patients')}
-                    >
-                      <Users className="h-4 w-4 mr-2" />
-                      Gérer les patients
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => setActiveTab('statistics')}
-                    >
-                      <BarChart3 className="h-4 w-4 mr-2" />
-                      Voir les statistiques
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="flex items-center text-blue-700">
+              <Activity className="h-4 w-4 mr-2" />
+              {stats.totalAppointments} rendez-vous au total
             </div>
           </div>
-        )}
+        </div>
 
-        {activeTab === 'calendar' && (
-          <AdminCalendar
-            events={calendarEvents}
-            onEventClick={handleEventClick}
-            onEventAdd={(eventData) => {
-              console.log('Nouvel événement:', eventData);
-              // Ici, vous ajouteriez la logique pour créer un nouveau créneau
-            }}
-          />
-        )}
-
-        {activeTab === 'appointments' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Gestion des Rendez-vous</h2>
-              <div className="flex space-x-2">
-                <Button variant="outline" className="text-gray-300 border-gray-600">
-                  <Search className="h-4 w-4 mr-2" />
-                  Rechercher
-                </Button>
-                <Button variant="outline" className="text-gray-300 border-gray-600">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filtrer
-                </Button>
-              </div>
-            </div>
-            
-            <Card className="backdrop-blur-sm bg-white/90 shadow-xl">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date & Heure</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {appointments.slice(0, 10).map((appointment) => (
-                        <tr key={appointment.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {appointment.patient?.firstName} {appointment.patient?.lastName}
-                              </div>
-                              <div className="text-sm text-gray-500">{appointment.patient?.email}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <div>{new Date(appointment.date).toLocaleDateString('fr-FR')}</div>
-                            <div className="text-gray-500">
-                              {new Date(appointment.date).toLocaleTimeString('fr-FR', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900 capitalize">
-                            {appointment.type === 'cabinet' ? 'Cabinet' : 'Visio'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                              appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {appointment.status === 'pending' ? 'En attente' :
-                               appointment.status === 'confirmed' ? 'Confirmé' :
-                               appointment.status === 'completed' ? 'Terminé' : 'Annulé'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button 
-                                className="text-teal-600 hover:text-teal-900"
-                                onClick={() => {
-                                  setSelectedAppointment(appointment);
-                                  setShowAppointmentModal(true);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              <button className="text-blue-600 hover:text-blue-900">
-                                <Edit className="h-4 w-4" />
-                              </button>
-                              <button className="text-red-600 hover:text-red-900">
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {activeTab === 'patients' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Gestion des Patients</h2>
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="text-gray-300 border-gray-600"
-                  onClick={() => refetchPatients()}
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Actualiser
-                </Button>
-              </div>
-            </div>
-            
-            <Card className="backdrop-blur-sm bg-white/90 shadow-xl">
-              <CardContent className="p-0">
-                {patientsList.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type de séance</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référé par</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date d'inscription</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {patientsList.map((patient: any) => (
-                          <tr key={patient.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4">
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  {patient.firstName} {patient.lastName}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {patient.consultationReason?.substring(0, 50)}
-                                  {patient.consultationReason?.length > 50 ? '...' : ''}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <div className="flex items-center text-gray-900">
-                                  <Mail className="h-4 w-4 mr-1 text-gray-400" />
-                                  {patient.email}
-                                </div>
-                                {patient.phone && (
-                                  <div className="flex items-center text-gray-600 mt-1">
-                                    <Phone className="h-4 w-4 mr-1 text-gray-400" />
-                                    {patient.phone}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                patient.preferredSessionType === 'cabinet' 
-                                  ? 'bg-teal-100 text-teal-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {patient.preferredSessionType === 'cabinet' ? 'Cabinet' : 'Visio'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm">
-                              {patient.isReferredByProfessional ? (
-                                <div className="text-green-700">
-                                  <div className="font-medium">Oui</div>
-                                  {patient.referringProfessional && (
-                                    <div className="text-xs text-gray-600">
-                                      {patient.referringProfessional}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-gray-500">Non</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              {new Date(patient.createdAt).toLocaleDateString('fr-FR')}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-medium">
-                              <div className="flex space-x-2">
-                                <button 
-                                  className="text-teal-600 hover:text-teal-900"
-                                  title="Voir le dossier"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  className="text-blue-600 hover:text-blue-900"
-                                  title="Modifier"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  className="text-green-600 hover:text-green-900"
-                                  title="Créer un rendez-vous"
-                                  onClick={() => setActiveTab('calendar')}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 text-lg mb-2">Aucun patient enregistré</p>
-                    <p className="text-gray-500 text-sm">
-                      Les patients apparaîtront ici après leur inscription
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {activeTab === 'statistics' && (
-          <TherapyStatistics data={statisticsData} />
-        )}
-      </main>
-
-      {/* Modal détail rendez-vous */}
-      {showAppointmentModal && selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto backdrop-blur-sm bg-white/95 shadow-2xl">
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>Détail du rendez-vous</span>
-                <button 
-                  onClick={() => setShowAppointmentModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  ✕
-                </button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
+        {/* Statistics Cards */}
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+            <TrendingUp className="h-5 w-5 mr-2 text-teal-400" />
+            Statistiques en temps réel
+          </h3>
+        </div>
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-4">Informations patient</h3>
-                  <div className="space-y-2">
-                    <p><span className="font-medium">Nom :</span> {selectedAppointment.patient?.firstName} {selectedAppointment.patient?.lastName}</p>
-                    <p><span className="font-medium">Email :</span> {selectedAppointment.patient?.email}</p>
-                    {selectedAppointment.patient?.phone && (
-                      <p><span className="font-medium">Téléphone :</span> {selectedAppointment.patient.phone}</p>
-                    )}
-                  </div>
+                  <p className="text-sm font-medium text-blue-100 mb-1">Aujourd'hui</p>
+                  <p className="text-4xl font-bold text-white">{stats.todayAppointments}</p>
+                  <p className="text-sm text-blue-100 mt-1">Rendez-vous</p>
                 </div>
-                
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Calendar className="h-10 w-10 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-500 to-emerald-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-4">Informations rendez-vous</h3>
-                  <div className="space-y-2">
-                    <p><span className="font-medium">Date :</span> {new Date(selectedAppointment.date).toLocaleDateString('fr-FR')}</p>
-                    <p><span className="font-medium">Heure :</span> {new Date(selectedAppointment.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
-                    <p><span className="font-medium">Durée :</span> {selectedAppointment.duration} minutes</p>
-                    <p><span className="font-medium">Type :</span> {selectedAppointment.type === 'cabinet' ? 'En cabinet' : 'Visioconférence'}</p>
-                    <p><span className="font-medium">Statut :</span> 
-                      <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        selectedAppointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        selectedAppointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                        selectedAppointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {selectedAppointment.status === 'pending' ? 'En attente' :
-                         selectedAppointment.status === 'confirmed' ? 'Confirmé' :
-                         selectedAppointment.status === 'completed' ? 'Terminé' : 'Annulé'}
-                      </span>
-                    </p>
-                  </div>
+                  <p className="text-sm font-medium text-green-100 mb-1">À venir</p>
+                  <p className="text-4xl font-bold text-white">{stats.upcomingAppointments}</p>
+                  <p className="text-sm text-green-100 mt-1">Programmés</p>
+                </div>
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Clock className="h-10 w-10 text-white" />
                 </div>
               </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Motif de consultation</h3>
-                <p className="text-gray-600 bg-gray-50 p-4 rounded-lg">{selectedAppointment.reason}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-100 mb-1">Patients</p>
+                  <p className="text-4xl font-bold text-white">{stats.totalPatients}</p>
+                  <p className="text-sm text-purple-100 mt-1">+{stats.newPatientsThisMonth} ce mois</p>
+                </div>
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Users className="h-10 w-10 text-white" />
+                </div>
               </div>
-              
-              <div className="flex justify-end space-x-2">
-                {selectedAppointment.status === 'pending' && (
-                  <>
-                    <Button 
-                      className="bg-green-600 hover:bg-green-700"
-                      onClick={() => handleConfirmAppointment(selectedAppointment.id)}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Confirmer
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="text-red-600 border-red-600 hover:bg-red-50"
-                      onClick={() => handleCancelAppointment(selectedAppointment.id)}
-                    >
-                      Annuler
-                    </Button>
-                  </>
-                )}
-                
-                {selectedAppointment.patient?.phone && (
-                  <Button 
-                    variant="outline"
-                    onClick={() => window.location.href = `tel:${selectedAppointment.patient?.phone}`}
-                  >
-                    <Phone className="h-4 w-4 mr-2" />
-                    Appeler
-                  </Button>
-                )}
-                
-                <Button 
-                  variant="outline"
-                  onClick={() => window.location.href = `mailto:${selectedAppointment.patient?.email}`}
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Envoyer un email
-                </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500 to-red-600 border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-orange-100 mb-1">Terminés</p>
+                  <p className="text-4xl font-bold text-white">{stats.completedAppointments}</p>
+                  <p className="text-sm text-orange-100 mt-1">Consultations</p>
+                </div>
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <CheckCircle2 className="h-10 w-10 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
-      )}
+
+        {/* Session Types Stats */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Séances en cabinet</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.cabinetSessions}</p>
+                </div>
+                <div className="bg-gradient-to-r from-teal-500 to-teal-600 p-3 rounded-xl">
+                  <Activity className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Séances en visio</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.visioSessions}</p>
+                </div>
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 rounded-xl">
+                  <Activity className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Appointments List */}
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+            <Calendar className="h-5 w-5 mr-2 text-teal-400" />
+            Gestion des rendez-vous
+          </h3>
+        </div>
+
+        {/* Filters */}
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-gray-600" />
+                <span className="text-sm font-medium text-gray-700">Filtres:</span>
+              </div>
+              
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="confirmed">Confirmés</option>
+                <option value="completed">Terminés</option>
+                <option value="cancelled">Annulés</option>
+              </select>
+
+              <select 
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              >
+                <option value="all">Toutes les dates</option>
+                <option value="today">Aujourd'hui</option>
+                <option value="upcoming">À venir</option>
+                <option value="past">Passés</option>
+              </select>
+
+              <Button variant="outline" size="sm" className="ml-auto">
+                <Download className="h-4 w-4 mr-2" />
+                Exporter
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appointments Table */}
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
+          <CardHeader className="bg-gradient-to-r from-teal-50 to-blue-100">
+            <CardTitle className="flex items-center text-teal-900">
+              <Calendar className="h-5 w-5 text-teal-600 mr-2" />
+              Liste des rendez-vous ({filteredAppointments.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingAppointments ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-teal-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Chargement des rendez-vous...</p>
+              </div>
+            ) : filteredAppointments.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b-2 border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motif</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredAppointments.map((appointment) => (
+                      <tr key={appointment.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(appointment.date).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {appointment.patient?.firstName} {appointment.patient?.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">{appointment.patient?.email}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            appointment.type === 'cabinet' ? 'bg-teal-100 text-teal-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {appointment.type === 'cabinet' ? 'Cabinet' : 'Visio'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
+                          {appointment.reason}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          {getStatusBadge(appointment.status)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex gap-2">
+                            {appointment.status === 'pending' && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => updateAppointmentMutation.mutate({ id: appointment.id, status: 'confirmed' })}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => updateAppointmentMutation.mutate({ id: appointment.id, status: 'cancelled' })}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">Aucun rendez-vous trouvé</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }

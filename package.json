@@ -15,7 +15,11 @@
     "db:check": "tsx test-db-connection.ts",
     "db:reset-admin": "tsx reset-admin-password.ts",
     "db:create-patient": "tsx create-test-patient.ts",
-    "test:api": "tsx test-api-direct.ts"
+    "db:migrate": "tsx scripts/migrate-admin-schema.ts",
+    "db:init-admin": "tsx scripts/init-super-admin.ts",
+    "db:setup": "npm run db:migrate && npm run db:init-admin",
+    "test:api": "tsx test-api-direct.ts",
+    "test:user": "tsx tests/user-acceptance-test.ts"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
