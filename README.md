@@ -1,16 +1,26 @@
-# 🏥 MedPlan - Application de Gestion des Rendez-vous Médicaux
+# 🏥 MedPlan v3.0 - Plateforme de Réservation Professionnelle
 
-Une application web moderne pour la gestion des rendez-vous médicaux, optimisée pour Vercel avec une architecture serverless.
+Une application web moderne pour la prise de rendez-vous destinée aux professionnels de la santé et du bien-être, optimisée pour Vercel avec une architecture serverless.
 
-## 🎯 Dernière Mise à Jour - v2.0.1 (18 Oct 2025)
+## 🎯 Dernière Mise à Jour - v3.0 (23 Oct 2025)
 
-**✅ Corrections Importantes : Problème de connexion résolu !**
+**🚀 Améliorations Majeures : Interface Moderne + Roadmap Stratégique !**
 
-Le problème de page blanche après connexion admin/patient a été complètement résolu. Pour plus d'informations :
-- 📋 **[STATUS_CORRECTIONS.md](./STATUS_CORRECTIONS.md)** - Status global et résumé exécutif
-- 🐛 **[CORRECTIONS_CONNEXION.md](./CORRECTIONS_CONNEXION.md)** - Documentation technique détaillée
-- 🧪 **[GUIDE_TEST_CONNEXION.md](./GUIDE_TEST_CONNEXION.md)** - Guide de test complet
-- 📅 **[CHANGELOG.md](./CHANGELOG.md)** - Historique des versions
+Cette version 3.0 apporte des améliorations significatives et une vision stratégique sur 15 mois :
+
+### 📚 Documentation Stratégique
+- 🗺️ **[AMELIORATIONS_STRATEGIQUES.md](./AMELIORATIONS_STRATEGIQUES.md)** - Plan stratégique complet (UI/UX, fonctionnalités, roadmap 3 phases)
+- 🚀 **[INSTRUCTIONS_DEPLOIEMENT.md](./INSTRUCTIONS_DEPLOIEMENT.md)** - Guide de déploiement pas-à-pas
+- ⚡ **[QUICK_DEPLOY.md](./QUICK_DEPLOY.md)** - Déploiement rapide (5 minutes)
+- 📖 **[DEPLOYMENT_GUIDE_V3.md](./DEPLOYMENT_GUIDE_V3.md)** - Guide complet avancé
+- 📊 **[RESUME_AMELIORATIONS_V3.md](./RESUME_AMELIORATIONS_V3.md)** - Résumé des améliorations
+
+### 🎨 Nouveaux Composants UI
+- ✅ **Calendrier interactif** avec code couleur (disponible/limité/complet)
+- ✅ **Mode sombre** avec support système/light/dark
+- ✅ **Profils praticiens enrichis** (schéma DB étendu)
+- ✅ **Messagerie intégrée** (architecture prête)
+- ✅ **Notifications multi-canal** (email, SMS, push)
 
 ## ✨ Fonctionnalités
 
