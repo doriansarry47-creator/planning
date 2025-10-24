@@ -1,4 +1,4 @@
-import type { MockUser, MockAppointment } from './mock-types.js';
+import type { MockUser, MockAppointment } from './mock-types';
 
 // Mock database pour le développement et les tests
 class MockDatabase {

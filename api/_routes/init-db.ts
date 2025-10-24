@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import bcrypt from 'bcryptjs';
-import * as schema from '../../shared/schema.js';
+import * as schema from '../../shared/schema';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is required');
