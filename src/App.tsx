@@ -74,6 +74,20 @@ const App = React.memo(() => {
                   <Route path="/patient/register" component={PatientRegisterPage} />
                   <Route path="/reset-password" component={ResetPasswordPage} />
                   
+                  {/* Redirections pour compatibilité */}
+                  <Route path="/praticien">
+                    {() => {
+                      window.location.href = '/admin/dashboard';
+                      return <LoadingFallback />;
+                    }}
+                  </Route>
+                  <Route path="/practitioner">
+                    {() => {
+                      window.location.href = '/admin/dashboard';
+                      return <LoadingFallback />;
+                    }}
+                  </Route>
+                  
                   {/* Page de prise de rendez-vous */}
                   <Route path="/patient/book-appointment" component={PatientBookingPage} />
                   
