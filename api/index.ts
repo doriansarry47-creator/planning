@@ -1,17 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Import all route handlers
-import authLogin from './_routes/auth/login.js';
-import authRegister from './_routes/auth/register.js';
-import authVerify from './_routes/auth/verify.js';
-import appointments from './_routes/appointments/index.js';
-import practitioners from './_routes/practitioners/index.js';
-import patients from './_routes/patients/index.js';
-import availabilitySlots from './_routes/availability-slots/index.js';
-import notes from './_routes/notes/index.js';
-import notificationsSend from './_routes/notifications/send.js';
-import health from './_routes/health.js';
-import initDb from './_routes/init-db.js';
+import authLogin from './_routes/auth/login';
+import authRegister from './_routes/auth/register';
+import authVerify from './_routes/auth/verify';
+import appointments from './_routes/appointments/index';
+import practitioners from './_routes/practitioners/index';
+import patients from './_routes/patients/index';
+import availabilitySlots from './_routes/availability-slots/index';
+import notes from './_routes/notes/index';
+import notificationsSend from './_routes/notifications/send';
+import health from './_routes/health';
+import initDb from './_routes/init-db';
 
 /**
  * Main API router - Routes all API requests to appropriate handlers

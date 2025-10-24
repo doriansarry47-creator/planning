@@ -1,5 +1,5 @@
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
-import { db, appointments, patients, admins } from './db.js';
+import { db, appointments, patients, admins } from './db';
 
 /**
  * Helper functions for database operations

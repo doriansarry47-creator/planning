@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { db, admins, patients } from '../_lib/db.js';
-import { generateToken, requireAuth } from '../_lib/auth.js';
-import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response.js';
+import { db, admins, patients } from '../_lib/db';
+import { generateToken, requireAuth } from '../_lib/auth';
+import { sendSuccess, sendError, handleApiError, handleCors } from '../_lib/response';
 import { eq } from 'drizzle-orm';
 
 // Schémas de validation
