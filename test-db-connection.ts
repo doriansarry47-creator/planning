@@ -3,8 +3,14 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
 import * as schema from './shared/schema';
 import bcrypt from 'bcryptjs';
+import * as dotenv from 'dotenv';
 
-const DATABASE_URL = 'postgresql://neondb_owner:npg_6aG2wNlTWnsb@ep-autumn-bar-abt09oc2-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+dotenv.config();
+
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  throw new Error('DATABASE_URL is not defined');
+}
 
 async function testConnection() {
   try {
