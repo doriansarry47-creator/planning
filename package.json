@@ -11,7 +11,7 @@
     "dev": "vite",
     "dev:api": "tsx api-server.ts",
     "dev:full": "concurrently \"npm run dev:api\" \"npm run dev\" --names \"API,WEB\" --prefix-colors \"blue,green\"",
-    "build": "vite build",
+    "build": "npx vite build",
     "preview": "vite preview",
     "db:check": "tsx test-db-connection.ts",
     "db:reset-admin": "tsx reset-admin-password.ts",
