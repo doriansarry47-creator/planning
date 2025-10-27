@@ -17,8 +17,9 @@
 
 ## URLs
 - **Production**: À déployer sur Cloudflare Pages
-- **GitHub**: À configurer
+- **GitHub**: https://github.com/doriansarry47-creator/planning
 - **Local Development**: http://localhost:3000
+- **Demo (Sandbox)**: https://3000-ii8nu1jqfeti6wr77g7s6-8f57ffe2.sandbox.novita.ai
 
 ## Architecture des Données
 - **Base de données**: PostgreSQL (Neon)
