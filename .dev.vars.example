@@ -1,0 +1,11 @@
+# Environment Variables for Local Development
+# Copy this file to .dev.vars and fill in your actual values
+# NEVER commit .dev.vars to git!
+
+# PostgreSQL Connection String (Neon Database)
+# Format: postgresql://username:password@host/database?sslmode=require
+DATABASE_URL=postgresql://neondb_owner:npg_1zDVUWYjNB4s@ep-young-darkness-abdxzpai-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+# JWT Secret for authentication (minimum 32 characters)
+# Generate a secure secret: openssl rand -base64 32
+JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters-long-please-change-this-in-production
