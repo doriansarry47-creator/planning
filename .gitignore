@@ -42,3 +42,4 @@ pids/
 *.bak
 *.tar.gz
 *.zip
+.dev.vars
