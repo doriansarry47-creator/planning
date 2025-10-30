@@ -272,9 +272,5 @@ app.post('/api/patient/appointments', authMiddleware, requireUserType('patient')
   }
 });
 
-// Export pour Vercel Edge Runtime
-export const config = {
-  runtime: 'edge',
-};
-
+// Export pour Vercel avec runtime Node.js (compatible avec crypto et stream)
 export default handle(app);

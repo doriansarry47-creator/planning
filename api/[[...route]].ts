@@ -1,8 +1,5 @@
 import { handle } from 'hono/vercel';
 import app from '../dist/_worker.js';
 
-export const config = {
-  runtime: 'edge',
-};
-
+// Utiliser Node.js runtime pour compatibilité crypto/stream
 export default handle(app);
