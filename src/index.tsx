@@ -1,6 +1,6 @@
 '''import { Hono, Handler } from 'hono';
 import { cors } from 'hono/cors';
-import { serveStatic } from 'hono/cloudflare-workers';
+// import { serveStatic } from 'hono/cloudflare-workers'; // Remplacé par l'adaptateur Vercel
 import { getDb } from './db';
 import { admins, patients, appointments, availabilitySlots, notes, insertAdminSchema, insertPatientSchema, loginSchema, insertAppointmentSchema, insertAvailabilitySlotSchema } from './db/schema';
 import { generateToken, hashPassword, comparePassword } from './lib/auth';
@@ -18,7 +18,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use('/api/*', cors());
 
 // Serve static files
-app.get('/*', serveStatic({ root: './' }));
+// app.get('/*', serveStatic({ root: './' })); // Géré par Vercel
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -271,5 +271,5 @@ app.post('/api/patient/appointments', authMiddleware, requireUserType('patient')
   }
 });
 
-export default app;
+// export default app; // Remplacé par l'adaptateur Vercel\n\nimport { handle } from 'hono/vercel';\n\nexport const config = {\n  runtime: 'edge',\n};\n\nexport default handle(app);
 '''
