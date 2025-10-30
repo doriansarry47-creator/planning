@@ -1,23 +1,7 @@
 {
-  "version": 2,
-  "framework": "hono",
-  "builds": [
-    {
-      "src": "src/index.tsx",
-      "use": "@vercel/node@3.0.19",
-      "config": {
-        "includeFiles": ["dist/**"]
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "src/index.tsx"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/dist/$1"
-    }
-  ]
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "installCommand": "npm install",
+  "devCommand": null
 }

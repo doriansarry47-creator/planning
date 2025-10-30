@@ -1,5 +1,6 @@
-'''import { Hono, Handler } from 'hono';
+import { Hono, Handler } from 'hono';
 import { cors } from 'hono/cors';
+import { handle } from 'hono/vercel';
 // import { serveStatic } from 'hono/cloudflare-workers'; // Remplacé par l'adaptateur Vercel
 import { getDb } from './db';
 import { admins, patients, appointments, availabilitySlots, notes, insertAdminSchema, insertPatientSchema, loginSchema, insertAppointmentSchema, insertAvailabilitySlotSchema } from './db/schema';
@@ -225,7 +226,7 @@ app.get('/api/patient/appointments', authMiddleware, requireUserType('patient'),
 });
 
 // Créer un rendez-vous
-app.post('/api/patient/appointments', authMiddleware, requireUserType('patient'), (async (c: any) => {
+app.post('/api/patient/appointments', authMiddleware, requireUserType('patient'), async (c: any) => {
   try {
     const user = c.get('user');
     const db = getDb(c.env.DATABASE_URL);
@@ -271,5 +272,9 @@ app.post('/api/patient/appointments', authMiddleware, requireUserType('patient')
   }
 });
 
-// export default app; // Remplacé par l'adaptateur Vercel\n\nimport { handle } from 'hono/vercel';\n\nexport const config = {\n  runtime: 'edge',\n};\n\nexport default handle(app);
-'''
+// Export pour Vercel Edge Runtime
+export const config = {
+  runtime: 'edge',
+};
+
+export default handle(app);
