@@ -11,7 +11,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { setUser, setIsAuthenticated } = useAuth();
+  const { login } = useAuth();
   const [, setLocation] = useLocation();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -19,18 +19,12 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // Authentification admin simple (à remplacer par une vraie API)
-      if (email === 'doriansarry@yahoo.fr' && password === 'admin123') {
-        // Simuler un délai d'authentification
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        setUser({
-          id: '1',
-          email: email,
-          role: 'admin',
-        });
-        setIsAuthenticated(true);
-        
+      // Simuler un délai d'authentification
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const success = await login(email, password);
+      
+      if (success) {
         toast.success('Connexion réussie !');
         setLocation('/admin');
       } else {

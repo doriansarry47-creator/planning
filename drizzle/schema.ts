@@ -12,11 +12,14 @@ export const users = mysqlTable("users", {
    */
   id: int("id").autoincrement().primaryKey(),
   /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  openId: varchar("openId", { length: 64 }).unique(),
   name: text("name"),
-  email: varchar("email", { length: 320 }),
+  email: varchar("email", { length: 320 }).unique(),
+  /** Password hash for local authentication (nullable for OAuth users) */
+  password: varchar("password", { length: 255 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "practitioner"]).default("user").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -97,3 +100,32 @@ export const timeOff = mysqlTable("timeOff", {
 
 export type TimeOff = typeof timeOff.$inferSelect;
 export type InsertTimeOff = typeof timeOff.$inferInsert;
+
+// Table des logs d'activité admin
+export const adminLogs = mysqlTable("adminLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  action: varchar("action", { length: 100 }).notNull(),
+  entityType: varchar("entityType", { length: 50 }), // 'user', 'appointment', 'practitioner', etc.
+  entityId: int("entityId"),
+  details: text("details"), // JSON string with additional details
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AdminLog = typeof adminLogs.$inferSelect;
+export type InsertAdminLog = typeof adminLogs.$inferInsert;
+
+// Table des spécialités médicales
+export const specialties = mysqlTable("specialties", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Specialty = typeof specialties.$inferSelect;
+export type InsertSpecialty = typeof specialties.$inferInsert;

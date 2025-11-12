@@ -238,10 +238,19 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-400">
-            © 2025 Dorian Sarry - Thérapie Sensori-Motrice. Tous droits réservés.
-          </p>
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-4">
+            <p className="text-gray-400">
+              © 2025 Dorian Sarry - Thérapie Sensori-Motrice. Tous droits réservés.
+            </p>
+          </div>
+          <div className="text-center">
+            <Link href="/login">
+              <button className="text-gray-500 hover:text-gray-400 text-sm transition-colors">
+                Accès Admin
+              </button>
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
