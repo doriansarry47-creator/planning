@@ -83,7 +83,7 @@ export const appRouter = router({
       };
     }).mutation(async ({ input, ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const { createAppointment, getPractitionerById } = await import("./db");
+      const { createAppointment, getPractitionerById, getUserById } = await import("./db");
       
       const practitioner = await getPractitionerById(input.practitionerId);
       if (!practitioner) throw new Error("Practitioner not found");
@@ -92,7 +92,7 @@ export const appRouter = router({
       const endDate = new Date(startDate.getTime() + practitioner.consultationDuration * 60000);
       const endTime = endDate.toTimeString().slice(0, 8);
 
-      return createAppointment({
+      const appointment = await createAppointment({
         userId: ctx.user.id,
         practitionerId: input.practitionerId,
         appointmentDate: input.appointmentDate,
@@ -101,6 +101,37 @@ export const appRouter = router({
         reason: input.reason,
         status: "scheduled",
       });
+
+      // Synchroniser avec Google Calendar
+      try {
+        const { getGoogleCalendarService } = await import("./services/googleCalendar");
+        const calendarService = getGoogleCalendarService();
+        
+        if (calendarService) {
+          const user = await getUserById(ctx.user.id);
+          
+          if (user) {
+            const googleEventId = await calendarService.createEvent({
+              patientName: user.name || 'Patient',
+              patientEmail: user.email || '',
+              date: input.appointmentDate,
+              startTime: input.startTime,
+              endTime,
+              reason: input.reason,
+              practitionerName: `${practitioner.firstName} ${practitioner.lastName}`,
+            });
+
+            if (googleEventId) {
+              console.log('[Appointments] Rendez-vous synchronisé avec Google Calendar:', googleEventId);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Appointments] Erreur lors de la synchronisation Google Calendar:', error);
+        // Ne pas bloquer la création du rendez-vous si la synchronisation échoue
+      }
+
+      return appointment;
     }),
     getAll: protectedProcedure.query(async () => {
       const { getAllAppointments } = await import("./db");

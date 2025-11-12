@@ -58,6 +58,7 @@
     "drizzle-zod": "^0.5.1",
     "embla-carousel-react": "^8.5.2",
     "express": "^4.21.2",
+    "googleapis": "^166.0.0",
     "jose": "^6.1.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",
