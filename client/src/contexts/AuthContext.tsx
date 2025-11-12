@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 interface User {
   id: string;
   email: string;
+  name?: string;
   role: 'admin' | 'practitioner' | 'user';
 }
 
@@ -41,23 +42,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Authentification admin
+      // 🔹 Vérifie d'abord le compte administrateur local
       if (email === 'doriansarry@yahoo.fr' && password === 'admin123') {
         const adminUser: User = {
           id: '1',
-          email: email,
+          email,
+          name: 'Administrateur',
           role: 'admin',
         };
-        
+
         setUser(adminUser);
         setIsAuthenticated(true);
         localStorage.setItem('authUser', JSON.stringify(adminUser));
         return true;
       }
-      
-      // Ici, vous pouvez ajouter d'autres types d'authentification
-      // ou une connexion API réelle
-      
+
+      // 🔹 Optionnel : Authentification via une API réelle (si ajoutée plus tard)
+      const response = await fetch('/trpc/admin.login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ json: { email, password } }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const apiUser = data.result?.data?.json?.user;
+
+        if (data.result?.data?.json?.success && apiUser) {
+          const authenticatedUser: User = {
+            id: String(apiUser.id),
+            email: apiUser.email,
+            name: apiUser.name,
+            role: apiUser.role,
+          };
+
+          setUser(authenticatedUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('authUser', JSON.stringify(authenticatedUser));
+          return true;
+        }
+      }
+
       return false;
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
@@ -65,7 +90,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      // 🔹 Déconnexion côté serveur (si API disponible)
+      await fetch('/trpc/auth.logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
+
+    // 🔹 Nettoyage local
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('authUser');

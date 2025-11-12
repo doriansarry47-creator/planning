@@ -1,7 +1,8 @@
-import { eq, gte, lte, and } from "drizzle-orm";
+import { eq, gte, lte, and, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, practitioners, availabilitySlots, appointments, InsertAppointment, InsertAvailabilitySlot, InsertPractitioner, timeOff, InsertTimeOff } from "../drizzle/schema";
+import { InsertUser, users, practitioners, availabilitySlots, appointments, InsertAppointment, InsertAvailabilitySlot, InsertPractitioner, timeOff, InsertTimeOff, adminLogs, InsertAdminLog, specialties, InsertSpecialty } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import bcrypt from 'bcryptjs';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -245,4 +246,202 @@ export async function getPractitionerTimeOff(practitionerId: number) {
     .where(eq(timeOff.practitionerId, practitionerId))
     .orderBy(timeOff.startDate);
   return result;
+}
+
+// ============= AUTHENTIFICATION ADMIN =============
+
+/**
+ * Authentifier un utilisateur avec email et mot de passe
+ */
+export async function authenticateUser(email: string, password: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot authenticate: database not available");
+    return null;
+  }
+
+  try {
+    // Récupérer l'utilisateur par email
+    const result = await db.select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (result.length === 0) {
+      return null; // Utilisateur non trouvé
+    }
+
+    const user = result[0];
+
+    // Vérifier que l'utilisateur a un mot de passe défini
+    if (!user.password) {
+      return null; // Pas d'authentification locale pour cet utilisateur
+    }
+
+    // Vérifier que le compte est actif
+    if (!user.isActive) {
+      return null; // Compte désactivé
+    }
+
+    // Vérifier le mot de passe
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      return null; // Mot de passe incorrect
+    }
+
+    // Mettre à jour la dernière connexion
+    await db.update(users)
+      .set({ lastSignedIn: new Date() })
+      .where(eq(users.id, user.id));
+
+    // Retourner l'utilisateur sans le mot de passe
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  } catch (error) {
+    console.error("[Database] Authentication error:", error);
+    return null;
+  }
+}
+
+/**
+ * Changer le mot de passe d'un utilisateur
+ */
+export async function changeUserPassword(userId: number, newPassword: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  
+  await db.update(users)
+    .set({ password: hashedPassword })
+    .where(eq(users.id, userId));
+}
+
+/**
+ * Récupérer tous les utilisateurs (pour les admins)
+ */
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select({
+    id: users.id,
+    openId: users.openId,
+    name: users.name,
+    email: users.email,
+    loginMethod: users.loginMethod,
+    role: users.role,
+    isActive: users.isActive,
+    createdAt: users.createdAt,
+    lastSignedIn: users.lastSignedIn,
+  }).from(users);
+  
+  return result;
+}
+
+/**
+ * Suspendre/activer un utilisateur
+ */
+export async function toggleUserStatus(userId: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(users)
+    .set({ isActive })
+    .where(eq(users.id, userId));
+}
+
+/**
+ * Supprimer un utilisateur
+ */
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(users).where(eq(users.id, userId));
+}
+
+// ============= LOGS D'ACTIVITÉ ADMIN =============
+
+/**
+ * Créer un log d'activité admin
+ */
+export async function createAdminLog(log: InsertAdminLog) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot create admin log: database not available");
+    return;
+  }
+
+  try {
+    await db.insert(adminLogs).values(log);
+  } catch (error) {
+    console.error("[Database] Failed to create admin log:", error);
+  }
+}
+
+/**
+ * Récupérer les logs d'activité admin
+ */
+export async function getAdminLogs(limit: number = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(adminLogs)
+    .innerJoin(users, eq(adminLogs.userId, users.id))
+    .orderBy(desc(adminLogs.createdAt))
+    .limit(limit);
+  
+  return result;
+}
+
+// ============= SPÉCIALITÉS MÉDICALES =============
+
+/**
+ * Récupérer toutes les spécialités
+ */
+export async function getSpecialties() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(specialties)
+    .where(eq(specialties.isActive, true));
+  
+  return result;
+}
+
+/**
+ * Créer une spécialité
+ */
+export async function createSpecialty(data: InsertSpecialty) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(specialties).values(data);
+  return result;
+}
+
+/**
+ * Mettre à jour une spécialité
+ */
+export async function updateSpecialty(id: number, data: Partial<InsertSpecialty>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(specialties)
+    .set(data)
+    .where(eq(specialties.id, id));
+}
+
+/**
+ * Supprimer une spécialité
+ */
+export async function deleteSpecialty(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(specialties).where(eq(specialties.id, id));
 }
