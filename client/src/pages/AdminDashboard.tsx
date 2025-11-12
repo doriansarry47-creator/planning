@@ -14,6 +14,8 @@ import StatsCards from '@/components/admin/StatsCards';
 import UsersManagement from '@/components/admin/UsersManagement';
 import ActivityLogs from '@/components/admin/ActivityLogs';
 import SpecialtiesManagement from '@/components/admin/SpecialtiesManagement';
+import AppointmentsManagement from '@/components/admin/AppointmentsManagement';
+import AvailabilityManagement from '@/components/admin/AvailabilityManagement';
 
 export default function AdminDashboard() {
   const { logout, user } = useAuth();
@@ -159,28 +161,12 @@ export default function AdminDashboard() {
 
           {/* Gestion des rendez-vous */}
           <TabsContent value="appointments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestion des rendez-vous</CardTitle>
-                <CardDescription>
-                  Consultez et gérez tous les rendez-vous du système
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Tous les rendez-vous</h3>
-                    <Button>Nouveau rendez-vous</Button>
-                  </div>
-                  <div className="border rounded-lg p-8 text-center text-muted-foreground">
-                    <p>Fonctionnalité de gestion des rendez-vous</p>
-                    <p className="text-sm mt-2">
-                      Consultez l'onglet "Rendez-vous" dans la navigation principale
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <AppointmentsManagement />
+          </TabsContent>
+
+          {/* Gestion des disponibilités */}
+          <TabsContent value="availability">
+            <AvailabilityManagement />
           </TabsContent>
 
           {/* Gestion des spécialités */}
@@ -289,6 +275,28 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex justify-between">
+                  <span className="text-sm font-medium">Version:</span>
+                  <span className="text-sm text-muted-foreground">1.0.0</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Environnement:</span>
+                  <span className="text-sm text-muted-foreground">Production</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Dernière mise à jour:</span>
+                  <span className="text-sm text-muted-foreground">
+                    {new Date().toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
+sName="flex justify-between">
                   <span className="text-sm font-medium">Version:</span>
                   <span className="text-sm text-muted-foreground">1.0.0</span>
                 </div>
