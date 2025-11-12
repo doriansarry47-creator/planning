@@ -7,13 +7,12 @@ import { useLocation } from 'wouter';
 import { Calendar, Clock, Users, Settings, LogOut } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { setUser, setIsAuthenticated, user } = useAuth();
+  const { logout, user } = useAuth();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('appointments');
 
   const handleLogout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
+    logout();
     setLocation('/');
   };
 
