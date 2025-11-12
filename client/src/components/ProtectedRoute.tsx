@@ -15,8 +15,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ component: Component, r
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        // Rediriger vers la page d'accueil ou de connexion si non authentifié
-        setLocation("/");
+        // Rediriger vers la page de connexion si non authentifié
+        setLocation("/login");
       } else if (role && user && user.role !== role && user.role !== "admin") {
         // Rediriger si le rôle ne correspond pas et n'est pas admin
         setLocation("/404"); // Ou une page d'accès refusé

@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import BookAppointment from "./pages/BookAppointment";
 import MyAppointments from "./pages/MyAppointments";
 import AdminDashboard from "./pages/AdminDashboard";
+import Login from "./pages/Login";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -16,6 +17,7 @@ function Router() {
     <Switch>
       <Route path={"\\"} component={Home} />
       <Route path={"/book-appointment"} component={BookAppointment} />
+      <Route path={"/login"} component={Login} />
       <Route path={"/appointments"} component={() => <ProtectedRoute component={MyAppointments} role="user" />} />
       <Route path={"/admin"} component={() => <ProtectedRoute component={AdminDashboard} role="admin" />} />
       <Route path={"/404"} component={NotFound} />
