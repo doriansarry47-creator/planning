@@ -61,67 +61,72 @@ export default function Home() {
                   En savoir plus
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-white">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl mb-4">
+                  <DialogTitle className="text-2xl mb-4 text-gray-900">
                     La Psychothérapie Sensori-Motrice
                   </DialogTitle>
-                  <DialogDescription className="text-base text-left space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg mb-2">
-                        Qu'est-ce que la Psychothérapie Sensori-Motrice ?
-                      </h3>
-                      <p className="text-gray-700 leading-relaxed">
-                        La psychothérapie sensori-motrice est une approche thérapeutique intégrative 
-                        qui combine la thérapie narrative et la thérapie corporelle. Elle mobilise les 
-                        mouvements et sensations corporelles pour traiter les traumatismes et les 
-                        problèmes développementaux.
-                      </p>
-                    </div>
-
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg mb-2">
-                        Parce que les mots ne suffisent pas...
-                      </h3>
-                      <p className="text-gray-700 leading-relaxed">
-                        Le corps possède sa propre mémoire. Les traumatismes se manifestent non 
-                        seulement par des pensées et émotions, mais aussi par des réactions 
-                        sensori-motrices : images intrusives, sensations corporelles, tensions, 
-                        douleurs physiques ou engourdissements.
-                      </p>
-                    </div>
-
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg mb-2">
-                        Le traitement des traumatismes
-                      </h3>
-                      <p className="text-gray-700 leading-relaxed">
-                        Cette approche permet de traiter le trauma au niveau intellectuel mais 
-                        également corporel, en travaillant directement avec les réactions 
-                        physiques et sensorielles qui accompagnent les souvenirs traumatiques.
-                      </p>
-                    </div>
-
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg mb-2">
-                        Les blessures développementales
-                      </h3>
-                      <p className="text-gray-700 leading-relaxed">
-                        L'approche sensori-motrice est particulièrement efficace pour traiter les 
-                        blessures d'attachement, le stress chronique précoce, et leurs impacts sur 
-                        la régulation émotionnelle et les relations interpersonnelles.
-                      </p>
-                    </div>
-
-                    <div className="pt-4 border-t">
-                      <p className="text-sm text-gray-600 italic">
-                        Fondée par Pat Ogden, pionnière de la psychologie somatique et fondatrice 
-                        du Sensorimotor Psychotherapy Institute®, cette méthode s'appuie sur les 
-                        neurosciences, la théorie de l'attachement et les approches corporelles.
-                      </p>
-                    </div>
-                  </DialogDescription>
                 </DialogHeader>
+                <div className="text-base text-left space-y-6 mt-4">
+                  <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                    <h3 className="font-semibold text-gray-900 text-lg mb-3 flex items-center">
+                      <Info className="h-5 w-5 text-blue-600 mr-2" />
+                      Qu'est-ce que la Psychothérapie Sensori-Motrice ?
+                    </h3>
+                    <p className="text-gray-700 leading-relaxed">
+                      La psychothérapie sensori-motrice est une approche thérapeutique intégrative 
+                      qui combine la thérapie narrative et la thérapie corporelle. Elle mobilise les 
+                      mouvements et sensations corporelles pour traiter les traumatismes et les 
+                      problèmes développementaux.
+                    </p>
+                  </div>
+
+                  <div className="bg-amber-50 p-5 rounded-lg border border-amber-100">
+                    <h3 className="font-semibold text-gray-900 text-lg mb-3 flex items-center">
+                      <Heart className="h-5 w-5 text-amber-600 mr-2" />
+                      Parce que les mots ne suffisent pas...
+                    </h3>
+                    <p className="text-gray-700 leading-relaxed">
+                      Le corps possède sa propre mémoire. Les traumatismes se manifestent non 
+                      seulement par des pensées et émotions, mais aussi par des réactions 
+                      sensori-motrices : images intrusives, sensations corporelles, tensions, 
+                      douleurs physiques ou engourdissements.
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50 p-5 rounded-lg border border-purple-100">
+                    <h3 className="font-semibold text-gray-900 text-lg mb-3 flex items-center">
+                      <Shield className="h-5 w-5 text-purple-600 mr-2" />
+                      Le traitement des traumatismes
+                    </h3>
+                    <p className="text-gray-700 leading-relaxed">
+                      Cette approche permet de traiter le trauma au niveau intellectuel mais 
+                      également corporel, en travaillant directement avec les réactions 
+                      physiques et sensorielles qui accompagnent les souvenirs traumatiques.
+                    </p>
+                  </div>
+
+                  <div className="bg-green-50 p-5 rounded-lg border border-green-100">
+                    <h3 className="font-semibold text-gray-900 text-lg mb-3 flex items-center">
+                      <Brain className="h-5 w-5 text-green-600 mr-2" />
+                      Les blessures développementales
+                    </h3>
+                    <p className="text-gray-700 leading-relaxed">
+                      L'approche sensori-motrice est particulièrement efficace pour traiter les 
+                      blessures d'attachement, le stress chronique précoce, et leurs impacts sur 
+                      la régulation émotionnelle et les relations interpersonnelles.
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200 bg-gray-50 p-5 rounded-lg">
+                    <p className="text-sm text-gray-700 italic leading-relaxed">
+                      <strong className="text-gray-900 not-italic">À propos de la méthode :</strong><br />
+                      Fondée par Pat Ogden, pionnière de la psychologie somatique et fondatrice 
+                      du Sensorimotor Psychotherapy Institute®, cette méthode s'appuie sur les 
+                      neurosciences, la théorie de l'attachement et les approches corporelles.
+                    </p>
+                  </div>
+                </div>
               </DialogContent>
             </Dialog>
           </div>

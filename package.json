@@ -78,6 +78,7 @@
     "react-dom": "^18.3.1",
     "react-leaflet": "^4.2.1",
     "recharts": "^2.15.0",
+    "resend": "^6.4.2",
     "sonner": "^1.7.1",
     "superjson": "^2.2.5",
     "tailwind-merge": "^2.5.5",
