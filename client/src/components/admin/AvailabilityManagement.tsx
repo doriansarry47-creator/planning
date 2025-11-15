@@ -1,36 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Plus, Trash2, Edit, CheckCircle2, XCircle } from 'lucide-react';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { 
+  Calendar, 
+  Clock, 
+  Plus, 
+  Trash2, 
+  CheckCircle2, 
+  XCircle,
+  CalendarX,
+  Link as LinkIcon
+} from 'lucide-react';
 import { toast } from 'sonner';
+import EnhancedCalendar, { CalendarSlot } from './EnhancedCalendar';
+import SlotCreationDialog, { SlotData } from './SlotCreationDialog';
+import GoogleCalendarSettings from './GoogleCalendarSettings';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 interface TimeSlot {
   id: number;
   date: string;
   startTime: string;
   endTime: string;
-  isBooked: boolean;
+  status: 'available' | 'booked' | 'cancelled';
   capacity: number;
+  patientName?: string;
+  consultationType?: string;
+  notes?: string;
 }
 
 export default function AvailabilityManagement() {
@@ -40,152 +47,260 @@ export default function AvailabilityManagement() {
       date: '2025-11-15',
       startTime: '09:00',
       endTime: '10:00',
-      isBooked: false,
-      capacity: 1
+      status: 'available',
+      capacity: 1,
+      consultationType: 'consultation'
     },
     {
       id: 2,
       date: '2025-11-15',
       startTime: '10:00',
       endTime: '11:00',
-      isBooked: true,
-      capacity: 1
+      status: 'booked',
+      capacity: 1,
+      patientName: 'Marie Dupont',
+      consultationType: 'suivi'
     },
     {
       id: 3,
       date: '2025-11-15',
       startTime: '14:00',
       endTime: '15:00',
-      isBooked: false,
-      capacity: 1
+      status: 'available',
+      capacity: 1,
+      consultationType: 'consultation'
     },
     {
       id: 4,
       date: '2025-11-16',
       startTime: '09:00',
       endTime: '10:00',
-      isBooked: false,
-      capacity: 1
+      status: 'cancelled',
+      capacity: 1,
+      consultationType: 'consultation',
+      notes: 'Annulé par le patient'
+    },
+    {
+      id: 5,
+      date: '2025-11-16',
+      startTime: '10:00',
+      endTime: '11:00',
+      status: 'available',
+      capacity: 1,
+      consultationType: 'premiere'
     }
   ]);
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newSlot, setNewSlot] = useState({
-    date: '',
-    startTime: '',
-    endTime: '',
-    capacity: 1
-  });
+  const [isCreationDialogOpen, setIsCreationDialogOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [slotToDelete, setSlotToDelete] = useState<TimeSlot | null>(null);
 
-  const handleCreateSlot = async () => {
-    try {
-      // Validation
-      if (!newSlot.date || !newSlot.startTime || !newSlot.endTime) {
-        toast.error('Veuillez remplir tous les champs');
-        return;
+  // Convertir les slots en événements du calendrier
+  const calendarEvents: CalendarSlot[] = useMemo(() => {
+    return slots.map(slot => {
+      const startDate = new Date(`${slot.date}T${slot.startTime}`);
+      const endDate = new Date(`${slot.date}T${slot.endTime}`);
+
+      let title = '';
+      if (slot.status === 'booked' && slot.patientName) {
+        title = slot.patientName;
+      } else if (slot.status === 'cancelled') {
+        title = 'Annulé';
+      } else {
+        title = 'Disponible';
       }
 
-      // Simuler un appel API
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const newSlotData: TimeSlot = {
-        id: slots.length + 1,
-        date: newSlot.date,
-        startTime: newSlot.startTime,
-        endTime: newSlot.endTime,
-        isBooked: false,
-        capacity: newSlot.capacity
+      return {
+        id: slot.id,
+        title,
+        start: startDate,
+        end: endDate,
+        status: slot.status,
+        patientName: slot.patientName,
+        consultationType: slot.consultationType,
+        notes: slot.notes,
       };
+    });
+  }, [slots]);
 
-      setSlots(prev => [...prev, newSlotData]);
-      toast.success('Créneau créé avec succès');
-      setIsDialogOpen(false);
-      setNewSlot({ date: '', startTime: '', endTime: '', capacity: 1 });
+  // Créer des créneaux
+  const handleCreateSlots = async (slotsData: SlotData[]) => {
+    try {
+      const newSlots: TimeSlot[] = slotsData.map((slotData, index) => ({
+        id: slots.length + index + 1,
+        date: slotData.date,
+        startTime: slotData.startTime,
+        endTime: slotData.endTime,
+        status: 'available',
+        capacity: 1,
+        consultationType: slotData.consultationType,
+      }));
+
+      setSlots(prev => [...prev, ...newSlots]);
+      toast.success(`${newSlots.length} créneau(x) créé(s) avec succès`);
     } catch (error) {
-      toast.error('Erreur lors de la création du créneau');
+      toast.error('Erreur lors de la création des créneaux');
+      throw error;
     }
   };
 
-  const handleDeleteSlot = async (slotId: number) => {
+  // Sélectionner un créneau dans le calendrier
+  const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
+    setIsCreationDialogOpen(true);
+  };
+
+  // Sélectionner un événement dans le calendrier
+  const handleSelectEvent = (event: CalendarSlot) => {
+    const slot = slots.find(s => s.id === event.id);
+    if (slot) {
+      setSelectedSlot(slot);
+    }
+  };
+
+  // Déplacer un créneau (drag & drop)
+  const handleEventDrop = async ({ event, start, end }: { event: CalendarSlot; start: Date; end: Date }) => {
     try {
-      const slot = slots.find(s => s.id === slotId);
-      
-      if (slot?.isBooked) {
-        toast.error('Impossible de supprimer un créneau réservé');
+      const slot = slots.find(s => s.id === event.id);
+      if (!slot) return;
+
+      if (slot.status === 'booked') {
+        toast.error('Impossible de déplacer un créneau réservé');
         return;
       }
 
-      // Simuler un appel API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Vérifier les conflits
+      const newDate = start.toISOString().split('T')[0];
+      const newStartTime = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
+      const newEndTime = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
 
-      setSlots(prev => prev.filter(s => s.id !== slotId));
+      const hasConflict = slots.some(s => 
+        s.id !== slot.id && 
+        s.date === newDate &&
+        s.startTime < newEndTime && 
+        s.endTime > newStartTime
+      );
+
+      if (hasConflict) {
+        toast.error('Conflit détecté : un créneau existe déjà à cette période');
+        return;
+      }
+
+      // Mettre à jour le créneau
+      setSlots(prev => prev.map(s => 
+        s.id === slot.id 
+          ? { ...s, date: newDate, startTime: newStartTime, endTime: newEndTime }
+          : s
+      ));
+
+      toast.success('Créneau déplacé avec succès');
+    } catch (error) {
+      toast.error('Erreur lors du déplacement du créneau');
+    }
+  };
+
+  // Redimensionner un créneau
+  const handleEventResize = async ({ event, start, end }: { event: CalendarSlot; start: Date; end: Date }) => {
+    try {
+      const slot = slots.find(s => s.id === event.id);
+      if (!slot) return;
+
+      if (slot.status === 'booked') {
+        toast.error('Impossible de redimensionner un créneau réservé');
+        return;
+      }
+
+      const newStartTime = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
+      const newEndTime = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+
+      // Vérifier les conflits
+      const hasConflict = slots.some(s => 
+        s.id !== slot.id && 
+        s.date === slot.date &&
+        s.startTime < newEndTime && 
+        s.endTime > newStartTime
+      );
+
+      if (hasConflict) {
+        toast.error('Conflit détecté : un créneau existe déjà à cette période');
+        return;
+      }
+
+      setSlots(prev => prev.map(s => 
+        s.id === slot.id 
+          ? { ...s, startTime: newStartTime, endTime: newEndTime }
+          : s
+      ));
+
+      toast.success('Durée du créneau modifiée');
+    } catch (error) {
+      toast.error('Erreur lors de la modification');
+    }
+  };
+
+  // Supprimer un créneau
+  const handleDeleteSlot = async (slot: TimeSlot) => {
+    if (slot.status === 'booked') {
+      toast.error('Impossible de supprimer un créneau réservé');
+      return;
+    }
+
+    setSlotToDelete(slot);
+  };
+
+  const confirmDeleteSlot = async () => {
+    if (!slotToDelete) return;
+
+    try {
+      setSlots(prev => prev.filter(s => s.id !== slotToDelete.id));
       toast.success('Créneau supprimé avec succès');
+      setSlotToDelete(null);
     } catch (error) {
       toast.error('Erreur lors de la suppression du créneau');
     }
   };
 
-  const handleGenerateWeekSlots = async () => {
+  // Annuler un créneau
+  const handleCancelSlot = async (slot: TimeSlot) => {
     try {
-      toast.info('Génération des créneaux de la semaine...');
-      
-      // Simuler la génération de créneaux pour une semaine
-      const startDate = new Date();
-      const newSlots: TimeSlot[] = [];
-      
-      // Générer créneaux du lundi au vendredi, 9h-17h
-      for (let day = 0; day < 5; day++) {
-        const date = new Date(startDate);
-        date.setDate(date.getDate() + day);
-        
-        const dateStr = date.toISOString().split('T')[0];
-        
-        // Créneaux du matin: 9h-12h
-        for (let hour = 9; hour < 12; hour++) {
-          newSlots.push({
-            id: slots.length + newSlots.length + 1,
-            date: dateStr,
-            startTime: `${hour.toString().padStart(2, '0')}:00`,
-            endTime: `${(hour + 1).toString().padStart(2, '0')}:00`,
-            isBooked: false,
-            capacity: 1
-          });
-        }
-        
-        // Créneaux de l'après-midi: 14h-17h
-        for (let hour = 14; hour < 17; hour++) {
-          newSlots.push({
-            id: slots.length + newSlots.length + 1,
-            date: dateStr,
-            startTime: `${hour.toString().padStart(2, '0')}:00`,
-            endTime: `${(hour + 1).toString().padStart(2, '0')}:00`,
-            isBooked: false,
-            capacity: 1
-          });
-        }
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setSlots(prev => [...prev, ...newSlots]);
-      toast.success(`${newSlots.length} créneaux générés avec succès`);
+      setSlots(prev => prev.map(s => 
+        s.id === slot.id 
+          ? { ...s, status: 'cancelled' as const }
+          : s
+      ));
+      toast.success('Créneau annulé');
+      setSelectedSlot(null);
     } catch (error) {
-      toast.error('Erreur lors de la génération des créneaux');
+      toast.error('Erreur lors de l\'annulation');
     }
   };
 
-  const availableSlots = slots.filter(s => !s.isBooked).length;
-  const bookedSlots = slots.filter(s => s.isBooked).length;
+  // Synchroniser avec Google Calendar
+  const handleSyncWithGoogle = async () => {
+    try {
+      toast.info('Synchronisation avec Google Calendar...');
+      
+      // Simuler une synchronisation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast.success('Synchronisation réussie avec Google Calendar');
+    } catch (error) {
+      toast.error('Erreur lors de la synchronisation');
+    }
+  };
+
+  const availableSlots = slots.filter(s => s.status === 'available').length;
+  const bookedSlots = slots.filter(s => s.status === 'booked').length;
+  const cancelledSlots = slots.filter(s => s.status === 'cancelled').length;
 
   return (
     <div className="space-y-6">
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Créneaux disponibles</p>
+                <p className="text-sm font-medium text-muted-foreground">Disponibles</p>
                 <p className="text-2xl font-bold">{availableSlots}</p>
               </div>
               <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -196,10 +311,10 @@ export default function AvailabilityManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Créneaux réservés</p>
+                <p className="text-sm font-medium text-muted-foreground">Réservés</p>
                 <p className="text-2xl font-bold">{bookedSlots}</p>
               </div>
-              <XCircle className="h-8 w-8 text-blue-600" />
+              <Clock className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -207,7 +322,18 @@ export default function AvailabilityManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total créneaux</p>
+                <p className="text-sm font-medium text-muted-foreground">Annulés</p>
+                <p className="text-2xl font-bold">{cancelledSlots}</p>
+              </div>
+              <XCircle className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{slots.length}</p>
               </div>
               <Calendar className="h-8 w-8 text-purple-600" />
@@ -216,154 +342,134 @@ export default function AvailabilityManagement() {
         </Card>
       </div>
 
-      {/* Gestion des créneaux */}
+      {/* Actions rapides */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Gestion des disponibilités</CardTitle>
-              <CardDescription>
-                Créez et gérez vos créneaux de disponibilité
-              </CardDescription>
+              <CardTitle>Actions rapides</CardTitle>
+              <CardDescription>Gérez vos créneaux et synchronisez avec Google Calendar</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleGenerateWeekSlots}>
-                <Calendar className="mr-2 h-4 w-4" />
-                Générer la semaine
+              <Button variant="outline" onClick={handleSyncWithGoogle}>
+                <LinkIcon className="mr-2 h-4 w-4" />
+                Sync Google Calendar
               </Button>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nouveau créneau
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Créer un nouveau créneau</DialogTitle>
-                    <DialogDescription>
-                      Ajoutez un créneau de disponibilité
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={newSlot.date}
-                        onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="startTime">Heure de début</Label>
-                        <Input
-                          id="startTime"
-                          type="time"
-                          value={newSlot.startTime}
-                          onChange={(e) => setNewSlot({ ...newSlot, startTime: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="endTime">Heure de fin</Label>
-                        <Input
-                          id="endTime"
-                          type="time"
-                          value={newSlot.endTime}
-                          onChange={(e) => setNewSlot({ ...newSlot, endTime: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="capacity">Capacité</Label>
-                      <Input
-                        id="capacity"
-                        type="number"
-                        min="1"
-                        value={newSlot.capacity}
-                        onChange={(e) => setNewSlot({ ...newSlot, capacity: parseInt(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Annuler
-                    </Button>
-                    <Button onClick={handleCreateSlot}>
-                      Créer le créneau
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button onClick={() => setIsCreationDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nouveau créneau
+              </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Heure de début</TableHead>
-                  <TableHead>Heure de fin</TableHead>
-                  <TableHead>Durée</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {slots.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <Clock className="h-8 w-8" />
-                        <p>Aucun créneau disponible</p>
-                        <p className="text-sm">Créez votre premier créneau pour commencer</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  slots.map((slot) => {
-                    const duration = (new Date(`2000-01-01T${slot.endTime}`) - new Date(`2000-01-01T${slot.startTime}`) as any) / (1000 * 60);
-                    
-                    return (
-                      <TableRow key={slot.id}>
-                        <TableCell>
-                          {new Date(slot.date).toLocaleDateString('fr-FR', {
-                            weekday: 'short',
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </TableCell>
-                        <TableCell>{slot.startTime}</TableCell>
-                        <TableCell>{slot.endTime}</TableCell>
-                        <TableCell>{duration} min</TableCell>
-                        <TableCell>
-                          <Badge variant={slot.isBooked ? 'secondary' : 'default'}>
-                            {slot.isBooked ? 'Réservé' : 'Disponible'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteSlot(slot.id)}
-                            disabled={slot.isBooked}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
       </Card>
+
+      {/* Calendrier amélioré */}
+      <EnhancedCalendar
+        slots={calendarEvents}
+        onSelectSlot={handleSelectSlot}
+        onSelectEvent={handleSelectEvent}
+        onEventDrop={handleEventDrop}
+        onEventResize={handleEventResize}
+      />
+
+      {/* Dialog de création de créneaux */}
+      <SlotCreationDialog
+        open={isCreationDialogOpen}
+        onOpenChange={setIsCreationDialogOpen}
+        onCreateSlots={handleCreateSlots}
+        existingSlots={slots}
+      />
+
+      {/* Dialog de détails du créneau sélectionné */}
+      {selectedSlot && (
+        <AlertDialog open={!!selectedSlot} onOpenChange={() => setSelectedSlot(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Détails du créneau</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 pt-4">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Date:</span>
+                    <span>{new Date(selectedSlot.date).toLocaleDateString('fr-FR')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Horaire:</span>
+                    <span>{selectedSlot.startTime} - {selectedSlot.endTime}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Type:</span>
+                    <span>{selectedSlot.consultationType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Statut:</span>
+                    <Badge variant={
+                      selectedSlot.status === 'available' ? 'default' :
+                      selectedSlot.status === 'booked' ? 'secondary' : 'destructive'
+                    }>
+                      {selectedSlot.status === 'available' && 'Disponible'}
+                      {selectedSlot.status === 'booked' && 'Réservé'}
+                      {selectedSlot.status === 'cancelled' && 'Annulé'}
+                    </Badge>
+                  </div>
+                  {selectedSlot.patientName && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Patient:</span>
+                      <span>{selectedSlot.patientName}</span>
+                    </div>
+                  )}
+                  {selectedSlot.notes && (
+                    <div>
+                      <span className="font-medium">Notes:</span>
+                      <p className="text-sm text-muted-foreground mt-1">{selectedSlot.notes}</p>
+                    </div>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              {selectedSlot.status === 'available' && (
+                <AlertDialogAction 
+                  onClick={() => handleDeleteSlot(selectedSlot)}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Supprimer
+                </AlertDialogAction>
+              )}
+              {selectedSlot.status === 'booked' && (
+                <AlertDialogAction 
+                  onClick={() => handleCancelSlot(selectedSlot)}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  Annuler le rendez-vous
+                </AlertDialogAction>
+              )}
+              <AlertDialogCancel>Fermer</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Dialog de confirmation de suppression */}
+      <AlertDialog open={!!slotToDelete} onOpenChange={() => setSlotToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce créneau ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteSlot}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

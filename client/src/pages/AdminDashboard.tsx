@@ -98,11 +98,11 @@ export default function AdminDashboard() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="users">Utilisateurs</TabsTrigger>
             <TabsTrigger value="appointments">Rendez-vous</TabsTrigger>
+            <TabsTrigger value="availability">Disponibilités</TabsTrigger>
+            <TabsTrigger value="users">Utilisateurs</TabsTrigger>
             <TabsTrigger value="specialties">Spécialités</TabsTrigger>
             <TabsTrigger value="logs">Journal</TabsTrigger>
-            <TabsTrigger value="settings">Paramètres</TabsTrigger>
           </TabsList>
 
           {/* Vue d'ensemble */}
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
             <ActivityLogs />
           </TabsContent>
 
-          {/* Paramètres */}
+          {/* Paramètres - Déplacé dans le menu dropdown ou autre */}
           <TabsContent value="settings" className="space-y-6">
             {/* Informations du compte */}
             <Card>

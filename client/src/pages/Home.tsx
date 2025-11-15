@@ -52,7 +52,11 @@ export default function Home() {
             </Link>
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" variant="outline" className="px-8 py-6 text-lg">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="px-8 py-6 text-lg bg-white hover:bg-gray-50 border-2 border-blue-600 text-blue-600 hover:text-blue-700 font-semibold shadow-md hover:shadow-lg transition-all"
+                >
                   <Info className="mr-2 h-5 w-5" />
                   En savoir plus
                 </Button>
