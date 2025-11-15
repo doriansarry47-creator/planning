@@ -10,13 +10,27 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog';
-import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info, Lock } from 'lucide-react';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50">
+      {/* Bouton Admin Discret - Position fixe en haut à droite */}
+      <Link href="/login">
+        <button 
+          className="fixed top-4 right-4 z-50 p-2 rounded-full bg-gray-100/50 hover:bg-gray-200/80 
+                     text-gray-400 hover:text-gray-600 transition-all duration-300 
+                     backdrop-blur-sm border border-gray-200/30 hover:border-gray-300/50
+                     shadow-sm hover:shadow-md group"
+          aria-label="Accès administrateur"
+          title="Accès administrateur"
+        >
+          <Lock className="h-4 w-4 group-hover:scale-110 transition-transform" />
+        </button>
+      </Link>
+
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center">
@@ -239,17 +253,10 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-4">
+          <div className="text-center">
             <p className="text-gray-400">
               © 2025 Dorian Sarry - Thérapie Sensori-Motrice. Tous droits réservés.
             </p>
-          </div>
-          <div className="text-center">
-            <Link href="/login">
-              <button className="text-gray-500 hover:text-gray-400 text-sm transition-colors">
-                Accès Admin
-              </button>
-            </Link>
           </div>
         </div>
       </footer>
