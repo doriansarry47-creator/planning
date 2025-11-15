@@ -165,6 +165,54 @@ export const appRouter = router({
         // Ne pas bloquer la création du rendez-vous si la synchronisation échoue
       }
 
+      // Envoyer l'email de confirmation au patient
+      try {
+        const user = await getUserById(ctx.user.id);
+        
+        if (user && user.email) {
+          const { sendAppointmentConfirmationEmail, sendAppointmentNotificationToPractitioner } = await import("./services/emailService");
+          
+          const emailData = {
+            patientName: user.name || 'Patient',
+            patientEmail: user.email,
+            practitionerName: `${practitioner.firstName} ${practitioner.lastName}`,
+            date: input.appointmentDate,
+            startTime: input.startTime,
+            endTime,
+            reason: input.reason,
+            location: input.location || '20 rue des Jacobins, 24000 Périgueux',
+            appointmentHash: hash,
+          };
+
+          // Envoyer l'email de confirmation au patient
+          const patientEmailResult = await sendAppointmentConfirmationEmail(emailData);
+          
+          if (patientEmailResult.success) {
+            console.log('[Appointments] Email de confirmation envoyé au patient:', patientEmailResult.messageId);
+          } else {
+            console.error('[Appointments] Erreur lors de l\'envoi de l\'email au patient:', patientEmailResult.error);
+          }
+
+          // Envoyer une notification au praticien (si email disponible)
+          const practitionerUser = await getUserById(practitioner.userId);
+          if (practitionerUser && practitionerUser.email) {
+            const practitionerEmailResult = await sendAppointmentNotificationToPractitioner(
+              emailData,
+              practitionerUser.email
+            );
+            
+            if (practitionerEmailResult.success) {
+              console.log('[Appointments] Email de notification envoyé au praticien:', practitionerEmailResult.messageId);
+            } else {
+              console.error('[Appointments] Erreur lors de l\'envoi de l\'email au praticien:', practitionerEmailResult.error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Appointments] Erreur lors de l\'envoi des emails:', error);
+        // Ne pas bloquer la création du rendez-vous si l'envoi d'email échoue
+      }
+
       return { insertId, hash };
     }),
     
