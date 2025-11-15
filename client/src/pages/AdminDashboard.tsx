@@ -296,25 +296,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-sName="flex justify-between">
-                  <span className="text-sm font-medium">Version:</span>
-                  <span className="text-sm text-muted-foreground">1.0.0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Environnement:</span>
-                  <span className="text-sm text-muted-foreground">Production</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Dernière mise à jour:</span>
-                  <span className="text-sm text-muted-foreground">
-                    {new Date().toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
-  );
-}
