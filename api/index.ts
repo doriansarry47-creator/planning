@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express from "express";
+import express, { Request, Response } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "../server/_core/oauth";
 import { appRouter } from "../server/routers";
@@ -28,5 +28,7 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Export the Express API for Vercel
-export default app;
+// Export as serverless function handler for Vercel
+export default (req: Request, res: Response) => {
+  app(req, res);
+};
