@@ -4,6 +4,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { timeOffRouter } from "./timeOffRouter";
 import { availabilitySlotsRouter } from "./availabilitySlotsRouter";
 import { adminRouter } from "./adminRouter";
+import { servicesRouter } from "./servicesRouter";
+import { scheduleRouter } from "./scheduleRouter";
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { createPractitionerSchema } from "@shared/zodSchemas";
 
@@ -11,6 +13,8 @@ export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   admin: adminRouter,
+  services: servicesRouter,
+  schedule: scheduleRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -73,33 +77,56 @@ export const appRouter = router({
       const { getUserAppointments } = await import("./db");
       return getUserAppointments(ctx.user.id);
     }),
+    
     create: publicProcedure.input((val: unknown) => {
       const data = val as any;
       return {
         practitionerId: data.practitionerId as number,
+        serviceId: data.serviceId as number | undefined,
         appointmentDate: new Date(data.appointmentDate),
         startTime: data.startTime as string,
         reason: data.reason as string,
+        notes: data.notes as string | undefined,
+        location: data.location as string | undefined,
       };
     }).mutation(async ({ input, ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const { createAppointment, getPractitionerById, getUserById } = await import("./db");
+      const { 
+        createAppointmentWithHash, 
+        getPractitionerById, 
+        getServiceById, 
+        getUserById,
+        createGoogleCalendarSync 
+      } = await import("./db");
       
       const practitioner = await getPractitionerById(input.practitionerId);
       if (!practitioner) throw new Error("Practitioner not found");
 
+      // Déterminer la durée du rendez-vous
+      let duration = practitioner.consultationDuration;
+      if (input.serviceId) {
+        const service = await getServiceById(input.serviceId);
+        if (service) {
+          duration = service.duration;
+        }
+      }
+
       const startDate = new Date(`${input.appointmentDate.toISOString().split('T')[0]}T${input.startTime}`);
-      const endDate = new Date(startDate.getTime() + practitioner.consultationDuration * 60000);
+      const endDate = new Date(startDate.getTime() + duration * 60000);
       const endTime = endDate.toTimeString().slice(0, 8);
 
-      const appointment = await createAppointment({
+      const { insertId, hash } = await createAppointmentWithHash({
         userId: ctx.user.id,
         practitionerId: input.practitionerId,
+        serviceId: input.serviceId,
         appointmentDate: input.appointmentDate,
         startTime: input.startTime,
         endTime,
         reason: input.reason,
+        notes: input.notes,
+        location: input.location,
         status: "scheduled",
+        isUnavailability: false,
       });
 
       // Synchroniser avec Google Calendar
@@ -121,7 +148,14 @@ export const appRouter = router({
               practitionerName: `${practitioner.firstName} ${practitioner.lastName}`,
             });
 
-            if (googleEventId) {
+            if (googleEventId && insertId) {
+              // Enregistrer la synchronisation
+              await createGoogleCalendarSync({
+                appointmentId: insertId,
+                googleEventId,
+                syncStatus: "synced",
+              });
+              
               console.log('[Appointments] Rendez-vous synchronisé avec Google Calendar:', googleEventId);
             }
           }
@@ -131,12 +165,22 @@ export const appRouter = router({
         // Ne pas bloquer la création du rendez-vous si la synchronisation échoue
       }
 
-      return appointment;
+      return { insertId, hash };
     }),
+    
     getAll: protectedProcedure.query(async () => {
       const { getAllAppointments } = await import("./db");
       return getAllAppointments();
     }),
+    
+    getByHash: publicProcedure.input((val: unknown) => {
+      if (typeof val === "string") return val;
+      throw new Error("Invalid input");
+    }).query(async ({ input }) => {
+      const { getAppointmentByHash } = await import("./db");
+      return getAppointmentByHash(input);
+    }),
+    
     cancel: publicProcedure.input((val: unknown) => {
       if (typeof val === "number") return val;
       throw new Error("Invalid input");
@@ -144,6 +188,37 @@ export const appRouter = router({
       if (!ctx.user) throw new Error("Not authenticated");
       const { cancelAppointment } = await import("./db");
       return cancelAppointment(input);
+    }),
+    
+    cancelByHash: publicProcedure.input((val: unknown) => {
+      if (typeof val === "string") return val;
+      throw new Error("Invalid input");
+    }).mutation(async ({ input }) => {
+      const { getAppointmentByHash, updateAppointment } = await import("./db");
+      const appointment = await getAppointmentByHash(input);
+      
+      if (!appointment) {
+        throw new Error("Appointment not found");
+      }
+      
+      await updateAppointment(appointment.id, { status: "cancelled" });
+      return { success: true };
+    }),
+    
+    update: protectedProcedure.input((val: unknown) => {
+      const data = val as any;
+      return {
+        id: data.id as number,
+        status: data.status as string | undefined,
+        notes: data.notes as string | undefined,
+        diagnosis: data.diagnosis as string | undefined,
+        treatment: data.treatment as string | undefined,
+      };
+    }).mutation(async ({ input }) => {
+      const { updateAppointment } = await import("./db");
+      const { id, ...updateData } = input;
+      await updateAppointment(id, updateData);
+      return { success: true };
     }),
   }),
 });

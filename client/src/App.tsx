@@ -8,6 +8,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import BookAppointment from "./pages/BookAppointment";
+import EnhancedBookAppointment from "./pages/EnhancedBookAppointment";
 import MyAppointments from "./pages/MyAppointments";
 import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
@@ -18,6 +19,7 @@ function Router() {
     <Switch>
       <Route path={"\\"} component={Home} />
       <Route path={"/book-appointment"} component={BookAppointment} />
+      <Route path={"/book"} component={EnhancedBookAppointment} />
       <Route path={"/login"} component={Login} />
       <Route path={"/appointments"} component={() => <ProtectedRoute component={MyAppointments} role="user" />} />
       <Route path={"/admin"} component={() => <ProtectedRoute component={AdminDashboard} role="admin" />} />

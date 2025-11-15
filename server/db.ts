@@ -1,8 +1,22 @@
 import { eq, gte, lte, and, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, practitioners, availabilitySlots, appointments, InsertAppointment, InsertAvailabilitySlot, InsertPractitioner, timeOff, InsertTimeOff, adminLogs, InsertAdminLog, specialties, InsertSpecialty } from "../drizzle/schema";
+import { 
+  InsertUser, users, practitioners, availabilitySlots, appointments, 
+  InsertAppointment, InsertAvailabilitySlot, InsertPractitioner, 
+  timeOff, InsertTimeOff, adminLogs, InsertAdminLog, 
+  specialties, InsertSpecialty,
+  services, InsertService,
+  serviceCategories, InsertServiceCategory,
+  practitionerServices, InsertPractitionerService,
+  workingPlans, InsertWorkingPlan,
+  blockedPeriods, InsertBlockedPeriod,
+  settings, InsertSetting,
+  webhooks, InsertWebhook,
+  googleCalendarSync, InsertGoogleCalendarSync
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 import bcrypt from 'bcryptjs';
+import { nanoid } from 'nanoid';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -444,4 +458,348 @@ export async function deleteSpecialty(id: number) {
   if (!db) throw new Error("Database not available");
   
   await db.delete(specialties).where(eq(specialties.id, id));
+}
+
+// ============= SERVICES & CATÉGORIES =============
+
+/**
+ * Récupérer toutes les catégories de services
+ */
+export async function getServiceCategories() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(serviceCategories)
+    .where(eq(serviceCategories.isActive, true));
+  
+  return result;
+}
+
+/**
+ * Créer une catégorie de service
+ */
+export async function createServiceCategory(data: InsertServiceCategory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(serviceCategories).values(data);
+  return result;
+}
+
+/**
+ * Récupérer tous les services
+ */
+export async function getServices() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(services)
+    .where(eq(services.isActive, true));
+  
+  return result;
+}
+
+/**
+ * Récupérer un service par ID
+ */
+export async function getServiceById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select()
+    .from(services)
+    .where(eq(services.id, id))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Créer un service
+ */
+export async function createService(data: InsertService) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(services).values(data);
+  return result;
+}
+
+/**
+ * Mettre à jour un service
+ */
+export async function updateService(id: number, data: Partial<InsertService>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(services)
+    .set(data)
+    .where(eq(services.id, id));
+}
+
+/**
+ * Supprimer un service
+ */
+export async function deleteService(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(services).where(eq(services.id, id));
+}
+
+/**
+ * Associer un service à un praticien
+ */
+export async function addServiceToPractitioner(practitionerId: number, serviceId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(practitionerServices).values({
+    practitionerId,
+    serviceId
+  });
+  
+  return result;
+}
+
+/**
+ * Récupérer les services d'un praticien
+ */
+export async function getPractitionerServices(practitionerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(practitionerServices)
+    .innerJoin(services, eq(practitionerServices.serviceId, services.id))
+    .where(eq(practitionerServices.practitionerId, practitionerId));
+  
+  return result;
+}
+
+// ============= WORKING PLANS (PLANS DE TRAVAIL) =============
+
+/**
+ * Créer un plan de travail
+ */
+export async function createWorkingPlan(data: InsertWorkingPlan) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(workingPlans).values(data);
+  return result;
+}
+
+/**
+ * Récupérer le plan de travail d'un praticien
+ */
+export async function getPractitionerWorkingPlan(practitionerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(workingPlans)
+    .where(and(
+      eq(workingPlans.practitionerId, practitionerId),
+      eq(workingPlans.isActive, true)
+    ));
+  
+  return result;
+}
+
+/**
+ * Mettre à jour un plan de travail
+ */
+export async function updateWorkingPlan(id: number, data: Partial<InsertWorkingPlan>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(workingPlans)
+    .set(data)
+    .where(eq(workingPlans.id, id));
+}
+
+// ============= BLOCKED PERIODS (PÉRIODES BLOQUÉES) =============
+
+/**
+ * Créer une période bloquée
+ */
+export async function createBlockedPeriod(data: InsertBlockedPeriod) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(blockedPeriods).values(data);
+  return result;
+}
+
+/**
+ * Récupérer les périodes bloquées d'un praticien
+ */
+export async function getPractitionerBlockedPeriods(practitionerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(blockedPeriods)
+    .where(eq(blockedPeriods.practitionerId, practitionerId))
+    .orderBy(blockedPeriods.startDatetime);
+  
+  return result;
+}
+
+/**
+ * Supprimer une période bloquée
+ */
+export async function deleteBlockedPeriod(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(blockedPeriods).where(eq(blockedPeriods.id, id));
+}
+
+// ============= SETTINGS (PARAMÈTRES GLOBAUX) =============
+
+/**
+ * Récupérer un paramètre par nom
+ */
+export async function getSetting(name: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select()
+    .from(settings)
+    .where(eq(settings.name, name))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Définir ou mettre à jour un paramètre
+ */
+export async function setSetting(name: string, value: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(settings)
+    .values({ name, value })
+    .onDuplicateKeyUpdate({ set: { value } });
+}
+
+/**
+ * Récupérer tous les paramètres
+ */
+export async function getAllSettings() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select().from(settings);
+  return result;
+}
+
+// ============= WEBHOOKS =============
+
+/**
+ * Récupérer tous les webhooks actifs
+ */
+export async function getActiveWebhooks() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select()
+    .from(webhooks)
+    .where(eq(webhooks.isActive, true));
+  
+  return result;
+}
+
+/**
+ * Créer un webhook
+ */
+export async function createWebhook(data: InsertWebhook) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(webhooks).values(data);
+  return result;
+}
+
+// ============= GOOGLE CALENDAR SYNC =============
+
+/**
+ * Créer une entrée de synchronisation Google Calendar
+ */
+export async function createGoogleCalendarSync(data: InsertGoogleCalendarSync) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(googleCalendarSync).values(data);
+  return result;
+}
+
+/**
+ * Récupérer les infos de sync Google Calendar pour un rendez-vous
+ */
+export async function getGoogleCalendarSyncByAppointment(appointmentId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select()
+    .from(googleCalendarSync)
+    .where(eq(googleCalendarSync.appointmentId, appointmentId))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// ============= ENHANCED APPOINTMENTS =============
+
+/**
+ * Créer un rendez-vous avec hash unique pour annulation
+ */
+export async function createAppointmentWithHash(data: Omit<InsertAppointment, 'hash'>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const hash = nanoid(32); // Générer un hash unique
+  
+  const appointmentData: InsertAppointment = {
+    ...data,
+    hash,
+    bookDatetime: new Date(),
+    startDatetime: new Date(`${data.appointmentDate}T${data.startTime}`),
+    endDatetime: new Date(`${data.appointmentDate}T${data.endTime}`),
+  };
+  
+  const result = await db.insert(appointments).values(appointmentData);
+  return { insertId: result[0].insertId, hash };
+}
+
+/**
+ * Récupérer un rendez-vous par hash
+ */
+export async function getAppointmentByHash(hash: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select()
+    .from(appointments)
+    .where(eq(appointments.hash, hash))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Mettre à jour un rendez-vous
+ */
+export async function updateAppointment(id: number, data: Partial<InsertAppointment>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(appointments)
+    .set(data)
+    .where(eq(appointments.id, id));
 }
