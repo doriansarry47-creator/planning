@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Calendar, momentLocalizer, Event, View } from 'react-big-calendar';
 import moment from 'moment';
-import 'moment/locale/fr';
+import 'moment/locale/fr'; // Importer la locale française
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +13,10 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import '@/styles/calendar.css';
 
-// Configuration de moment en français
+// Forcer la configuration de moment en français
 moment.locale('fr');
 const localizer = momentLocalizer(moment);
 

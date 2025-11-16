@@ -26,7 +26,6 @@ import { toast } from 'sonner';
 import EnhancedCalendar, { CalendarSlot } from './EnhancedCalendar';
 import SlotCreationDialog, { SlotData } from './SlotCreationDialog';
 import GoogleCalendarSettings from './GoogleCalendarSettings';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 interface TimeSlot {
   id: number;
@@ -145,10 +144,15 @@ export default function AvailabilityManagement() {
   };
 
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>();
+  const [selectedCalendarTime, setSelectedCalendarTime] = useState<{ start: string; end: string } | undefined>();
 
   // Sélectionner un créneau dans le calendrier
   const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
     setSelectedCalendarDate(slotInfo.start);
+    // Extraire les horaires de début et fin
+    const startTime = `${slotInfo.start.getHours().toString().padStart(2, '0')}:${slotInfo.start.getMinutes().toString().padStart(2, '0')}`;
+    const endTime = `${slotInfo.end.getHours().toString().padStart(2, '0')}:${slotInfo.end.getMinutes().toString().padStart(2, '0')}`;
+    setSelectedCalendarTime({ start: startTime, end: endTime });
     setIsCreationDialogOpen(true);
   };
 
@@ -277,20 +281,6 @@ export default function AvailabilityManagement() {
     }
   };
 
-  // Synchroniser avec Google Calendar
-  const handleSyncWithGoogle = async () => {
-    try {
-      toast.info('Synchronisation avec Google Calendar...');
-      
-      // Simuler une synchronisation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast.success('Synchronisation réussie avec Google Calendar');
-    } catch (error) {
-      toast.error('Erreur lors de la synchronisation');
-    }
-  };
-
   const availableSlots = slots.filter(s => s.status === 'available').length;
   const bookedSlots = slots.filter(s => s.status === 'booked').length;
   const cancelledSlots = slots.filter(s => s.status === 'cancelled').length;
@@ -354,10 +344,6 @@ export default function AvailabilityManagement() {
               <CardDescription>Gérez vos créneaux et synchronisez avec Google Calendar</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleSyncWithGoogle}>
-                <LinkIcon className="mr-2 h-4 w-4" />
-                Sync Google Calendar
-              </Button>
               <Button onClick={() => setIsCreationDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nouveau créneau
@@ -366,6 +352,9 @@ export default function AvailabilityManagement() {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Panneau Google Calendar */}
+      <GoogleCalendarSettings slots={slots} />
 
       {/* Calendrier amélioré */}
       <EnhancedCalendar
@@ -383,6 +372,7 @@ export default function AvailabilityManagement() {
         onCreateSlots={handleCreateSlots}
         existingSlots={slots}
         selectedDate={selectedCalendarDate}
+        selectedTime={selectedCalendarTime}
       />
 
       {/* Dialog de détails du créneau sélectionné */}

@@ -68,18 +68,37 @@ export default function GoogleCalendarSettings({ slots = [] }: GoogleCalendarSet
 
     setIsLoading(true);
     try {
+      console.log('🔄 Loading Google Calendar API...');
       await loadGoogleCalendarAPI();
+      
+      console.log('🔄 Signing in to Google...');
       const success = await signInToGoogle();
       
       if (success) {
         setIsConnected(true);
-        toast.success('Connecté à Google Calendar');
+        toast.success('Connecté à Google Calendar', {
+          description: 'Vous pouvez maintenant synchroniser vos rendez-vous',
+        });
       } else {
-        toast.error('Échec de la connexion à Google Calendar');
+        toast.error('Échec de la connexion', {
+          description: 'La connexion à Google Calendar a échoué',
+        });
       }
-    } catch (error) {
-      console.error('Error connecting to Google Calendar:', error);
-      toast.error('Erreur lors de la connexion à Google Calendar');
+    } catch (error: any) {
+      console.error('❌ Error connecting to Google Calendar:', error);
+      
+      let errorMessage = 'Erreur lors de la connexion';
+      let errorDescription = 'Une erreur est survenue';
+      
+      if (error.message) {
+        errorDescription = error.message;
+      } else if (typeof error === 'string') {
+        errorDescription = error;
+      }
+      
+      toast.error(errorMessage, {
+        description: errorDescription,
+      });
     } finally {
       setIsLoading(false);
     }
