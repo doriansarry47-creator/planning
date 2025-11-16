@@ -144,8 +144,11 @@ export default function AvailabilityManagement() {
     }
   };
 
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>();
+
   // Sélectionner un créneau dans le calendrier
   const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
+    setSelectedCalendarDate(slotInfo.start);
     setIsCreationDialogOpen(true);
   };
 
@@ -379,6 +382,7 @@ export default function AvailabilityManagement() {
         onOpenChange={setIsCreationDialogOpen}
         onCreateSlots={handleCreateSlots}
         existingSlots={slots}
+        selectedDate={selectedCalendarDate}
       />
 
       {/* Dialog de détails du créneau sélectionné */}

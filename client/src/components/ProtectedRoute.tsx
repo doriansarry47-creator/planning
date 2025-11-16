@@ -24,13 +24,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ component: Component, r
     }
   }, [isAuthenticated, isLoading, user, role, setLocation]);
 
-  if (isLoading || !isAuthenticated || (role && user && user.role !== role && user.role !== "admin")) {
-    // Afficher un spinner pendant le chargement ou si l'accès est refusé
+  if (isLoading) {
+    // Afficher un spinner pendant le chargement uniquement
     return (
       <div className="flex justify-center items-center h-screen">
         <Spinner size="lg" />
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    // Laisser le useEffect gérer la redirection
+    return null;
+  }
+
+  if (role && user && user.role !== role && user.role !== "admin") {
+    // Laisser le useEffect gérer la redirection
+    return null;
   }
 
   return <Component />;

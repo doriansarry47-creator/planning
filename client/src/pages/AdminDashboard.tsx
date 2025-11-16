@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 import StatsCards from '@/components/admin/StatsCards';
 import UsersManagement from '@/components/admin/UsersManagement';
 import ActivityLogs from '@/components/admin/ActivityLogs';
-import SpecialtiesManagement from '@/components/admin/SpecialtiesManagement';
+// Spécialités supprimées de l'interface admin
+// import SpecialtiesManagement from '@/components/admin/SpecialtiesManagement';
 import AppointmentsManagement from '@/components/admin/AppointmentsManagement';
 import AvailabilityManagement from '@/components/admin/AvailabilityManagement';
 
@@ -96,12 +97,11 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="appointments">Rendez-vous</TabsTrigger>
             <TabsTrigger value="availability">Disponibilités</TabsTrigger>
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
-            <TabsTrigger value="specialties">Spécialités</TabsTrigger>
             <TabsTrigger value="logs">Journal</TabsTrigger>
           </TabsList>
 
@@ -145,9 +145,9 @@ export default function AdminDashboard() {
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
-                    onClick={() => setActiveTab('specialties')}
+                    onClick={() => setActiveTab('availability')}
                   >
-                    Gérer les spécialités
+                    Gérer les disponibilités
                   </Button>
                 </CardContent>
               </Card>
@@ -167,11 +167,6 @@ export default function AdminDashboard() {
           {/* Gestion des disponibilités */}
           <TabsContent value="availability">
             <AvailabilityManagement />
-          </TabsContent>
-
-          {/* Gestion des spécialités */}
-          <TabsContent value="specialties">
-            <SpecialtiesManagement />
           </TabsContent>
 
           {/* Journal d'activité */}

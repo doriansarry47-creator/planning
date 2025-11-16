@@ -33,10 +33,18 @@ export default function ActivityLogs() {
 
   const fetchLogs = async () => {
     try {
-      const response = await fetch('/trpc/admin.getLogs?input={"json":{"limit":100}}');
+      const response = await fetch('/trpc/admin.getLogs?input={"json":{"limit":100}}', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setLogs(data.result?.data?.json || []);
+      } else {
+        console.error('Erreur HTTP:', response.status, response.statusText);
+        toast.error(`Erreur de chargement des logs (${response.status})`);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des logs:', error);

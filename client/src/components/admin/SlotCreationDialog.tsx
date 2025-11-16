@@ -46,6 +46,7 @@ interface SlotCreationDialogProps {
   onOpenChange: (open: boolean) => void;
   onCreateSlots: (slots: SlotData[]) => Promise<void>;
   existingSlots?: Array<{ date: string; startTime: string; endTime: string }>;
+  selectedDate?: Date; // Date sélectionnée depuis le calendrier
 }
 
 export interface SlotData {
@@ -86,6 +87,7 @@ export default function SlotCreationDialog({
   onOpenChange,
   onCreateSlots,
   existingSlots = [],
+  selectedDate,
 }: SlotCreationDialogProps) {
   const [activeTab, setActiveTab] = useState<'simple' | 'recurring'>('simple');
   const [loading, setLoading] = useState(false);
@@ -94,13 +96,21 @@ export default function SlotCreationDialog({
 
   // État pour le formulaire simple
   const [simpleSlot, setSimpleSlot] = useState({
-    date: undefined as Date | undefined,
+    date: selectedDate || undefined as Date | undefined,
     startTime: '09:00',
     endTime: '10:00',
     duration: 60,
     interval: 60,
     consultationType: 'consultation',
   });
+
+  // Mettre à jour la date quand selectedDate change
+  React.useEffect(() => {
+    if (selectedDate && open) {
+      setSimpleSlot(prev => ({ ...prev, date: selectedDate }));
+      setRecurringSlot(prev => ({ ...prev, startDate: selectedDate }));
+    }
+  }, [selectedDate, open]);
 
   // État pour le formulaire récurrent
   const [recurringSlot, setRecurringSlot] = useState({
@@ -430,12 +440,12 @@ export default function SlotCreationDialog({
                       value={simpleSlot.consultationType}
                       onValueChange={(value) => setSimpleSlot({ ...simpleSlot, consultationType: value })}
                     >
-                      <SelectTrigger className="h-12 text-base border-2">
+                      <SelectTrigger className="h-12 text-base border-2 bg-white dark:bg-gray-800">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-gray-800 border-2 shadow-lg z-50">
                         {consultationTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
+                          <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
                             {type.label}
                           </SelectItem>
                         ))}
@@ -552,12 +562,12 @@ export default function SlotCreationDialog({
                       value={recurringSlot.consultationType}
                       onValueChange={(value) => setRecurringSlot({ ...recurringSlot, consultationType: value })}
                     >
-                      <SelectTrigger className="h-12 text-base border-2">
+                      <SelectTrigger className="h-12 text-base border-2 bg-white dark:bg-gray-800">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-gray-800 border-2 shadow-lg z-50">
                         {consultationTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
+                          <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
                             {type.label}
                           </SelectItem>
                         ))}
