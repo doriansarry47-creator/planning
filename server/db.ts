@@ -424,6 +424,139 @@ export async function upsertSetting(setting: InsertSetting) {
   }
 }
 
+// TimeOff functions
+export async function createTimeOff(data: InsertTimeOff) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(timeOff).values(data).returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to create timeOff:", error);
+    throw error;
+  }
+}
+
+export async function getPractitionerTimeOff(practitionerId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get practitioner timeOff: database not available");
+    return [];
+  }
+
+  try {
+    const result = await db.select()
+      .from(timeOff)
+      .where(eq(timeOff.practitionerId, practitionerId))
+      .orderBy(desc(timeOff.startDate));
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get practitioner timeOff:", error);
+    return [];
+  }
+}
+
+// AvailabilitySlots functions
+export async function createAvailabilitySlot(data: InsertAvailabilitySlot) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(availabilitySlots).values(data).returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to create availabilitySlot:", error);
+    throw error;
+  }
+}
+
+export async function updateAvailabilitySlot(id: number, data: Partial<InsertAvailabilitySlot>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.update(availabilitySlots)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(availabilitySlots.id, id))
+      .returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to update availabilitySlot:", error);
+    throw error;
+  }
+}
+
+export async function deleteAvailabilitySlot(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.delete(availabilitySlots).where(eq(availabilitySlots.id, id));
+  } catch (error) {
+    console.error("[Database] Failed to delete availabilitySlot:", error);
+    throw error;
+  }
+}
+
+export async function getPractitionerSlots(practitionerId: number, startDate?: Date, endDate?: Date) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get practitioner slots: database not available");
+    return [];
+  }
+
+  try {
+    let query = db.select().from(availabilitySlots).where(eq(availabilitySlots.practitionerId, practitionerId));
+    
+    if (startDate && endDate) {
+      query = query.where(
+        and(
+          gte(availabilitySlots.startTime, startDate),
+          lte(availabilitySlots.startTime, endDate)
+        )
+      ) as any;
+    }
+    
+    const result = await query.orderBy(availabilitySlots.startTime);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get practitioner slots:", error);
+    return [];
+  }
+}
+
+export async function getAvailableSlots(practitionerId?: number, startDate?: Date, endDate?: Date) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get available slots: database not available");
+    return [];
+  }
+
+  try {
+    let conditions = [];
+    
+    if (practitionerId) {
+      conditions.push(eq(availabilitySlots.practitionerId, practitionerId));
+    }
+    
+    if (startDate && endDate) {
+      conditions.push(gte(availabilitySlots.startTime, startDate));
+      conditions.push(lte(availabilitySlots.startTime, endDate));
+    }
+    
+    const query = conditions.length > 0 
+      ? db.select().from(availabilitySlots).where(and(...conditions))
+      : db.select().from(availabilitySlots);
+    
+    const result = await query.orderBy(availabilitySlots.startTime);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get available slots:", error);
+    return [];
+  }
+}
+
 export {
   users, practitioners, availabilitySlots, appointments, timeOff, 
   adminLogs, specialties, services, serviceCategories, 
