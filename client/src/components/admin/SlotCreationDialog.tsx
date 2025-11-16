@@ -428,7 +428,7 @@ export default function SlotCreationDialog({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">Date *</Label>
-                    <Popover>
+                    <Popover modal={true}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -443,13 +443,13 @@ export default function SlotCreationDialog({
                           {simpleSlot.date ? format(simpleSlot.date, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom">
                         <Calendar
                           mode="single"
                           selected={simpleSlot.date}
                           onSelect={(date) => setSimpleSlot({ ...simpleSlot, date })}
-                          locale={fr}
                           disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
                         />
                       </PopoverContent>
                     </Popover>
@@ -550,7 +550,7 @@ export default function SlotCreationDialog({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">Date de début *</Label>
-                    <Popover>
+                    <Popover modal={true}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -562,16 +562,16 @@ export default function SlotCreationDialog({
                           )}
                         >
                           <CalendarIcon className="mr-3 h-5 w-5" />
-                          {recurringSlot.startDate ? format(recurringSlot.startDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
+                          {recurringSlot.startDate ? format(recurringSlot.startDate, 'PPP', { locale: fr }) : 'Sélectionner une date de début'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom">
                         <Calendar
                           mode="single"
                           selected={recurringSlot.startDate}
                           onSelect={(date) => setRecurringSlot({ ...recurringSlot, startDate: date })}
-                          locale={fr}
                           disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
                         />
                       </PopoverContent>
                     </Popover>
@@ -702,27 +702,33 @@ export default function SlotCreationDialog({
                       <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Jusqu'à une date</Label>
                     </div>
                     {recurringSlot.endType === 'date' && (
-                      <Popover>
+                      <Popover modal={true}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             size="lg"
                             className={cn(
                               'w-full justify-start text-left font-normal ml-8 text-base h-12 border-2',
-                              !recurringSlot.endDate && 'text-muted-foreground'
+                              !recurringSlot.endDate && 'text-muted-foreground',
+                              recurringSlot.endDate && 'border-blue-500 dark:border-blue-400'
                             )}
                           >
                             <CalendarIcon className="mr-3 h-5 w-5" />
-                            {recurringSlot.endDate ? format(recurringSlot.endDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
+                            {recurringSlot.endDate ? format(recurringSlot.endDate, 'PPP', { locale: fr }) : 'Sélectionner une date de fin'}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom">
                           <Calendar
                             mode="single"
                             selected={recurringSlot.endDate}
                             onSelect={(date) => setRecurringSlot({ ...recurringSlot, endDate: date })}
-                            locale={fr}
-                            disabled={(date) => !recurringSlot.startDate || date < recurringSlot.startDate}
+                            disabled={(date) => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              if (!recurringSlot.startDate) return date < today;
+                              return date < recurringSlot.startDate;
+                            }}
+                            initialFocus
                           />
                         </PopoverContent>
                       </Popover>

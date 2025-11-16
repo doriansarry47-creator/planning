@@ -281,6 +281,22 @@ export default function AvailabilityManagement() {
     }
   };
 
+  // Supprimer les créneaux annulés
+  const handleDeleteCancelledSlots = async () => {
+    try {
+      const cancelledCount = slots.filter(s => s.status === 'cancelled').length;
+      if (cancelledCount === 0) {
+        toast.info('Aucun créneau annulé à supprimer');
+        return;
+      }
+      
+      setSlots(prev => prev.filter(s => s.status !== 'cancelled'));
+      toast.success(`${cancelledCount} créneau(x) annulé(s) supprimé(s)`);
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
   const availableSlots = slots.filter(s => s.status === 'available').length;
   const bookedSlots = slots.filter(s => s.status === 'booked').length;
   const cancelledSlots = slots.filter(s => s.status === 'cancelled').length;
@@ -348,6 +364,15 @@ export default function AvailabilityManagement() {
                 <Plus className="mr-2 h-4 w-4" />
                 Nouveau créneau
               </Button>
+              {cancelledSlots > 0 && (
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteCancelledSlots}
+                >
+                  <CalendarX className="mr-2 h-4 w-4" />
+                  Supprimer les annulés ({cancelledSlots})
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
