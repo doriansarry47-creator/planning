@@ -57,20 +57,68 @@ export const GOOGLE_CONFIG = {
 // Stockage des tokens OAuth
 let oauthTokens: OAuth2Tokens | null = null;
 
+// État de chargement de l'API
+let apiLoadingPromise: Promise<void> | null = null;
+let apiLoaded = false;
+
 /**
  * Charger l'API Google Calendar
  */
 export const loadGoogleCalendarAPI = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    if (typeof window.gapi !== 'undefined') {
-      resolve();
+  // Si déjà chargé, retourner immédiatement
+  if (apiLoaded && typeof window.gapi !== 'undefined') {
+    return Promise.resolve();
+  }
+
+  // Si en cours de chargement, retourner la promesse existante
+  if (apiLoadingPromise) {
+    return apiLoadingPromise;
+  }
+
+  apiLoadingPromise = new Promise((resolve, reject) => {
+    // Vérifier si la configuration est complète
+    if (!GOOGLE_CONFIG.CLIENT_ID || !GOOGLE_CONFIG.API_KEY) {
+      const error = new Error('Google Calendar configuration is incomplete. Please set VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_API_KEY in your .env file.');
+      console.error(error);
+      reject(error);
       return;
     }
 
+    // Si gapi existe déjà, l'initialiser directement
+    if (typeof window.gapi !== 'undefined') {
+      initializeGapi(resolve, reject);
+      return;
+    }
+
+    // Charger le script
     const script = document.createElement('script');
     script.src = 'https://apis.google.com/js/api.js';
+    script.async = true;
+    script.defer = true;
+    
     script.onload = () => {
-      window.gapi.load('client:auth2', () => {
+      initializeGapi(resolve, reject);
+    };
+    
+    script.onerror = (error) => {
+      console.error('Failed to load Google API script:', error);
+      apiLoadingPromise = null;
+      reject(new Error('Failed to load Google API script'));
+    };
+    
+    document.body.appendChild(script);
+  });
+
+  return apiLoadingPromise;
+};
+
+/**
+ * Initialiser gapi
+ */
+function initializeGapi(resolve: () => void, reject: (error: Error) => void) {
+  try {
+    window.gapi.load('client:auth2', {
+      callback: () => {
         window.gapi.client
           .init({
             apiKey: GOOGLE_CONFIG.API_KEY,
@@ -79,22 +127,28 @@ export const loadGoogleCalendarAPI = (): Promise<void> => {
             scope: GOOGLE_CONFIG.SCOPES,
           })
           .then(() => {
-            console.log('Google Calendar API initialized');
+            console.log('✅ Google Calendar API initialized successfully');
+            apiLoaded = true;
             resolve();
           })
           .catch((error: any) => {
-            console.error('Error initializing Google API:', error);
-            reject(error);
+            console.error('❌ Error initializing Google API:', error);
+            apiLoadingPromise = null;
+            reject(new Error(`Google API initialization failed: ${error.message || error}`));
           });
-      });
-    };
-    script.onerror = (error) => {
-      console.error('Failed to load Google API script:', error);
-      reject(error);
-    };
-    document.body.appendChild(script);
-  });
-};
+      },
+      onerror: (error: any) => {
+        console.error('❌ Error loading gapi.client:', error);
+        apiLoadingPromise = null;
+        reject(new Error('Failed to load gapi.client'));
+      },
+    });
+  } catch (error) {
+    console.error('❌ Exception during gapi initialization:', error);
+    apiLoadingPromise = null;
+    reject(error instanceof Error ? error : new Error('Unknown error during initialization'));
+  }
+}
 
 /**
  * Définir les tokens OAuth manuellement
@@ -144,30 +198,61 @@ export const clearOAuthTokens = (): void => {
  */
 export const signInToGoogle = async (): Promise<boolean> => {
   try {
-    const auth = window.gapi.auth2.getAuthInstance();
-    if (!auth.isSignedIn.get()) {
-      const result = await auth.signIn({
-        scope: GOOGLE_CONFIG.SCOPES,
-        prompt: 'consent',
-      });
-      
-      // Extraire les tokens
-      const authResponse = result.getAuthResponse();
-      if (authResponse) {
-        const tokens: OAuth2Tokens = {
-          access_token: authResponse.access_token,
-          refresh_token: '', // À récupérer du backend
-          expires_in: authResponse.expires_in,
-          token_type: 'Bearer',
-          scope: authResponse.scope,
-        };
-        setOAuthTokens(tokens);
-      }
+    // Vérifier que gapi est chargé
+    if (typeof window.gapi === 'undefined') {
+      console.error('❌ Google API not loaded');
+      throw new Error('Google API not loaded. Please ensure loadGoogleCalendarAPI() is called first.');
     }
-    return auth.isSignedIn.get();
-  } catch (error) {
-    console.error('Error signing in to Google:', error);
-    return false;
+
+    const auth = window.gapi.auth2.getAuthInstance();
+    
+    if (!auth) {
+      console.error('❌ Auth instance not available');
+      throw new Error('Google Auth instance not available');
+    }
+
+    // Si déjà connecté, retourner true
+    if (auth.isSignedIn.get()) {
+      console.log('✅ Already signed in to Google');
+      return true;
+    }
+
+    console.log('🔐 Initiating Google sign-in...');
+    
+    // Demander la connexion
+    const result = await auth.signIn({
+      scope: GOOGLE_CONFIG.SCOPES,
+      prompt: 'consent',
+    });
+    
+    // Extraire les tokens
+    const authResponse = result.getAuthResponse();
+    if (authResponse) {
+      const tokens: OAuth2Tokens = {
+        access_token: authResponse.access_token,
+        refresh_token: '', // Le refresh token n'est pas toujours fourni
+        expires_in: authResponse.expires_in,
+        token_type: 'Bearer',
+        scope: authResponse.scope,
+      };
+      setOAuthTokens(tokens);
+      console.log('✅ Google sign-in successful, tokens stored');
+    }
+    
+    const isSignedIn = auth.isSignedIn.get();
+    console.log(`✅ Sign-in status: ${isSignedIn}`);
+    return isSignedIn;
+  } catch (error: any) {
+    console.error('❌ Error signing in to Google:', error);
+    
+    // Gérer les erreurs spécifiques
+    if (error.error === 'popup_closed_by_user') {
+      throw new Error('La fenêtre de connexion a été fermée. Veuillez réessayer.');
+    } else if (error.error === 'access_denied') {
+      throw new Error('Accès refusé. Vous devez autoriser l\'accès à Google Calendar.');
+    } else {
+      throw new Error(error.message || 'Échec de la connexion à Google Calendar');
+    }
   }
 };
 

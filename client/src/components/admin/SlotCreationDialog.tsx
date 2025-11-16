@@ -47,6 +47,7 @@ interface SlotCreationDialogProps {
   onCreateSlots: (slots: SlotData[]) => Promise<void>;
   existingSlots?: Array<{ date: string; startTime: string; endTime: string }>;
   selectedDate?: Date; // Date sélectionnée depuis le calendrier
+  selectedTime?: { start: string; end: string }; // Horaires sélectionnés depuis le calendrier
 }
 
 export interface SlotData {
@@ -88,6 +89,7 @@ export default function SlotCreationDialog({
   onCreateSlots,
   existingSlots = [],
   selectedDate,
+  selectedTime,
 }: SlotCreationDialogProps) {
   const [activeTab, setActiveTab] = useState<'simple' | 'recurring'>('simple');
   const [loading, setLoading] = useState(false);
@@ -104,13 +106,32 @@ export default function SlotCreationDialog({
     consultationType: 'consultation',
   });
 
-  // Mettre à jour la date quand selectedDate change
+  // Mettre à jour la date et l'horaire quand selectedDate ou selectedTime changent
   React.useEffect(() => {
     if (selectedDate && open) {
-      setSimpleSlot(prev => ({ ...prev, date: selectedDate }));
-      setRecurringSlot(prev => ({ ...prev, startDate: selectedDate }));
+      const updatedSlot: any = { date: selectedDate };
+      
+      // Pré-remplir les horaires si fournis
+      if (selectedTime) {
+        updatedSlot.startTime = selectedTime.start;
+        updatedSlot.endTime = selectedTime.end;
+        // Calculer la durée automatiquement
+        const [startHours, startMinutes] = selectedTime.start.split(':').map(Number);
+        const [endHours, endMinutes] = selectedTime.end.split(':').map(Number);
+        const durationMinutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
+        if (durationMinutes > 0) {
+          updatedSlot.duration = durationMinutes;
+        }
+      }
+      
+      setSimpleSlot(prev => ({ ...prev, ...updatedSlot }));
+      setRecurringSlot(prev => ({ 
+        ...prev, 
+        startDate: selectedDate,
+        ...(selectedTime && { startTime: selectedTime.start, endTime: selectedTime.end })
+      }));
     }
-  }, [selectedDate, open]);
+  }, [selectedDate, selectedTime, open]);
 
   // État pour le formulaire récurrent
   const [recurringSlot, setRecurringSlot] = useState({
