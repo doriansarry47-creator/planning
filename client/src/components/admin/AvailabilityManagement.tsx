@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,8 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
 import EnhancedCalendar, { CalendarSlot } from './EnhancedCalendar';
 import SlotCreationDialog, { SlotData } from './SlotCreationDialog';
 import GoogleCalendarSettings from './GoogleCalendarSettings';
@@ -40,55 +42,77 @@ interface TimeSlot {
 }
 
 export default function AvailabilityManagement() {
-  const [slots, setSlots] = useState<TimeSlot[]>([
+  const { user } = useAuth();
+  const utils = trpc.useContext();
+  
+  // TODO: Dans une version production, récupérer le practitionerId depuis l'utilisateur connecté ou un sélecteur
+  const currentPractitionerId = 1;
+  
+  // Récupérer les créneaux depuis la base de données
+  const { data: slotsFromDb, isLoading } = trpc.availabilitySlots.listByPractitioner.useQuery(
+    currentPractitionerId,
     {
-      id: 1,
-      date: '2025-11-15',
-      startTime: '09:00',
-      endTime: '10:00',
-      status: 'available',
-      capacity: 1,
-      consultationType: 'consultation'
-    },
-    {
-      id: 2,
-      date: '2025-11-15',
-      startTime: '10:00',
-      endTime: '11:00',
-      status: 'booked',
-      capacity: 1,
-      patientName: 'Marie Dupont',
-      consultationType: 'suivi'
-    },
-    {
-      id: 3,
-      date: '2025-11-15',
-      startTime: '14:00',
-      endTime: '15:00',
-      status: 'available',
-      capacity: 1,
-      consultationType: 'consultation'
-    },
-    {
-      id: 4,
-      date: '2025-11-16',
-      startTime: '09:00',
-      endTime: '10:00',
-      status: 'cancelled',
-      capacity: 1,
-      consultationType: 'consultation',
-      notes: 'Annulé par le patient'
-    },
-    {
-      id: 5,
-      date: '2025-11-16',
-      startTime: '10:00',
-      endTime: '11:00',
-      status: 'available',
-      capacity: 1,
-      consultationType: 'premiere'
+      refetchOnMount: true,
+      refetchOnWindowFocus: false,
     }
-  ]);
+  );
+  
+  // Mutations tRPC
+  const createSlotMutation = trpc.availabilitySlots.create.useMutation({
+    onSuccess: () => {
+      utils.availabilitySlots.listByPractitioner.invalidate();
+    },
+    onError: (error) => {
+      toast.error('Erreur lors de la création: ' + error.message);
+    },
+  });
+  
+  const updateSlotMutation = trpc.availabilitySlots.update.useMutation({
+    onSuccess: () => {
+      utils.availabilitySlots.listByPractitioner.invalidate();
+      toast.success('Créneau mis à jour');
+    },
+    onError: (error) => {
+      toast.error('Erreur lors de la mise à jour: ' + error.message);
+    },
+  });
+  
+  const deleteSlotMutation = trpc.availabilitySlots.delete.useMutation({
+    onSuccess: () => {
+      utils.availabilitySlots.listByPractitioner.invalidate();
+    },
+    onError: (error) => {
+      toast.error('Erreur lors de la suppression: ' + error.message);
+    },
+  });
+  
+  // État local pour l'interface (synchronisé avec la DB)
+  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  
+  // Synchroniser les données de la DB avec l'état local
+  useEffect(() => {
+    if (slotsFromDb && slotsFromDb.length > 0) {
+      const convertedSlots = slotsFromDb.map((slot: any) => {
+        const startDate = new Date(slot.startTime);
+        const endDate = new Date(slot.endTime);
+        
+        return {
+          id: slot.id,
+          date: startDate.toISOString().split('T')[0],
+          startTime: startDate.toTimeString().slice(0, 5),
+          endTime: endDate.toTimeString().slice(0, 5),
+          status: slot.isActive ? 'available' : 'cancelled',
+          capacity: slot.capacity || 1,
+          notes: slot.notes,
+        };
+      });
+      
+      setSlots(convertedSlots);
+    } else if (slotsFromDb && slotsFromDb.length === 0) {
+      // Aucun créneau dans la DB
+      setSlots([]);
+    }
+  }, [slotsFromDb]);
 
   const [isCreationDialogOpen, setIsCreationDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
@@ -122,22 +146,34 @@ export default function AvailabilityManagement() {
     });
   }, [slots]);
 
-  // Créer des créneaux
+  // Créer des créneaux (avec appel API)
   const handleCreateSlots = async (slotsData: SlotData[]) => {
     try {
-      const newSlots: TimeSlot[] = slotsData.map((slotData, index) => ({
-        id: slots.length + index + 1,
-        date: slotData.date,
-        startTime: slotData.startTime,
-        endTime: slotData.endTime,
-        status: 'available',
-        capacity: 1,
-        consultationType: slotData.consultationType,
-      }));
-
-      setSlots(prev => [...prev, ...newSlots]);
-      toast.success(`${newSlots.length} créneau(x) créé(s) avec succès`);
+      setIsCreationDialogOpen(false);
+      toast.loading(`Création de ${slotsData.length} créneau(x)...`, { id: 'creating-slots' });
+      
+      // Créer chaque créneau dans la base de données
+      await Promise.all(
+        slotsData.map(async (slotData) => {
+          const startDateTime = new Date(`${slotData.date}T${slotData.startTime}:00`);
+          const endDateTime = new Date(`${slotData.date}T${slotData.endTime}:00`);
+          
+          return createSlotMutation.mutateAsync({
+            practitionerId: currentPractitionerId,
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+            capacity: 1,
+            isActive: true,
+            notes: slotData.consultationType || undefined,
+          });
+        })
+      );
+      
+      toast.dismiss('creating-slots');
+      toast.success(`${slotsData.length} créneau(x) créé(s) avec succès`);
     } catch (error) {
+      toast.dismiss('creating-slots');
+      console.error('Erreur création créneaux:', error);
       toast.error('Erreur lors de la création des créneaux');
       throw error;
     }
@@ -192,14 +228,15 @@ export default function AvailabilityManagement() {
         return;
       }
 
-      // Mettre à jour le créneau
-      setSlots(prev => prev.map(s => 
-        s.id === slot.id 
-          ? { ...s, date: newDate, startTime: newStartTime, endTime: newEndTime }
-          : s
-      ));
-
-      toast.success('Créneau déplacé avec succès');
+      // Mettre à jour le créneau dans la base de données
+      const startDateTime = new Date(`${newDate}T${newStartTime}:00`);
+      const endDateTime = new Date(`${newDate}T${newEndTime}:00`);
+      
+      await updateSlotMutation.mutateAsync({
+        id: slot.id,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+      });
     } catch (error) {
       toast.error('Erreur lors du déplacement du créneau');
     }
@@ -232,13 +269,15 @@ export default function AvailabilityManagement() {
         return;
       }
 
-      setSlots(prev => prev.map(s => 
-        s.id === slot.id 
-          ? { ...s, startTime: newStartTime, endTime: newEndTime }
-          : s
-      ));
-
-      toast.success('Durée du créneau modifiée');
+      // Mettre à jour le créneau dans la base de données
+      const startDateTime = new Date(`${slot.date}T${newStartTime}:00`);
+      const endDateTime = new Date(`${slot.date}T${newEndTime}:00`);
+      
+      await updateSlotMutation.mutateAsync({
+        id: slot.id,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+      });
     } catch (error) {
       toast.error('Erreur lors de la modification');
     }
@@ -258,11 +297,12 @@ export default function AvailabilityManagement() {
     if (!slotToDelete) return;
 
     try {
-      setSlots(prev => prev.filter(s => s.id !== slotToDelete.id));
+      await deleteSlotMutation.mutateAsync(slotToDelete.id);
       toast.success('Créneau supprimé avec succès');
       setSlotToDelete(null);
     } catch (error) {
-      toast.error('Erreur lors de la suppression du créneau');
+      console.error('Erreur suppression:', error);
+      // L'erreur est déjà affichée par la mutation
     }
   };
 
