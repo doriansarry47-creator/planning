@@ -13,9 +13,10 @@ import { toast } from 'sonner';
 import StatsCards from '@/components/admin/StatsCards';
 import UsersManagement from '@/components/admin/UsersManagement';
 import ActivityLogs from '@/components/admin/ActivityLogs';
+import PatientsManagement from '@/components/admin/PatientsManagement';
 // Spécialités supprimées de l'interface admin
 // import SpecialtiesManagement from '@/components/admin/SpecialtiesManagement';
-import AppointmentsManagement from '@/components/admin/AppointmentsManagement';
+import EnhancedAppointmentsManagement from '@/components/admin/EnhancedAppointmentsManagement';
 import AvailabilityManagement from '@/components/admin/AvailabilityManagement';
 
 export default function AdminDashboard() {
@@ -97,10 +98,11 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="appointments">Rendez-vous</TabsTrigger>
             <TabsTrigger value="availability">Disponibilités</TabsTrigger>
+            <TabsTrigger value="patients">Patients</TabsTrigger>
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
             <TabsTrigger value="logs">Journal</TabsTrigger>
           </TabsList>
@@ -161,12 +163,17 @@ export default function AdminDashboard() {
 
           {/* Gestion des rendez-vous */}
           <TabsContent value="appointments">
-            <AppointmentsManagement />
+            <EnhancedAppointmentsManagement />
           </TabsContent>
 
           {/* Gestion des disponibilités */}
           <TabsContent value="availability">
             <AvailabilityManagement />
+          </TabsContent>
+
+          {/* Gestion des patients */}
+          <TabsContent value="patients">
+            <PatientsManagement />
           </TabsContent>
 
           {/* Journal d'activité */}
