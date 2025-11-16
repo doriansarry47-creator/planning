@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import { ENV } from '../_core/env';
 
 // Initialisation du client Resend avec le token
-const resend = new Resend(ENV.resendApiKey || 're_9tQBWc3R_FW1eBULbk2igSshem5z9wpq8');
+const resend = new Resend(ENV.resendApiKey || 're_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd');
 
 export interface AppointmentEmailData {
   patientName: string;
@@ -275,8 +275,8 @@ export async function sendAppointmentConfirmationEmail(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     // Vérifier que le service est configuré
-    if (!ENV.resendApiKey && resend.apiKey === 're_9tQBWc3R_FW1eBULbk2igSshem5z9wpq8') {
-      console.log('[Email] Utilisation du token Resend par défaut');
+    if (!ENV.resendApiKey && resend.apiKey === 're_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd') {
+      console.log('[Email] Utilisation du token Resend configuré');
     }
 
     const { data: result, error } = await resend.emails.send({
