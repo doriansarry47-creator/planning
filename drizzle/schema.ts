@@ -158,6 +158,10 @@ export const availabilitySlots = pgTable("availabilitySlots", {
   startTime: time("startTime").notNull(),
   endTime: time("endTime").notNull(),
   isAvailable: boolean("isAvailable").default(true).notNull(),
+  isActive: boolean("isActive").default(true).notNull(), // Actif/Inactif
+  isRecurring: boolean("isRecurring").default(false).notNull(), // Créneau récurrent
+  recurrenceEndDate: date("recurrenceEndDate"), // Date de fin de récurrence
+  consultationType: varchar("consultationType", { length: 100 }), // Type de consultation
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -192,8 +196,14 @@ export const appointments = pgTable("appointments", {
   customerEmail: varchar("customerEmail", { length: 320 }).notNull(),
   customerPhone: varchar("customerPhone", { length: 20 }),
   notes: text("notes"),
+  internalNotes: text("internalNotes"), // Notes internes visibles uniquement par l'admin
+  cancellationReason: text("cancellationReason"), // Motif d'annulation
   cancellationHash: varchar("cancellationHash", { length: 64 }),
   googleEventId: varchar("googleEventId", { length: 255 }),
+  reminderSent: boolean("reminderSent").default(false).notNull(), // Rappel envoyé
+  reminderSentAt: timestamp("reminderSentAt"), // Date d'envoi du rappel
+  confirmationSent: boolean("confirmationSent").default(false).notNull(), // Confirmation envoyée
+  confirmationSentAt: timestamp("confirmationSentAt"), // Date d'envoi de la confirmation
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -262,3 +272,51 @@ export const googleCalendarSync = pgTable("googleCalendarSync", {
 
 export type GoogleCalendarSync = typeof googleCalendarSync.$inferSelect;
 export type InsertGoogleCalendarSync = typeof googleCalendarSync.$inferInsert;
+
+// Table des patients
+export const patients = pgTable("patients", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").references(() => users.id), // Lien optionnel avec un compte utilisateur
+  firstName: varchar("firstName", { length: 100 }).notNull(),
+  lastName: varchar("lastName", { length: 100 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phoneNumber: varchar("phoneNumber", { length: 20 }).notNull(),
+  dateOfBirth: date("dateOfBirth"),
+  gender: varchar("gender", { length: 20 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  zipCode: varchar("zipCode", { length: 20 }),
+  emergencyContactName: varchar("emergencyContactName", { length: 200 }),
+  emergencyContactPhone: varchar("emergencyContactPhone", { length: 20 }),
+  medicalHistory: text("medicalHistory"), // Résumé de l'historique médical
+  allergies: text("allergies"), // Allergies connues
+  medications: text("medications"), // Médicaments actuels
+  internalNotes: text("internalNotes"), // Notes internes (non visibles par le patient)
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  lastVisit: timestamp("lastVisit"),
+});
+
+export type Patient = typeof patients.$inferSelect;
+export type InsertPatient = typeof patients.$inferInsert;
+
+// Table des notifications
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  appointmentId: integer("appointmentId").references(() => appointments.id),
+  type: varchar("type", { length: 50 }).notNull(), // 'sms', 'email', 'both'
+  channel: varchar("channel", { length: 50 }).notNull(), // 'confirmation', 'reminder_24h', 'reminder_48h', 'cancellation', 'modification'
+  recipientEmail: varchar("recipientEmail", { length: 320 }),
+  recipientPhone: varchar("recipientPhone", { length: 20 }),
+  subject: varchar("subject", { length: 255 }),
+  message: text("message").notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // 'pending', 'sent', 'failed', 'delivered'
+  sentAt: timestamp("sentAt"),
+  deliveredAt: timestamp("deliveredAt"),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
