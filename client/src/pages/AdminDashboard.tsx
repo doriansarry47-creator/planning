@@ -17,6 +17,8 @@ import ActivityLogs from '@/components/admin/ActivityLogs';
 // import SpecialtiesManagement from '@/components/admin/SpecialtiesManagement';
 import AppointmentsManagement from '@/components/admin/AppointmentsManagement';
 import AvailabilityManagement from '@/components/admin/AvailabilityManagement';
+import PractitionersManagement from '@/components/admin/PractitionersManagement';
+import NotificationsSettings from '@/components/admin/NotificationsSettings';
 
 export default function AdminDashboard() {
   const { logout, user } = useAuth();
@@ -97,10 +99,12 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="appointments">Rendez-vous</TabsTrigger>
             <TabsTrigger value="availability">Disponibilités</TabsTrigger>
+            <TabsTrigger value="practitioners">Praticiens</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
             <TabsTrigger value="logs">Journal</TabsTrigger>
           </TabsList>
@@ -167,6 +171,16 @@ export default function AdminDashboard() {
           {/* Gestion des disponibilités */}
           <TabsContent value="availability">
             <AvailabilityManagement />
+          </TabsContent>
+
+          {/* Gestion des praticiens */}
+          <TabsContent value="practitioners">
+            <PractitionersManagement />
+          </TabsContent>
+
+          {/* Gestion des notifications */}
+          <TabsContent value="notifications">
+            <NotificationsSettings />
           </TabsContent>
 
           {/* Journal d'activité */}

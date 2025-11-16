@@ -57,30 +57,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      // 🔹 Optionnel : Authentification via une API réelle (si ajoutée plus tard)
-      const response = await fetch('/trpc/admin.login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ json: { email, password } }),
-      });
+      // 🔹 Authentification via l'API uniquement si ce n'est pas le compte admin local
+      try {
+        const response = await fetch('/trpc/admin.login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ json: { email, password } }),
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const apiUser = data.result?.data?.json?.user;
+        if (response.ok) {
+          const data = await response.json();
+          const apiUser = data.result?.data?.json?.user;
 
-        if (data.result?.data?.json?.success && apiUser) {
-          const authenticatedUser: User = {
-            id: String(apiUser.id),
-            email: apiUser.email,
-            name: apiUser.name,
-            role: apiUser.role,
-          };
+          if (data.result?.data?.json?.success && apiUser) {
+            const authenticatedUser: User = {
+              id: String(apiUser.id),
+              email: apiUser.email,
+              name: apiUser.name,
+              role: apiUser.role,
+            };
 
-          setUser(authenticatedUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('authUser', JSON.stringify(authenticatedUser));
-          return true;
+            setUser(authenticatedUser);
+            setIsAuthenticated(true);
+            localStorage.setItem('authUser', JSON.stringify(authenticatedUser));
+            return true;
+          }
         }
+      } catch (apiError) {
+        // Si l'API n'est pas disponible, on continue sans erreur fatale
+        console.warn('API non disponible, seule l\'authentification locale est active');
       }
 
       return false;
@@ -98,7 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
       });
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      // Ignorer les erreurs de déconnexion API
+      console.warn('Déconnexion API non disponible, nettoyage local uniquement');
     }
 
     // 🔹 Nettoyage local
