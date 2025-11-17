@@ -95,8 +95,7 @@ export const appRouter = router({
         createAppointmentWithHash, 
         getPractitionerById, 
         getServiceById, 
-        getUserById,
-        createGoogleCalendarSync 
+        getUserById
       } = await import("./db");
       
       const practitioner = await getPractitionerById(input.practitionerId);
@@ -115,6 +114,7 @@ export const appRouter = router({
       const endDate = new Date(startDate.getTime() + duration * 60000);
       const endTime = endDate.toTimeString().slice(0, 8);
 
+      // Créer le rendez-vous d'abord
       const { insertId, hash } = await createAppointmentWithHash({
         userId: ctx.user.id,
         practitionerId: input.practitionerId,
@@ -129,7 +129,8 @@ export const appRouter = router({
         isUnavailability: false,
       });
 
-      // Synchroniser avec Google Calendar
+      // Synchroniser avec Google Calendar et mettre à jour l'appointment avec le googleEventId
+      let googleEventId: string | null = null;
       try {
         const { getGoogleCalendarService } = await import("./services/googleCalendar");
         const calendarService = getGoogleCalendarService();
@@ -138,9 +139,10 @@ export const appRouter = router({
           const user = await getUserById(ctx.user.id);
           
           if (user) {
-            const googleEventId = await calendarService.createEvent({
+            googleEventId = await calendarService.createEvent({
               patientName: user.name || 'Patient',
               patientEmail: user.email || '',
+              patientPhone: user.phoneNumber,
               date: input.appointmentDate,
               startTime: input.startTime,
               endTime,
@@ -148,20 +150,19 @@ export const appRouter = router({
               practitionerName: `${practitioner.firstName} ${practitioner.lastName}`,
             });
 
+            // Mettre à jour l'appointment avec le googleEventId
             if (googleEventId && insertId) {
-              // Enregistrer la synchronisation
-              await createGoogleCalendarSync({
-                appointmentId: insertId,
-                googleEventId,
-                syncStatus: "synced",
-              });
+              const { updateAppointment } = await import("./db");
+              await updateAppointment(insertId, { googleEventId });
               
-              console.log('[Appointments] Rendez-vous synchronisé avec Google Calendar:', googleEventId);
+              console.log('[Appointments] ✅ Rendez-vous ajouté dans Google Calendar:', googleEventId);
             }
           }
+        } else {
+          console.warn('[Appointments] ⚠️ Service Google Calendar non configuré. Rendez-vous créé sans synchronisation.');
         }
       } catch (error) {
-        console.error('[Appointments] Erreur lors de la synchronisation Google Calendar:', error);
+        console.error('[Appointments] ❌ Erreur lors de la synchronisation Google Calendar:', error);
         // Ne pas bloquer la création du rendez-vous si la synchronisation échoue
       }
 

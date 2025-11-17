@@ -3,12 +3,13 @@ import { google } from 'googleapis';
 /**
  * Service Google Calendar pour synchroniser les rendez-vous
  * 
- * Configuration requise:
+ * Configuration requise avec Service Account:
  * 1. Créer un projet dans Google Cloud Console
  * 2. Activer l'API Google Calendar
- * 3. Créer des credentials OAuth 2.0
- * 4. Télécharger le fichier credentials.json
- * 5. Configurer les variables d'environnement
+ * 3. Créer un Service Account (compte de service)
+ * 4. Télécharger le fichier JSON des credentials du service account
+ * 5. Partager votre Google Calendar avec l'email du service account
+ * 6. Configurer les variables d'environnement
  */
 
 interface AppointmentData {
@@ -22,37 +23,39 @@ interface AppointmentData {
   practitionerName?: string;
 }
 
+interface ServiceAccountCredentials {
+  client_email: string;
+  private_key: string;
+}
+
 interface GoogleCalendarConfig {
-  clientId: string;
-  clientSecret: string;
-  redirectUri: string;
-  refreshToken: string;
-  calendarId: string; // ID du calendrier (généralement 'primary' ou l'email)
+  serviceAccountEmail: string;
+  serviceAccountPrivateKey: string;
+  calendarId: string; // ID du calendrier (généralement 'primary' ou l'email du calendrier)
 }
 
 /**
- * Classe pour gérer l'intégration avec Google Calendar
+ * Classe pour gérer l'intégration avec Google Calendar via Service Account
  */
 export class GoogleCalendarService {
-  private oauth2Client: any;
+  private auth: any;
   private calendar: any;
   private config: GoogleCalendarConfig;
 
   constructor(config: GoogleCalendarConfig) {
     this.config = config;
-    this.oauth2Client = new google.auth.OAuth2(
-      config.clientId,
-      config.clientSecret,
-      config.redirectUri
+    
+    // Créer l'authentification avec Service Account (JWT)
+    this.auth = new google.auth.JWT(
+      config.serviceAccountEmail,
+      undefined,
+      config.serviceAccountPrivateKey.replace(/\\n/g, '\n'), // Remplacer les \n échappés
+      ['https://www.googleapis.com/auth/calendar'], // Scope pour gérer le calendrier
+      undefined
     );
 
-    // Définir les credentials
-    this.oauth2Client.setCredentials({
-      refresh_token: config.refreshToken,
-    });
-
     // Initialiser l'API Calendar
-    this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+    this.calendar = google.calendar({ version: 'v3', auth: this.auth });
   }
 
   /**
@@ -100,8 +103,8 @@ export class GoogleCalendarService {
         reminders: {
           useDefault: false,
           overrides: [
-            { method: 'email', minutes: 24 * 60 }, // 1 jour avant
-            { method: 'popup', minutes: 60 }, // 1 heure avant
+            { method: 'email', minutes: 30 }, // Rappel 30 minutes avant (comme demandé)
+            { method: 'popup', minutes: 30 }, // Popup 30 minutes avant
           ],
         },
         colorId: '10', // Vert (pour les rendez-vous médicaux)
@@ -233,24 +236,33 @@ export class GoogleCalendarService {
 
 /**
  * Fonction factory pour créer une instance du service Google Calendar
- * Utilise les variables d'environnement pour la configuration
+ * Utilise les variables d'environnement pour la configuration avec Service Account
+ * 
+ * Variables d'environnement requises:
+ * - GOOGLE_SERVICE_ACCOUNT_EMAIL: Email du compte de service (ex: planningadmin@apaddicto.iam.gserviceaccount.com)
+ * - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: Clé privée du service account (format PEM)
+ * - GOOGLE_CALENDAR_ID: ID du calendrier (ex: 'primary' ou l'email du calendrier)
  */
 export function createGoogleCalendarService(): GoogleCalendarService | null {
   const config = {
-    clientId: process.env.GOOGLE_CLIENT_ID || '',
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/callback',
-    refreshToken: process.env.GOOGLE_REFRESH_TOKEN || '',
+    serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
+    serviceAccountPrivateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '',
     calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
   };
 
   // Vérifier que toutes les variables sont définies
-  if (!config.clientId || !config.clientSecret || !config.refreshToken) {
+  if (!config.serviceAccountEmail || !config.serviceAccountPrivateKey) {
     console.warn('[GoogleCalendar] Configuration incomplète. Synchronisation Google Calendar désactivée.');
+    console.warn('[GoogleCalendar] Assurez-vous que GOOGLE_SERVICE_ACCOUNT_EMAIL et GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY sont définis');
     return null;
   }
 
-  return new GoogleCalendarService(config);
+  try {
+    return new GoogleCalendarService(config);
+  } catch (error) {
+    console.error('[GoogleCalendar] Erreur lors de l\'initialisation du service:', error);
+    return null;
+  }
 }
 
 /**

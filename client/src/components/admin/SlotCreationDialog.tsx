@@ -66,11 +66,18 @@ export interface SlotData {
 }
 
 const consultationTypes = [
-  { value: 'consultation', label: 'Consultation classique' },
-  { value: 'suivi', label: 'Suivi' },
-  { value: 'urgent', label: 'Urgent' },
-  { value: 'premiere', label: 'Première consultation' },
-  { value: 'groupe', label: 'Séance de groupe' },
+  { value: 'consultation', label: 'Consultation classique', color: 'bg-blue-500' },
+  { value: 'suivi', label: 'Suivi', color: 'bg-green-500' },
+  { value: 'urgent', label: 'Urgent', color: 'bg-red-500' },
+  { value: 'premiere', label: 'Première consultation', color: 'bg-purple-500' },
+  { value: 'groupe', label: 'Séance de groupe', color: 'bg-indigo-500' },
+];
+
+// Types d'absence comme dans l'image fournie
+const absenceTypes = [
+  { value: 'formation', label: 'Formation', color: 'bg-orange-500', icon: '📚' },
+  { value: 'sante', label: 'Santé', color: 'bg-pink-500', icon: '🏥' },
+  { value: 'conge', label: 'Congé', color: 'bg-teal-500', icon: '🌴' },
 ];
 
 const daysOfWeek = [
@@ -96,6 +103,9 @@ export default function SlotCreationDialog({
   const [showPreview, setShowPreview] = useState(false);
   const [previewSlots, setPreviewSlots] = useState<SlotData[]>([]);
 
+  // Type de créneau (disponibilité ou absence)
+  const [slotType, setSlotType] = useState<'availability' | 'absence'>('availability');
+  
   // État pour le formulaire simple
   const [simpleSlot, setSimpleSlot] = useState({
     date: selectedDate || undefined as Date | undefined,
@@ -425,6 +435,56 @@ export default function SlotCreationDialog({
 
               {/* Formulaire Simple */}
               <TabsContent value="simple" className="space-y-6 mt-6">
+                {/* Sélection du type de créneau */}
+                <div className="space-y-3">
+                  <Label className="text-lg font-bold text-gray-900 dark:text-gray-100">Sélectionnez un type d'absence ou disponibilité *</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Bouton Disponibilité */}
+                    <Button
+                      type="button"
+                      variant={slotType === 'availability' ? 'default' : 'outline'}
+                      size="lg"
+                      className={cn(
+                        "h-20 text-base font-semibold transition-all",
+                        slotType === 'availability' && "bg-green-600 hover:bg-green-700 border-green-600"
+                      )}
+                      onClick={() => {
+                        setSlotType('availability');
+                        setSimpleSlot({ ...simpleSlot, consultationType: 'consultation' });
+                        setRecurringSlot({ ...recurringSlot, consultationType: 'consultation' });
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-6 w-6" />
+                        <span>Disponibilité</span>
+                      </div>
+                    </Button>
+                    
+                    {/* Bouton Absence */}
+                    <Button
+                      type="button"
+                      variant={slotType === 'absence' ? 'default' : 'outline'}
+                      size="lg"
+                      className={cn(
+                        "h-20 text-base font-semibold transition-all",
+                        slotType === 'absence' && "bg-red-600 hover:bg-red-700 border-red-600"
+                      )}
+                      onClick={() => {
+                        setSlotType('absence');
+                        setSimpleSlot({ ...simpleSlot, consultationType: 'formation' });
+                        setRecurringSlot({ ...recurringSlot, consultationType: 'formation' });
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <X className="h-6 w-6" />
+                        <span>Absence</span>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator className="my-6" />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">Date *</Label>
@@ -456,7 +516,9 @@ export default function SlotCreationDialog({
                   </div>
 
                   <div className="space-y-3">
-                    <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">Type de consultation *</Label>
+                    <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                      {slotType === 'availability' ? 'Type de consultation *' : 'Type d\'absence *'}
+                    </Label>
                     <Select
                       value={simpleSlot.consultationType}
                       onValueChange={(value) => setSimpleSlot({ ...simpleSlot, consultationType: value })}
@@ -465,11 +527,26 @@ export default function SlotCreationDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white dark:bg-gray-800 border-2 shadow-lg z-50">
-                        {consultationTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                            {type.label}
-                          </SelectItem>
-                        ))}
+                        {slotType === 'availability' ? (
+                          consultationTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                              <div className="flex items-center gap-2">
+                                <div className={cn("w-3 h-3 rounded-full", type.color)} />
+                                {type.label}
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          absenceTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                              <div className="flex items-center gap-2">
+                                <span>{type.icon}</span>
+                                <div className={cn("w-3 h-3 rounded-full", type.color)} />
+                                {type.label}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -547,6 +624,56 @@ export default function SlotCreationDialog({
 
               {/* Formulaire Récurrent */}
               <TabsContent value="recurring" className="space-y-6 mt-6">
+                {/* Sélection du type de créneau */}
+                <div className="space-y-3">
+                  <Label className="text-lg font-bold text-gray-900 dark:text-gray-100">Sélectionnez un type d'absence ou disponibilité *</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Bouton Disponibilité */}
+                    <Button
+                      type="button"
+                      variant={slotType === 'availability' ? 'default' : 'outline'}
+                      size="lg"
+                      className={cn(
+                        "h-20 text-base font-semibold transition-all",
+                        slotType === 'availability' && "bg-green-600 hover:bg-green-700 border-green-600"
+                      )}
+                      onClick={() => {
+                        setSlotType('availability');
+                        setSimpleSlot({ ...simpleSlot, consultationType: 'consultation' });
+                        setRecurringSlot({ ...recurringSlot, consultationType: 'consultation' });
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-6 w-6" />
+                        <span>Disponibilité</span>
+                      </div>
+                    </Button>
+                    
+                    {/* Bouton Absence */}
+                    <Button
+                      type="button"
+                      variant={slotType === 'absence' ? 'default' : 'outline'}
+                      size="lg"
+                      className={cn(
+                        "h-20 text-base font-semibold transition-all",
+                        slotType === 'absence' && "bg-red-600 hover:bg-red-700 border-red-600"
+                      )}
+                      onClick={() => {
+                        setSlotType('absence');
+                        setSimpleSlot({ ...simpleSlot, consultationType: 'formation' });
+                        setRecurringSlot({ ...recurringSlot, consultationType: 'formation' });
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <X className="h-6 w-6" />
+                        <span>Absence</span>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator className="my-6" />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">Date de début *</Label>
@@ -578,7 +705,9 @@ export default function SlotCreationDialog({
                   </div>
 
                   <div className="space-y-3">
-                    <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">Type de consultation *</Label>
+                    <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                      {slotType === 'availability' ? 'Type de consultation *' : 'Type d\'absence *'}
+                    </Label>
                     <Select
                       value={recurringSlot.consultationType}
                       onValueChange={(value) => setRecurringSlot({ ...recurringSlot, consultationType: value })}
@@ -587,11 +716,26 @@ export default function SlotCreationDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white dark:bg-gray-800 border-2 shadow-lg z-50">
-                        {consultationTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                            {type.label}
-                          </SelectItem>
-                        ))}
+                        {slotType === 'availability' ? (
+                          consultationTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                              <div className="flex items-center gap-2">
+                                <div className={cn("w-3 h-3 rounded-full", type.color)} />
+                                {type.label}
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          absenceTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                              <div className="flex items-center gap-2">
+                                <span>{type.icon}</span>
+                                <div className={cn("w-3 h-3 rounded-full", type.color)} />
+                                {type.label}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
