@@ -26,18 +26,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Vérifier si un utilisateur est déjà connecté (depuis le localStorage)
-    const savedUser = localStorage.getItem('authUser');
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (error) {
-        console.error('Erreur lors de la lecture des données utilisateur:', error);
-        localStorage.removeItem('authUser');
+    const checkAuth = async () => {
+      const savedUser = localStorage.getItem('authUser');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+          console.log('✅ Utilisateur restauré depuis localStorage:', parsedUser.email);
+        } catch (error) {
+          console.error('❌ Erreur lors de la lecture des données utilisateur:', error);
+          localStorage.removeItem('authUser');
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
