@@ -870,7 +870,7 @@ export default function SlotCreationDialog({
                                 {recurringSlot.endDate ? format(recurringSlot.endDate, 'PPP', { locale: fr }) : 'Sélectionner une date de fin'}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 z-[200]" align="start" side="top" sideOffset={5}>
+                            <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={5}>
                               <Calendar
                                 mode="single"
                                 selected={recurringSlot.endDate}
