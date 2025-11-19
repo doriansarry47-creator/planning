@@ -843,19 +843,21 @@ export default function SlotCreationDialog({
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3">
                         <Checkbox
+                          id="end-date-checkbox"
                           checked={recurringSlot.endType === 'date'}
                           onCheckedChange={(checked) => 
                             checked && setRecurringSlot({ ...recurringSlot, endType: 'date' })
                           }
                           className="h-5 w-5"
                         />
-                        <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Jusqu'à une date</Label>
+                        <Label htmlFor="end-date-checkbox" className="text-base font-medium text-gray-900 dark:text-gray-100">Jusqu'à une date</Label>
                       </div>
                       {recurringSlot.endType === 'date' && (
                         <div className="ml-8">
-                          <Popover modal={true}>
+                          <Popover>
                             <PopoverTrigger asChild>
                               <Button
+                                type="button"
                                 variant="outline"
                                 size="lg"
                                 className={cn(
@@ -868,11 +870,15 @@ export default function SlotCreationDialog({
                                 {recurringSlot.endDate ? format(recurringSlot.endDate, 'PPP', { locale: fr }) : 'Sélectionner une date de fin'}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom">
+                            <PopoverContent className="w-auto p-0 z-[200]" align="start" side="top" sideOffset={5}>
                               <Calendar
                                 mode="single"
                                 selected={recurringSlot.endDate}
-                                onSelect={(date) => setRecurringSlot({ ...recurringSlot, endDate: date })}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    setRecurringSlot({ ...recurringSlot, endDate: date });
+                                  }
+                                }}
                                 disabled={(date) => {
                                   const today = new Date();
                                   today.setHours(0, 0, 0, 0);
@@ -880,6 +886,7 @@ export default function SlotCreationDialog({
                                   return date < recurringSlot.startDate;
                                 }}
                                 initialFocus
+                                fromDate={recurringSlot.startDate || new Date()}
                               />
                             </PopoverContent>
                           </Popover>
@@ -890,21 +897,27 @@ export default function SlotCreationDialog({
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3">
                         <Checkbox
+                          id="occurrences-checkbox"
                           checked={recurringSlot.endType === 'occurrences'}
                           onCheckedChange={(checked) => 
                             checked && setRecurringSlot({ ...recurringSlot, endType: 'occurrences' })
                           }
                           className="h-5 w-5"
                         />
-                        <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Après un nombre d'occurrences</Label>
+                        <Label htmlFor="occurrences-checkbox" className="text-base font-medium text-gray-900 dark:text-gray-100">Après un nombre d'occurrences</Label>
                       </div>
                       {recurringSlot.endType === 'occurrences' && (
                         <Input
                           type="number"
                           min="1"
+                          max="100"
                           value={recurringSlot.occurrences}
-                          onChange={(e) => setRecurringSlot({ ...recurringSlot, occurrences: parseInt(e.target.value) })}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 1;
+                            setRecurringSlot({ ...recurringSlot, occurrences: Math.max(1, Math.min(100, val)) });
+                          }}
                           className="ml-8 h-12 text-base border-2"
+                          placeholder="Nombre d'occurrences (1-100)"
                         />
                       )}
                     </div>
