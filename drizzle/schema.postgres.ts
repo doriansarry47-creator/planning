@@ -154,10 +154,11 @@ export type InsertBlockedPeriod = typeof blockedPeriods.$inferInsert;
 export const availabilitySlots = pgTable("availabilitySlots", {
   id: serial("id").primaryKey(),
   practitionerId: integer("practitionerId").notNull().references(() => practitioners.id),
-  dayOfWeek: integer("dayOfWeek").notNull(),
-  startTime: time("startTime").notNull(),
-  endTime: time("endTime").notNull(),
-  isAvailable: boolean("isAvailable").default(true).notNull(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime").notNull(),
+  capacity: integer("capacity").default(1).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
