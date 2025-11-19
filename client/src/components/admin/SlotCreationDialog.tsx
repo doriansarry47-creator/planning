@@ -854,7 +854,7 @@ export default function SlotCreationDialog({
                       </div>
                       {recurringSlot.endType === 'date' && (
                         <div className="ml-8">
-                          <Popover>
+                          <Popover modal={true}>
                             <PopoverTrigger asChild>
                               <Button
                                 type="button"
