@@ -508,7 +508,7 @@ export default function SlotCreationDialog({
                           {simpleSlot.date ? format(simpleSlot.date, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom">
+                      <PopoverContent className="w-auto p-0 z-[1000]" align="start" side="bottom">
                         <Calendar
                           mode="single"
                           selected={simpleSlot.date}
@@ -697,7 +697,7 @@ export default function SlotCreationDialog({
                           {recurringSlot.startDate ? format(recurringSlot.startDate, 'PPP', { locale: fr }) : 'Sélectionner une date de début'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom">
+                      <PopoverContent className="w-auto p-0 z-[1000]" align="start" side="bottom">
                         <Calendar
                           mode="single"
                           selected={recurringSlot.startDate}
@@ -853,9 +853,12 @@ export default function SlotCreationDialog({
                                 const trigger = document.getElementById('end-date-select-trigger') as HTMLButtonElement;
                                 if (trigger) {
                                   trigger.focus();
-                                  trigger.click();
+                                  // Attendre un peu plus pour que le focus soit effectif
+                                  setTimeout(() => {
+                                    trigger.click();
+                                  }, 50);
                                 }
-                              }, 150);
+                              }, 200);
                             }
                           }}
                           className="h-5 w-5 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
@@ -872,7 +875,7 @@ export default function SlotCreationDialog({
                       </div>
                       {recurringSlot.endType === 'date' && (
                         <div className="ml-8">
-                          <Popover modal={false}>
+                          <Popover modal={true}>
                             <PopoverTrigger asChild>
                               <Button
                                 id="end-date-select-trigger"
@@ -888,10 +891,11 @@ export default function SlotCreationDialog({
                                       : 'hover:border-blue-400'
                                 )}
                                 onClick={() => {
-                                  // S'assurer que le sélecteur de date s'ouvre quand on clique
+                                  // Force l'ouverture du sélecteur de date
+                                  console.log('Bouton de sélection de date cliqué');
                                   const button = document.getElementById('end-date-select-trigger');
                                   if (button) {
-                                    button.focus();
+                                    // Le Popover s'ouvrira automatiquement grâce à l'ID unique
                                   }
                                 }}
                               >
@@ -899,7 +903,7 @@ export default function SlotCreationDialog({
                                 {recurringSlot.endDate ? format(recurringSlot.endDate, 'PPP', { locale: fr }) : 'Sélectionner une date de fin'}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 z-[99999]" align="start" side="bottom" sideOffset={5}>
+                            <PopoverContent className="w-auto p-0 z-[1000]" align="start" side="bottom" sideOffset={5}>
                               <Calendar
                                 mode="single"
                                 selected={recurringSlot.endDate}
