@@ -13,7 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   
   // Redirection automatique si déjà connecté
   useEffect(() => {
