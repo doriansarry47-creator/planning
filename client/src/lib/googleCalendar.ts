@@ -44,14 +44,14 @@ export interface OAuth2Tokens {
 export const GOOGLE_CONFIG = {
   CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID || '407408718192.apps.googleusercontent.com',
   CLIENT_SECRET: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
-  API_KEY: import.meta.env.VITE_GOOGLE_API_KEY || '',
+  API_KEY: import.meta.env.VITE_GOOGLE_API_KEY || 'd1a5eccfbb5d5a35fbbe564b1dd5b914ec2a4939',
   DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
   SCOPES: [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/calendar.events',
     'https://www.googleapis.com/auth/calendar.readonly',
   ].join(' '),
-  REDIRECT_URI: import.meta.env.VITE_GOOGLE_REDIRECT_URI || 'https://developers.google.com/oauthplayground',
+  REDIRECT_URI: import.meta.env.VITE_GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/callback',
 };
 
 // Stockage des tokens OAuth
