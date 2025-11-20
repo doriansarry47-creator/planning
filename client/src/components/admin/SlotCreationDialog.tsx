@@ -508,7 +508,7 @@ export default function SlotCreationDialog({
                           {simpleSlot.date ? format(simpleSlot.date, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom">
+                      <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom">
                         <Calendar
                           mode="single"
                           selected={simpleSlot.date}
@@ -697,7 +697,7 @@ export default function SlotCreationDialog({
                           {recurringSlot.startDate ? format(recurringSlot.startDate, 'PPP', { locale: fr }) : 'Sélectionner une date de début'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom">
+                      <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom">
                         <Calendar
                           mode="single"
                           selected={recurringSlot.startDate}
@@ -848,23 +848,26 @@ export default function SlotCreationDialog({
                           onCheckedChange={(checked) => {
                             if (checked) {
                               setRecurringSlot({ ...recurringSlot, endType: 'date' });
-                              // Ouvrir automatiquement le sélecteur de date après un court délai
+                              // Ouvrir automatiquement le sélecteur de date avec une meilleure logique
                               setTimeout(() => {
-                                const trigger = document.querySelector('#end-date-select-trigger') as HTMLButtonElement;
-                                if (trigger) trigger.click();
-                              }, 100);
+                                const trigger = document.getElementById('end-date-select-trigger') as HTMLButtonElement;
+                                if (trigger) {
+                                  trigger.focus();
+                                  trigger.click();
+                                }
+                              }, 150);
                             }
                           }}
                           className="h-5 w-5 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                         />
                         <Label htmlFor="end-date-checkbox" className={cn(
-                          "text-base font-medium cursor-pointer",
+                          "text-base font-medium cursor-pointer select-none",
                           recurringSlot.endType === 'date' 
                             ? "text-blue-700 dark:text-blue-300" 
                             : "text-gray-900 dark:text-gray-100"
                         )}>Jusqu'à une date</Label>
                         {recurringSlot.endType === 'date' && (
-                          <Badge variant="default" className="bg-blue-600">Recommandé</Badge>
+                          <Badge variant="default" className="bg-blue-600 animate-pulse">Sélectionnez une date</Badge>
                         )}
                       </div>
                       {recurringSlot.endType === 'date' && (
@@ -877,16 +880,26 @@ export default function SlotCreationDialog({
                                 variant="outline"
                                 size="lg"
                                 className={cn(
-                                  'w-full justify-start text-left font-normal text-base h-12 border-2 cursor-pointer',
-                                  !recurringSlot.endDate && 'text-muted-foreground border-dashed hover:border-blue-400',
-                                  recurringSlot.endDate && 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                                  'w-full justify-start text-left font-normal text-base h-12 border-2 cursor-pointer transition-all hover:shadow-md',
+                                  !recurringSlot.endDate 
+                                    ? 'text-muted-foreground border-dashed border-blue-400 bg-blue-50/50 dark:bg-blue-900/20 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30' 
+                                    : recurringSlot.endDate 
+                                      ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-sm' 
+                                      : 'hover:border-blue-400'
                                 )}
+                                onClick={() => {
+                                  // S'assurer que le sélecteur de date s'ouvre quand on clique
+                                  const button = document.getElementById('end-date-select-trigger');
+                                  if (button) {
+                                    button.focus();
+                                  }
+                                }}
                               >
                                 <CalendarIcon className="mr-3 h-5 w-5" />
                                 {recurringSlot.endDate ? format(recurringSlot.endDate, 'PPP', { locale: fr }) : 'Sélectionner une date de fin'}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={5}>
+                            <PopoverContent className="w-auto p-0 z-[99999]" align="start" side="bottom" sideOffset={5}>
                               <Calendar
                                 mode="single"
                                 selected={recurringSlot.endDate}
@@ -923,13 +936,13 @@ export default function SlotCreationDialog({
                           className="h-5 w-5 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                         />
                         <Label htmlFor="occurrences-checkbox" className={cn(
-                          "text-base font-medium cursor-pointer",
+                          "text-base font-medium cursor-pointer select-none",
                           recurringSlot.endType === 'occurrences' 
                             ? "text-green-700 dark:text-green-300" 
                             : "text-gray-900 dark:text-gray-100"
                         )}>Après un nombre d'occurrences</Label>
                         {recurringSlot.endType === 'occurrences' && (
-                          <Badge variant="outline" className="border-green-600 text-green-700">Alternative</Badge>
+                          <Badge variant="outline" className="border-green-600 text-green-700 animate-pulse">Saisissez un nombre</Badge>
                         )}
                       </div>
                       {recurringSlot.endType === 'occurrences' && (
