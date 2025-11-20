@@ -3,6 +3,7 @@ import { z } from "zod";
 // Schéma de base pour la création d'un créneau de disponibilité
 export const createAvailabilitySlotSchema = z.object({
   practitionerId: z.number().int().positive(),
+  dayOfWeek: z.number().int().min(0).max(6), // Jour de la semaine (0-6)
   startTime: z.string().datetime(), // Utiliser une chaîne de date/heure ISO pour la transmission
   endTime: z.string().datetime(),   // Utiliser une chaîne de date/heure ISO pour la transmission
   capacity: z.number().int().positive().default(1).optional(),
@@ -14,6 +15,7 @@ export const createAvailabilitySlotSchema = z.object({
 export const updateAvailabilitySlotSchema = z.object({
   id: z.number().int().positive(),
   practitionerId: z.number().int().positive().optional(),
+  dayOfWeek: z.number().int().min(0).max(6).optional(),
   startTime: z.string().datetime().optional(),
   endTime: z.string().datetime().optional(),
   capacity: z.number().int().positive().optional(),

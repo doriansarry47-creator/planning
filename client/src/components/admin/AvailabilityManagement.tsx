@@ -160,6 +160,7 @@ export default function AvailabilityManagement() {
           
           return createSlotMutation.mutateAsync({
             practitionerId: currentPractitionerId,
+            dayOfWeek: new Date(slotData.date).getDay(), // Calculer le jour de la semaine (0-6, 0=dimanche)
             startTime: startDateTime.toISOString(),
             endTime: endDateTime.toISOString(),
             capacity: 1,

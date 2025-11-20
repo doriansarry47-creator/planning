@@ -209,6 +209,7 @@ export default function SlotCreationDialog({
           endTime: slotEndTime,
           consultationType: simpleSlot.consultationType,
           isRecurring: false,
+          recurrence: undefined,
         });
       }
       
