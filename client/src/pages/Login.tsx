@@ -6,13 +6,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
-  const [, setLocation] = useLocation();
+  const { login, isAuthenticated, user } = useAuth();
+  const [location] = useLocation();
+  
+  // Redirection automatique si déjà connecté
+  useEffect(() => {
+    if (isAuthenticated && user && user.role === 'admin') {
+      if (location !== '/admin') {
+        toast.success('Connexion réussie ! Redirection...');
+        setLocation('/admin');
+      }
+    }
+  }, [isAuthenticated, user, setLocation, location]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,12 +35,10 @@ export default function Login() {
       
       const success = await login(email, password);
       
-      if (success) {
-        toast.success('Connexion réussie !');
-        setLocation('/admin');
-      } else {
+      if (!success) {
         toast.error('Email ou mot de passe incorrect');
       }
+      // La redirection est maintenant gérée automatiquement par useEffect
     } catch (error) {
       toast.error('Erreur lors de la connexion');
     } finally {
