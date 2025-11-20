@@ -1,4 +1,4 @@
-import { router, publicProcedure, adminProcedure, protectedProcedure } from "./_core/trpc";
+import { router, publicProcedure, adminProcedure } from "./_core/trpc";
 import { z } from "zod";
 
 const createWorkingPlanSchema = z.object({
@@ -71,12 +71,12 @@ export const scheduleRouter = router({
       const { 
         getPractitionerWorkingPlan, 
         getPractitionerBlockedPeriods,
-        getAllAppointments 
+        getAppointmentsByPractitioner 
       } = await import("./db");
       
       const workingPlan = await getPractitionerWorkingPlan(input.practitionerId);
       const blockedPeriods = await getPractitionerBlockedPeriods(input.practitionerId);
-      const appointments = await getAllAppointments();
+      const appointments = await getAppointmentsByPractitioner(input.practitionerId, input.startDate, input.endDate);
       
       // TODO: Implémenter la logique de calcul des disponibilités
       // en tenant compte des working plans, blocked periods et rendez-vous existants
@@ -84,9 +84,7 @@ export const scheduleRouter = router({
       return {
         workingPlan,
         blockedPeriods,
-        appointments: appointments.filter(
-          (apt: any) => apt.appointments.practitionerId === input.practitionerId
-        ),
+        appointments,
       };
     }),
 });

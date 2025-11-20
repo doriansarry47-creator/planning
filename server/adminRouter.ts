@@ -177,7 +177,7 @@ export const adminRouter = router({
   updateAppointmentStatus: adminProcedure
     .input(z.object({
       appointmentId: z.number(),
-      status: z.enum(["scheduled", "completed", "cancelled", "no_show"]),
+      status: z.enum(["pending", "confirmed", "completed", "cancelled", "no_show"]),
     }))
     .mutation(async ({ input, ctx }) => {
       const { getDb, createAdminLog } = await import("./db");
@@ -368,12 +368,12 @@ export const adminRouter = router({
     // Rendez-vous du jour
     const todayAppointments = await db.select({ count: sql<number>`count(*)` })
       .from(appointments)
-      .where(gte(appointments.appointmentDate, today.toISOString().split('T')[0]));
+      .where(gte(appointments.startTime, today));
 
     // Rendez-vous de la semaine
     const weekAppointments = await db.select({ count: sql<number>`count(*)` })
       .from(appointments)
-      .where(gte(appointments.appointmentDate, weekStart.toISOString().split('T')[0]));
+      .where(gte(appointments.startTime, weekStart));
 
     // Créneaux disponibles
     const availableSlots = await db.select({ count: sql<number>`count(*)` })

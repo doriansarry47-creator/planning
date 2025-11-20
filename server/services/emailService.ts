@@ -275,8 +275,8 @@ export async function sendAppointmentConfirmationEmail(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     // Vérifier que le service est configuré
-    if (!ENV.resendApiKey && resend.apiKey === 're_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd') {
-      console.log('[Email] Utilisation du token Resend configuré');
+    if (!ENV.resendApiKey) {
+      console.log('[Email] Utilisation du token Resend par défaut');
     }
 
     const { data: result, error } = await resend.emails.send({

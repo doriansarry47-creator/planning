@@ -23,10 +23,7 @@ interface AppointmentData {
   practitionerName?: string;
 }
 
-interface ServiceAccountCredentials {
-  client_email: string;
-  private_key: string;
-}
+
 
 interface GoogleCalendarConfig {
   serviceAccountEmail: string;
@@ -46,13 +43,11 @@ export class GoogleCalendarService {
     this.config = config;
     
     // Créer l'authentification avec Service Account (JWT)
-    this.auth = new google.auth.JWT(
-      config.serviceAccountEmail,
-      undefined,
-      config.serviceAccountPrivateKey.replace(/\\n/g, '\n'), // Remplacer les \n échappés
-      ['https://www.googleapis.com/auth/calendar'], // Scope pour gérer le calendrier
-      undefined
-    );
+    this.auth = new google.auth.JWT({
+      email: config.serviceAccountEmail,
+      key: config.serviceAccountPrivateKey.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/calendar'],
+    });
 
     // Initialiser l'API Calendar
     this.calendar = google.calendar({ version: 'v3', auth: this.auth });

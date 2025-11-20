@@ -16,7 +16,6 @@ import {
   googleCalendarSync, InsertGoogleCalendarSync
 } from "../drizzle/schema.postgres";
 import { ENV } from './_core/env';
-import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -241,7 +240,7 @@ export async function getAppointmentsByPractitioner(practitionerId: number, star
   if (!db) return [];
 
   try {
-    let query = db.select().from(appointments).where(eq(appointments.practitionerId, practitionerId));
+    let query = db.select().from(appointments).where(eq(appointments.practitionerId, practitionerId)) as any;
     
     if (startDate && endDate) {
       query = query.where(
@@ -457,6 +456,305 @@ export async function getPractitionerTimeOff(practitionerId: number) {
   }
 }
 
+// Utility functions referenced by routers
+export async function getPractitioners() {
+  return getAllPractitioners();
+}
+
+export async function getUserAppointments(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select().from(appointments).where(eq(appointments.customerId, userId));
+  } catch (error) {
+    console.error("[Database] Failed to get user appointments:", error);
+    return [];
+  }
+}
+
+export async function createAppointmentWithHash(appointment: InsertAppointment) {
+  return createAppointment(appointment);
+}
+
+export async function getServiceById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  try {
+    const result = await db.select().from(services).where(eq(services.id, id)).limit(1);
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to get service:", error);
+    return undefined;
+  }
+}
+
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  try {
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to get user:", error);
+    return undefined;
+  }
+}
+
+export async function getAppointmentByHash(hash: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  try {
+    const result = await db.select().from(appointments).where(eq(appointments.cancellationHash, hash)).limit(1);
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to get appointment by hash:", error);
+    return undefined;
+  }
+}
+
+export async function authenticateUser(email: string, password: string) {
+  const user = await getUserByEmail(email);
+  if (!user) return null;
+  
+  // Simple authentication - in production, use proper password hashing
+  return user;
+}
+
+export async function changeUserPassword(userId: number, newPassword: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.update(users)
+      .set({ updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to change password:", error);
+    throw error;
+  }
+}
+
+export async function toggleUserStatus(userId: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.update(users)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to toggle user status:", error);
+    throw error;
+  }
+}
+
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.delete(users).where(eq(users.id, userId));
+  } catch (error) {
+    console.error("[Database] Failed to delete user:", error);
+    throw error;
+  }
+}
+
+// Specialties functions
+export async function getSpecialties() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select().from(specialties).where(eq(specialties.isActive, true));
+  } catch (error) {
+    console.error("[Database] Failed to get specialties:", error);
+    return [];
+  }
+}
+
+export async function createSpecialty(specialty: InsertSpecialty) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(specialties).values(specialty).returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to create specialty:", error);
+    throw error;
+  }
+}
+
+export async function updateSpecialty(id: number, data: Partial<InsertSpecialty>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.update(specialties)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(specialties.id, id))
+      .returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to update specialty:", error);
+    throw error;
+  }
+}
+
+export async function deleteSpecialty(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.delete(specialties).where(eq(specialties.id, id));
+  } catch (error) {
+    console.error("[Database] Failed to delete specialty:", error);
+    throw error;
+  }
+}
+
+// Service categories functions
+export async function getServiceCategories() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select().from(serviceCategories).where(eq(serviceCategories.isActive, true));
+  } catch (error) {
+    console.error("[Database] Failed to get service categories:", error);
+    return [];
+  }
+}
+
+export async function createServiceCategory(category: InsertServiceCategory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(serviceCategories).values(category).returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to create service category:", error);
+    throw error;
+  }
+}
+
+// Enhanced services functions
+export async function getServices() {
+  return getAllServices();
+}
+
+export async function deleteService(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.delete(services).where(eq(services.id, id));
+  } catch (error) {
+    console.error("[Database] Failed to delete service:", error);
+    throw error;
+  }
+}
+
+export async function getPractitionerServices(practitionerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select()
+      .from(practitionerServices)
+      .where(eq(practitionerServices.practitionerId, practitionerId));
+  } catch (error) {
+    console.error("[Database] Failed to get practitioner services:", error);
+    return [];
+  }
+}
+
+export async function addServiceToPractitioner(data: InsertPractitionerService) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(practitionerServices).values(data).returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to add service to practitioner:", error);
+    throw error;
+  }
+}
+
+// Enhanced working plan functions
+export async function getPractitionerWorkingPlan(practitionerId: number) {
+  return getWorkingPlansByPractitioner(practitionerId);
+}
+
+export async function updateWorkingPlan(id: number, data: Partial<InsertWorkingPlan>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.update(workingPlans)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(workingPlans.id, id))
+      .returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to update working plan:", error);
+    throw error;
+  }
+}
+
+// Blocked periods functions
+export async function getPractitionerBlockedPeriods(practitionerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select()
+      .from(blockedPeriods)
+      .where(eq(blockedPeriods.practitionerId, practitionerId));
+  } catch (error) {
+    console.error("[Database] Failed to get practitioner blocked periods:", error);
+    return [];
+  }
+}
+
+export async function createBlockedPeriod(data: InsertBlockedPeriod) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(blockedPeriods).values(data).returning();
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to create blocked period:", error);
+    throw error;
+  }
+}
+
+export async function deleteBlockedPeriod(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.delete(blockedPeriods).where(eq(blockedPeriods.id, id));
+  } catch (error) {
+    console.error("[Database] Failed to delete blocked period:", error);
+    throw error;
+  }
+}
+
+// End of utility functions
+
 // AvailabilitySlots functions
 export async function createAvailabilitySlot(data: InsertAvailabilitySlot) {
   const db = await getDb();
@@ -507,7 +805,7 @@ export async function getPractitionerSlots(practitionerId: number, startDate?: D
   }
 
   try {
-    let query = db.select().from(availabilitySlots).where(eq(availabilitySlots.practitionerId, practitionerId));
+    let query = db.select().from(availabilitySlots).where(eq(availabilitySlots.practitionerId, practitionerId)) as any;
     
     if (startDate && endDate) {
       query = query.where(

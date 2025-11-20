@@ -5,7 +5,7 @@ const createServiceSchema = z.object({
   name: z.string().min(1, "Le nom du service est requis"),
   description: z.string().optional(),
   duration: z.number().min(5).default(30),
-  price: z.string().optional(),
+  price: z.string().default("0"),
   currency: z.string().default("EUR"),
   location: z.string().optional(),
   color: z.string().default("#3788d8"),

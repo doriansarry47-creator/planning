@@ -235,8 +235,8 @@ export const appRouter = router({
       throw new Error("Invalid input");
     }).mutation(async ({ input, ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const { cancelAppointment } = await import("./db");
-      return cancelAppointment(input);
+      const { updateAppointment } = await import("./db");
+      return updateAppointment(input, { status: "cancelled" });
     }),
     
     cancelByHash: publicProcedure.input((val: unknown) => {

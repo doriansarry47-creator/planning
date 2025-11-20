@@ -6,14 +6,14 @@ export const timeOffRouter = router({
   // Ajouter une période de congé (Admin/Practitioner)
   create: practitionerProcedure
     .input(createTimeOffSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       // TODO: Vérifier si le practitionerId correspond à l'utilisateur connecté si ce n'est pas un admin
       
-      // Convertir les chaînes de date en objets Date pour Drizzle
+      // Les dates sont déjà au bon format string
       const data = {
         ...input,
-        startDate: new Date(input.startDate),
-        endDate: new Date(input.endDate),
+        startDate: input.startDate,
+        endDate: input.endDate,
       };
 
       return createTimeOff(data);
@@ -22,10 +22,10 @@ export const timeOffRouter = router({
   // Récupérer les congés d'un praticien (Admin/Practitioner)
   listByPractitioner: practitionerProcedure
     .input(practitionerIdSchema)
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       // TODO: Vérifier si le practitionerId correspond à l'utilisateur connecté si ce n'est pas un admin
       
-      return getPractitionerTimeOff(input);
+      return getPractitionerTimeOff(input.practitionerId);
     }),
     
   // TODO: Ajouter les procédures update et delete si nécessaire
