@@ -1,5 +1,5 @@
 import { protectedProcedure, router, practitionerProcedure } from "./_core/trpc";
-import { createAvailabilitySlotSchema, updateAvailabilitySlotSchema, slotIdSchema, practitionerIdSchema, getAvailableSlotsSchema } from "@shared/zodSchemas";
+import { createAvailabilitySlotSchema, updateAvailabilitySlotSchema, slotIdSchema, practitionerIdSchema, getAvailableSlotsSchema } from "../shared/zodSchemas";
 import { createAvailabilitySlot, updateAvailabilitySlot, deleteAvailabilitySlot, getPractitionerSlots, getAvailableSlots } from "./db";
 
 export const availabilitySlotsRouter = router({

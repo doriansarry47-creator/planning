@@ -1,5 +1,5 @@
 import { practitionerProcedure, router } from "./_core/trpc";
-import { createTimeOffSchema, practitionerIdSchema } from "@shared/zodSchemas";
+import { createTimeOffSchema, practitionerIdSchema } from "../shared/zodSchemas";
 import { createTimeOff, getPractitionerTimeOff } from "./db";
 
 export const timeOffRouter = router({

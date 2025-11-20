@@ -1,4 +1,4 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME } from "../shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { timeOffRouter } from "./timeOffRouter";
@@ -7,7 +7,7 @@ import { adminRouter } from "./adminRouter";
 import { servicesRouter } from "./servicesRouter";
 import { scheduleRouter } from "./scheduleRouter";
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
-import { createPractitionerSchema } from "@shared/zodSchemas";
+import { createPractitionerSchema } from "../shared/zodSchemas";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
