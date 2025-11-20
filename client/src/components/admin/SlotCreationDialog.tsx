@@ -839,38 +839,54 @@ export default function SlotCreationDialog({
 
                 <div className="space-y-4">
                   <Label className="text-lg font-semibold text-gray-900 dark:text-gray-100">Fin de la récurrence *</Label>
-                  <div className="space-y-4">
+                  <div className="space-y-4 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3">
                         <Checkbox
                           id="end-date-checkbox"
                           checked={recurringSlot.endType === 'date'}
-                          onCheckedChange={(checked) => 
-                            checked && setRecurringSlot({ ...recurringSlot, endType: 'date' })
-                          }
-                          className="h-5 w-5"
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setRecurringSlot({ ...recurringSlot, endType: 'date' });
+                              // Ouvrir automatiquement le sélecteur de date après un court délai
+                              setTimeout(() => {
+                                const trigger = document.querySelector('#end-date-select-trigger') as HTMLButtonElement;
+                                if (trigger) trigger.click();
+                              }, 100);
+                            }
+                          }}
+                          className="h-5 w-5 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                         />
-                        <Label htmlFor="end-date-checkbox" className="text-base font-medium text-gray-900 dark:text-gray-100">Jusqu'à une date</Label>
+                        <Label htmlFor="end-date-checkbox" className={cn(
+                          "text-base font-medium cursor-pointer",
+                          recurringSlot.endType === 'date' 
+                            ? "text-blue-700 dark:text-blue-300" 
+                            : "text-gray-900 dark:text-gray-100"
+                        )}>Jusqu'à une date</Label>
+                        {recurringSlot.endType === 'date' && (
+                          <Badge variant="default" className="bg-blue-600">Recommandé</Badge>
+                        )}
                       </div>
                       {recurringSlot.endType === 'date' && (
                         <div className="ml-8">
-                          <Popover modal={true}>
+                          <Popover modal={false}>
                             <PopoverTrigger asChild>
                               <Button
+                                id="end-date-select-trigger"
                                 type="button"
                                 variant="outline"
                                 size="lg"
                                 className={cn(
-                                  'w-full justify-start text-left font-normal text-base h-12 border-2',
-                                  !recurringSlot.endDate && 'text-muted-foreground',
-                                  recurringSlot.endDate && 'border-blue-500 dark:border-blue-400'
+                                  'w-full justify-start text-left font-normal text-base h-12 border-2 cursor-pointer',
+                                  !recurringSlot.endDate && 'text-muted-foreground border-dashed hover:border-blue-400',
+                                  recurringSlot.endDate && 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
                                 )}
                               >
                                 <CalendarIcon className="mr-3 h-5 w-5" />
                                 {recurringSlot.endDate ? format(recurringSlot.endDate, 'PPP', { locale: fr }) : 'Sélectionner une date de fin'}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={5}>
+                            <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={5}>
                               <Calendar
                                 mode="single"
                                 selected={recurringSlot.endDate}
@@ -899,12 +915,22 @@ export default function SlotCreationDialog({
                         <Checkbox
                           id="occurrences-checkbox"
                           checked={recurringSlot.endType === 'occurrences'}
-                          onCheckedChange={(checked) => 
-                            checked && setRecurringSlot({ ...recurringSlot, endType: 'occurrences' })
-                          }
-                          className="h-5 w-5"
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setRecurringSlot({ ...recurringSlot, endType: 'occurrences' });
+                            }
+                          }}
+                          className="h-5 w-5 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                         />
-                        <Label htmlFor="occurrences-checkbox" className="text-base font-medium text-gray-900 dark:text-gray-100">Après un nombre d'occurrences</Label>
+                        <Label htmlFor="occurrences-checkbox" className={cn(
+                          "text-base font-medium cursor-pointer",
+                          recurringSlot.endType === 'occurrences' 
+                            ? "text-green-700 dark:text-green-300" 
+                            : "text-gray-900 dark:text-gray-100"
+                        )}>Après un nombre d'occurrences</Label>
+                        {recurringSlot.endType === 'occurrences' && (
+                          <Badge variant="outline" className="border-green-600 text-green-700">Alternative</Badge>
+                        )}
                       </div>
                       {recurringSlot.endType === 'occurrences' && (
                         <Input
