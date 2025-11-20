@@ -1,4 +1,4 @@
-import { protectedProcedure, router, adminProcedure, practitionerProcedure } from "./_core/trpc";
+import { protectedProcedure, router, practitionerProcedure } from "./_core/trpc";
 import { createAvailabilitySlotSchema, updateAvailabilitySlotSchema, slotIdSchema, practitionerIdSchema, getAvailableSlotsSchema } from "@shared/zodSchemas";
 import { createAvailabilitySlot, updateAvailabilitySlot, deleteAvailabilitySlot, getPractitionerSlots, getAvailableSlots } from "./db";
 
@@ -6,7 +6,7 @@ export const availabilitySlotsRouter = router({
   // Créer un nouveau créneau de disponibilité (Admin/Practitioner)
   create: practitionerProcedure
     .input(createAvailabilitySlotSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       // TODO: Vérifier si le praticienId correspond à l'utilisateur connecté si ce n'est pas un admin
       
       // Convertir les chaînes ISO en objets Date pour Drizzle
@@ -22,7 +22,7 @@ export const availabilitySlotsRouter = router({
   // Mettre à jour un créneau de disponibilité (Admin/Practitioner)
   update: practitionerProcedure
     .input(updateAvailabilitySlotSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       // TODO: Vérifier si le créneau appartient au praticien ou si l'utilisateur est admin
       
       const { id, ...updateData } = input;
@@ -40,7 +40,7 @@ export const availabilitySlotsRouter = router({
   // Supprimer un créneau de disponibilité (Admin/Practitioner)
   delete: practitionerProcedure
     .input(slotIdSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       // TODO: Vérifier si le créneau appartient au praticien ou si l'utilisateur est admin
       
       return deleteAvailabilitySlot(input);
@@ -49,7 +49,7 @@ export const availabilitySlotsRouter = router({
   // Récupérer tous les créneaux d'un praticien (Admin/Practitioner)
   listByPractitioner: practitionerProcedure
     .input(practitionerIdSchema)
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       // TODO: Vérifier si le praticienId correspond à l'utilisateur connecté si ce n'est pas un admin
       
       return getPractitionerSlots(input);

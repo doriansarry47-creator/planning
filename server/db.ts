@@ -805,18 +805,18 @@ export async function getPractitionerSlots(practitionerId: number, startDate?: D
   }
 
   try {
-    let query = db.select().from(availabilitySlots).where(eq(availabilitySlots.practitionerId, practitionerId)) as any;
+    // Construire les conditions dynamiquement
+    const conditions = [eq(availabilitySlots.practitionerId, practitionerId)];
     
     if (startDate && endDate) {
-      query = query.where(
-        and(
-          gte(availabilitySlots.startTime, startDate),
-          lte(availabilitySlots.startTime, endDate)
-        )
-      ) as any;
+      conditions.push(gte(availabilitySlots.startTime, startDate));
+      conditions.push(lte(availabilitySlots.startTime, endDate));
     }
     
-    const result = await query.orderBy(availabilitySlots.startTime);
+    const result = await db.select()
+      .from(availabilitySlots)
+      .where(and(...conditions))
+      .orderBy(availabilitySlots.startTime);
     return result;
   } catch (error) {
     console.error("[Database] Failed to get practitioner slots:", error);

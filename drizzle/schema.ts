@@ -155,13 +155,15 @@ export const availabilitySlots = pgTable("availabilitySlots", {
   id: serial("id").primaryKey(),
   practitionerId: integer("practitionerId").notNull().references(() => practitioners.id),
   dayOfWeek: integer("dayOfWeek").notNull(),
-  startTime: time("startTime").notNull(),
-  endTime: time("endTime").notNull(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime").notNull(),
   isAvailable: boolean("isAvailable").default(true).notNull(),
   isActive: boolean("isActive").default(true).notNull(), // Actif/Inactif
   isRecurring: boolean("isRecurring").default(false).notNull(), // Créneau récurrent
   recurrenceEndDate: date("recurrenceEndDate"), // Date de fin de récurrence
   consultationType: varchar("consultationType", { length: 100 }), // Type de consultation
+  capacity: integer("capacity").default(1).notNull(),
+  notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
