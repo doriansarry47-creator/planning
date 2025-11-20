@@ -7,16 +7,54 @@ export const availabilitySlotsRouter = router({
   create: practitionerProcedure
     .input(createAvailabilitySlotSchema)
     .mutation(async ({ input }) => {
-      // TODO: Vérifier si le praticienId correspond à l'utilisateur connecté si ce n'est pas un admin
-      
-      // Convertir les chaînes ISO en objets Date pour Drizzle
-      const data = {
-        ...input,
-        startTime: new Date(input.startTime),
-        endTime: new Date(input.endTime),
-      };
+      try {
+        // TODO: Vérifier si le praticienId correspond à l'utilisateur connecté si ce n'est pas un admin
+        
+        // Validation supplémentaire des dates
+        if (!input.startTime || !input.endTime) {
+          throw new TRPCError({ 
+            code: "BAD_REQUEST", 
+            message: "Les heures de début et de fin sont requises" 
+          });
+        }
 
-      return createAvailabilitySlot(data);
+        // Convertir les chaînes ISO en objets Date pour Drizzle
+        const startDate = new Date(input.startTime);
+        const endDate = new Date(input.endTime);
+
+        // Vérifier que les dates sont valides
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          throw new TRPCError({ 
+            code: "BAD_REQUEST", 
+            message: "Format de date invalide" 
+          });
+        }
+
+        // Vérifier que startTime < endTime
+        if (startDate >= endDate) {
+          throw new TRPCError({ 
+            code: "BAD_REQUEST", 
+            message: "L'heure de fin doit être après l'heure de début" 
+          });
+        }
+
+        const data = {
+          ...input,
+          startTime: startDate,
+          endTime: endDate,
+        };
+
+        return await createAvailabilitySlot(data);
+      } catch (error) {
+        console.error("Erreur lors de la création du créneau:", error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({ 
+          code: "INTERNAL_SERVER_ERROR", 
+          message: "Erreur lors de la création du créneau de disponibilité" 
+        });
+      }
     }),
 
   // Mettre à jour un créneau de disponibilité (Admin/Practitioner)
