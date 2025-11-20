@@ -18,4 +18,12 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
+  // Ensure all modules are included in the bundle
+  optimizeDeps: {
+    include: [
+      "express",
+      "@trpc/server/adapters/express",
+      "superjson",
+    ],
+  },
 });

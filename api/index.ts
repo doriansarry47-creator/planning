@@ -1,9 +1,18 @@
 import "dotenv/config";
 import express, { Request, Response } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "../server/_core/oauth";
-import { appRouter } from "../server/routers";
-import { createContext } from "../server/_core/context";
+import superjson from "superjson";
+import { TRPCError, initTRPC } from "@trpc/server";
+import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
+
+// Simple OAuth routes without complex imports
+import { OAuthService } from "./oauth-simple";
+import { TRPCRouter } from "./router-simple";
+
+// Basic TRPC setup for serverless
+const t = initTRPC.context<any>().create({
+  transformer: superjson,
+});
 
 const app = express();
 
@@ -12,14 +21,18 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // OAuth callback under /api/oauth/callback
-registerOAuthRoutes(app);
+OAuthService.registerRoutes(app);
 
-// tRPC API
+// tRPC API with simplified router
 app.use(
   "/api/trpc",
   createExpressMiddleware({
-    router: appRouter,
-    createContext,
+    router: TRPCRouter,
+    createContext: ({ req, res }) => ({
+      req,
+      res,
+      user: null, // Simplified context
+    }),
   })
 );
 
