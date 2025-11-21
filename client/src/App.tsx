@@ -15,6 +15,7 @@ import MyAppointments from "./pages/MyAppointments";
 import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import CancelAppointment from "./pages/CancelAppointment";
+import AvailableSlots from "./pages/AvailableSlots";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -23,6 +24,7 @@ function Router() {
       <Route path={"\\"} component={Home} />
       <Route path={"/book-appointment"} component={BookAppointment} />
       <Route path={"/book"} component={EnhancedBookAppointment} />
+      <Route path={"/available-slots"} component={AvailableSlots} />
       <Route path={"/login"} component={Login} />
       <Route path={"/appointments/cancel/:hash"} component={CancelAppointment} />
       <Route path={"/appointments"} component={() => <ProtectedRoute component={MyAppointments} role="user" />} />
