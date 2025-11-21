@@ -1,18 +1,11 @@
 import "dotenv/config";
-import express, { Request, Response } from "express";
+import type { Request, Response } from "express";
+import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import superjson from "superjson";
-import { TRPCError, initTRPC } from "@trpc/server";
-import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 
 // Simple OAuth routes without complex imports
 import { OAuthService } from "./oauth-simple";
 import { TRPCRouter } from "./router-simple";
-
-// Basic TRPC setup for serverless
-const t = initTRPC.context<any>().create({
-  transformer: superjson,
-});
 
 const app = express();
 
@@ -37,7 +30,7 @@ app.use(
 );
 
 // Health check endpoint
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
