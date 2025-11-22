@@ -34,10 +34,10 @@ echo "✅ Page optimisée déployée"
 # Étape 4: Configuration des variables d'environnement
 echo "⚙️ Configuration des variables d'environnement..."
 echo "📋 Variables à configurer dans Vercel Dashboard:"
-echo "   - GOOGLE_CLIENT_SECRET: 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"
-echo "   - RESEND_API_KEY: re_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd"
-echo "   - VITE_GOOGLE_CLIENT_ID: 603850749287-8c0hrol8l5gulsal23mna3raeolmd2l2.apps.googleusercontent.com"
-echo "   - VITE_GOOGLE_API_KEY: d1a5eccfbb5d5a35fbbe564b1dd5b914ec2a4939"
+echo "   - GOOGLE_CLIENT_SECRET: [VOTRE_GOOGLE_CLIENT_SECRET]"
+echo "   - RESEND_API_KEY: [VOTRE_RESEND_API_KEY]"
+echo "   - VITE_GOOGLE_CLIENT_ID: [VOTRE_GOOGLE_CLIENT_ID]"
+echo "   - VITE_GOOGLE_API_KEY: [VOTRE_GOOGLE_API_KEY]"
 
 # Étape 5: Déployer sur Vercel
 echo "🌐 Déploiement sur Vercel..."

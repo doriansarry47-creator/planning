@@ -36,10 +36,10 @@
 ### Variables d'Environnement (à configurer dans Vercel Dashboard)
 
 ```
-GOOGLE_CLIENT_SECRET = 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
-RESEND_API_KEY = re_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd
-VITE_GOOGLE_CLIENT_ID = 603850749287-8c0hrol8l5gulsal23mna3raeolmd2l2.apps.googleusercontent.com
-VITE_GOOGLE_API_KEY = d1a5eccfbb5d5a35fbbe564b1dd5b914ec2a4939
+GOOGLE_CLIENT_SECRET = [VOTRE_GOOGLE_CLIENT_SECRET]
+RESEND_API_KEY = [VOTRE_RESEND_API_KEY]
+VITE_GOOGLE_CLIENT_ID = [VOTRE_GOOGLE_CLIENT_ID]
+VITE_GOOGLE_API_KEY = [VOTRE_GOOGLE_API_KEY]
 GOOGLE_SERVICE_ACCOUNT_EMAIL = planningadmin@apaddicto.iam.gserviceaccount.com
 GOOGLE_PRIVATE_KEY = [clé privée complète fournie]
 ```
