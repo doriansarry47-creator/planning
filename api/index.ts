@@ -374,7 +374,8 @@ const OptimizedTRPCRouter = router({
   }),
 });
 
-// Express App
+// Import du router principal avec bookingRouter corrigé
+import { appRouter } from "../server/routers";
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -383,7 +384,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(
   "/api/trpc",
   createExpressMiddleware({
-    router: OptimizedTRPCRouter,
+    router: appRouter, // Utilise le router principal avec bookingRouter corrigé
     createContext: ({ req, res }: CreateExpressContextOptions) => ({
       req,
       res,
