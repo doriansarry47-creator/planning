@@ -8,44 +8,40 @@
 2. Sélectionner le projet "planning"
 3. Cliquer sur **Settings** onglet
 
-#### 2. Configurer les Variables d'Environnement
+#### 2. Variables d'Environnement à Configurer
+
 Aller dans **Environment Variables** et ajouter ces variables :
 
+**Variables Google Service Account (Obligatoire):**
 ```
 GOOGLE_SERVICE_ACCOUNT_EMAIL
-planningadmin@apaddicto.iam.gserviceaccount.com
+[EMAIL_DU_SERVICE_ACCOUNT]
 ```
-
 ```
 GOOGLE_PRIVATE_KEY
------BEGIN PRIVATE KEY-----
-[INSÉRRER LA VRAIE CLÉ PRIVÉE DU SERVICE ACCOUNT ICI]
------END PRIVATE KEY-----
+[CLÉ_PRIVÉE_DU_SERVICE_ACCOUNT_AU_FORMAT_PEM]
 ```
-
 ```
 GOOGLE_CALENDAR_ID
 primary
 ```
 
+**Variables Google OAuth (Optionnel):**
 ```
 GOOGLE_CLIENT_ID
-603850749287-8c0hrol8l5gulsal23mna3raeolmd2l2.apps.googleusercontent.com
+[VOTRE_GOOGLE_CLIENT_ID]
 ```
-
 ```
 GOOGLE_CLIENT_SECRET
-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
+[VOTRE_GOOGLE_CLIENT_SECRET]
 ```
-
 ```
 VITE_GOOGLE_CLIENT_ID
-603850749287-8c0hrol8l5gulsal23mna3raeolmd2l2.apps.googleusercontent.com
+[VOTRE_GOOGLE_CLIENT_ID]
 ```
-
 ```
 VITE_GOOGLE_API_KEY
-d1a5eccfbb5d5a35fbbe564b1dd5b914ec2a4939
+[VOTRE_GOOGLE_API_KEY]
 ```
 
 #### 3. Redéployer l'Application
