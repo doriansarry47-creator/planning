@@ -1,0 +1,324 @@
+import { z } from 'zod';
+import { publicProcedure, router } from './_core/trpc';
+import { getGoogleCalendarService } from './services/googleCalendar';
+
+/**
+ * Router TRPC pour la gestion des disponibilités via Google Calendar
+ * Permet aux praticiens de gérer leurs créneaux de disponibilité
+ * et aux patients de consulter les créneaux disponibles
+ */
+export const availabilityRouter = router({
+  /**
+   * Créer un créneau de disponibilité (ADMIN)
+   */
+  createSlot: publicProcedure
+    .input(
+      z.object({
+        date: z.string().datetime(),
+        startTime: z.string().regex(/^\d{2}:\d{2}$/),
+        endTime: z.string().regex(/^\d{2}:\d{2}$/),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        recurrence: z.object({
+          frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']),
+          until: z.string().datetime().optional(),
+          count: z.number().optional(),
+          byWeekDay: z.array(z.string()).optional(), // ['MO', 'TU', 'WE', 'TH', 'FR']
+        }).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const service = getGoogleCalendarService();
+      if (!service) {
+        throw new Error('Service Google Calendar non configuré');
+      }
+
+      const eventId = await service.createAvailabilitySlot({
+        date: new Date(input.date),
+        startTime: input.startTime,
+        endTime: input.endTime,
+        title: input.title,
+        description: input.description,
+        recurrence: input.recurrence ? {
+          frequency: input.recurrence.frequency,
+          until: input.recurrence.until ? new Date(input.recurrence.until) : undefined,
+          count: input.recurrence.count,
+          byWeekDay: input.recurrence.byWeekDay,
+        } : undefined,
+      });
+
+      if (!eventId) {
+        return {
+          success: false,
+          error: 'Erreur lors de la création du créneau',
+        };
+      }
+
+      return {
+        success: true,
+        eventId,
+        message: 'Créneau de disponibilité créé avec succès',
+      };
+    }),
+
+  /**
+   * Mettre à jour un créneau de disponibilité (ADMIN)
+   */
+  updateSlot: publicProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        date: z.string().datetime(),
+        startTime: z.string().regex(/^\d{2}:\d{2}$/),
+        endTime: z.string().regex(/^\d{2}:\d{2}$/),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        recurrence: z.object({
+          frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']),
+          until: z.string().datetime().optional(),
+          count: z.number().optional(),
+          byWeekDay: z.array(z.string()).optional(),
+        }).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const service = getGoogleCalendarService();
+      if (!service) {
+        throw new Error('Service Google Calendar non configuré');
+      }
+
+      const success = await service.updateAvailabilitySlot(input.eventId, {
+        date: new Date(input.date),
+        startTime: input.startTime,
+        endTime: input.endTime,
+        title: input.title,
+        description: input.description,
+        recurrence: input.recurrence ? {
+          frequency: input.recurrence.frequency,
+          until: input.recurrence.until ? new Date(input.recurrence.until) : undefined,
+          count: input.recurrence.count,
+          byWeekDay: input.recurrence.byWeekDay,
+        } : undefined,
+      });
+
+      return {
+        success,
+        message: success ? 'Créneau mis à jour' : 'Erreur lors de la mise à jour',
+      };
+    }),
+
+  /**
+   * Supprimer un créneau de disponibilité (ADMIN)
+   */
+  deleteSlot: publicProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const service = getGoogleCalendarService();
+      if (!service) {
+        throw new Error('Service Google Calendar non configuré');
+      }
+
+      const success = await service.deleteAvailabilitySlot(input.eventId);
+
+      return {
+        success,
+        message: success ? 'Créneau supprimé' : 'Erreur lors de la suppression',
+      };
+    }),
+
+  /**
+   * Récupérer les créneaux de disponibilité (PUBLIC)
+   * Accessible aux patients pour voir les créneaux disponibles
+   */
+  getAvailableSlots: publicProcedure
+    .input(
+      z.object({
+        startDate: z.string().datetime(),
+        endDate: z.string().datetime(),
+        slotDuration: z.number().min(15).max(120).optional().default(30),
+      })
+    )
+    .query(async ({ input }) => {
+      const service = getGoogleCalendarService();
+      if (!service) {
+        throw new Error('Service Google Calendar non configuré');
+      }
+
+      const slots = await service.getAvailabilitySlots(
+        new Date(input.startDate),
+        new Date(input.endDate),
+        input.slotDuration
+      );
+
+      // Grouper les créneaux par date
+      const slotsByDate: Record<string, any[]> = {};
+      slots.forEach(slot => {
+        const dateKey = slot.date.toISOString().split('T')[0];
+        if (!slotsByDate[dateKey]) {
+          slotsByDate[dateKey] = [];
+        }
+        if (slot.isAvailable) {
+          slotsByDate[dateKey].push({
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isAvailable: slot.isAvailable,
+          });
+        }
+      });
+
+      return {
+        success: true,
+        slots: slotsByDate,
+        totalSlots: slots.length,
+        availableSlots: slots.filter(s => s.isAvailable).length,
+        period: {
+          start: input.startDate,
+          end: input.endDate,
+        },
+      };
+    }),
+
+  /**
+   * Réserver un créneau (créer un rendez-vous)
+   */
+  bookSlot: publicProcedure
+    .input(
+      z.object({
+        patientName: z.string().min(2),
+        patientEmail: z.string().email(),
+        patientPhone: z.string().optional(),
+        date: z.string().datetime(),
+        startTime: z.string().regex(/^\d{2}:\d{2}$/),
+        endTime: z.string().regex(/^\d{2}:\d{2}$/),
+        reason: z.string().optional(),
+        practitionerName: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const service = getGoogleCalendarService();
+      if (!service) {
+        throw new Error('Service Google Calendar non configuré');
+      }
+
+      // Vérifier la disponibilité
+      const isAvailable = await service.checkAvailability(
+        new Date(input.date),
+        input.startTime,
+        input.endTime
+      );
+
+      if (!isAvailable) {
+        return {
+          success: false,
+          error: 'Ce créneau n\'est plus disponible',
+        };
+      }
+
+      // Créer le rendez-vous
+      const eventId = await service.createEvent({
+        patientName: input.patientName,
+        patientEmail: input.patientEmail,
+        patientPhone: input.patientPhone,
+        date: new Date(input.date),
+        startTime: input.startTime,
+        endTime: input.endTime,
+        reason: input.reason,
+        practitionerName: input.practitionerName,
+      });
+
+      if (!eventId) {
+        return {
+          success: false,
+          error: 'Erreur lors de la création du rendez-vous',
+        };
+      }
+
+      return {
+        success: true,
+        eventId,
+        message: 'Rendez-vous réservé avec succès',
+      };
+    }),
+
+  /**
+   * Vérifier la disponibilité d'un créneau spécifique
+   */
+  checkSlotAvailability: publicProcedure
+    .input(
+      z.object({
+        date: z.string().datetime(),
+        startTime: z.string().regex(/^\d{2}:\d{2}$/),
+        endTime: z.string().regex(/^\d{2}:\d{2}$/),
+      })
+    )
+    .query(async ({ input }) => {
+      const service = getGoogleCalendarService();
+      if (!service) {
+        throw new Error('Service Google Calendar non configuré');
+      }
+
+      const isAvailable = await service.checkAvailability(
+        new Date(input.date),
+        input.startTime,
+        input.endTime
+      );
+
+      return {
+        isAvailable,
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+      };
+    }),
+
+  /**
+   * Obtenir un résumé des disponibilités par jour
+   */
+  getAvailabilitySummary: publicProcedure
+    .input(
+      z.object({
+        startDate: z.string().datetime(),
+        endDate: z.string().datetime(),
+      })
+    )
+    .query(async ({ input }) => {
+      const service = getGoogleCalendarService();
+      if (!service) {
+        throw new Error('Service Google Calendar non configuré');
+      }
+
+      const slots = await service.getAvailabilitySlots(
+        new Date(input.startDate),
+        new Date(input.endDate)
+      );
+
+      // Grouper par date avec statistiques
+      const summary: Record<string, { total: number; available: number; booked: number }> = {};
+      
+      slots.forEach(slot => {
+        const dateKey = slot.date.toISOString().split('T')[0];
+        if (!summary[dateKey]) {
+          summary[dateKey] = { total: 0, available: 0, booked: 0 };
+        }
+        summary[dateKey].total++;
+        if (slot.isAvailable) {
+          summary[dateKey].available++;
+        } else {
+          summary[dateKey].booked++;
+        }
+      });
+
+      return {
+        success: true,
+        summary,
+        period: {
+          start: input.startDate,
+          end: input.endDate,
+        },
+      };
+    }),
+});
