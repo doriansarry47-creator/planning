@@ -16,6 +16,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import CancelAppointment from "./pages/CancelAppointment";
 import AvailableSlots from "./pages/AvailableSlots";
+import ImprovedBooking from "./pages/ImprovedBooking";
+import AdminAvailability from "./pages/AdminAvailability";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -25,10 +27,12 @@ function Router() {
       <Route path={"/book-appointment"} component={BookAppointment} />
       <Route path={"/book"} component={EnhancedBookAppointment} />
       <Route path={"/available-slots"} component={AvailableSlots} />
+      <Route path={"/booking"} component={ImprovedBooking} />
       <Route path={"/login"} component={Login} />
       <Route path={"/appointments/cancel/:hash"} component={CancelAppointment} />
       <Route path={"/appointments"} component={() => <ProtectedRoute component={MyAppointments} role="user" />} />
       <Route path={"/admin"} component={() => <ProtectedRoute component={AdminDashboard} role="admin" />} />
+      <Route path={"/admin/availability"} component={() => <ProtectedRoute component={AdminAvailability} role="admin" />} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
