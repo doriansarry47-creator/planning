@@ -1,7 +1,6 @@
 import { router, publicProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { google } from "googleapis";
-import { getGoogleCalendarIcalService } from "./services/googleCalendarIcal";
 
 /**
  * Service Google Calendar OAuth2 pour doriansarry47@gmail.com
@@ -262,33 +261,8 @@ export const bookingRouter = router({
       const service = getOptimizedGoogleCalendarService();
       
       if (!service || !service.isInitialized) {
-        console.warn("[BookingRouter] Service OAuth2 non initialisé, utilisation service iCal fallback");
-        // Fallback vers l'ancien service iCal
-        const fallbackService = getGoogleCalendarIcalService();
-        if (!fallbackService) {
-          throw new Error("Aucun service Google Calendar configuré");
-        }
-
-        try {
-          const startDate = input.startDate ? new Date(input.startDate) : undefined;
-          const endDate = input.endDate ? new Date(input.endDate) : undefined;
-
-          const availableSlots = await fallbackService.getAvailableSlots(startDate, endDate);
-          
-          const slots60Min: any[] = [];
-          for (const slot of availableSlots) {
-            const minuteSlots = splitSlotInto60MinSlots(slot);
-            slots60Min.push(...minuteSlots);
-          }
-
-          return {
-            success: true,
-            slots: slots60Min,
-          };
-        } catch (error: any) {
-          console.error("[BookingRouter] Erreur service iCal fallback:", error);
-          throw new Error(`Impossible de récupérer les disponibilités: ${error.message}`);
-        }
+        console.error("[BookingRouter] Service OAuth2 non initialisé - GOOGLE_REFRESH_TOKEN manquant");
+        throw new Error("Service de réservation temporairement indisponible");
       }
 
       try {
@@ -337,45 +311,8 @@ export const bookingRouter = router({
       const service = getOptimizedGoogleCalendarService();
       
       if (!service || !service.isInitialized) {
-        console.warn("[BookingRouter] Service OAuth2 non initialisé, utilisation service iCal fallback");
-        // Fallback vers l'ancien service iCal
-        const fallbackService = getGoogleCalendarIcalService();
-        if (!fallbackService) {
-          throw new Error("Aucun service Google Calendar configuré");
-        }
-
-        try {
-          const startDate = input.startDate ? new Date(input.startDate) : undefined;
-          const endDate = input.endDate ? new Date(input.endDate) : undefined;
-
-          const availableSlots = await fallbackService.getAvailableSlots(startDate, endDate);
-          
-          const slotsByDate: Record<string, any[]> = {};
-          
-          for (const slot of availableSlots) {
-            const minuteSlots = splitSlotInto60MinSlots(slot);
-            
-            for (const minSlot of minuteSlots) {
-              if (!slotsByDate[minSlot.date]) {
-                slotsByDate[minSlot.date] = [];
-              }
-              slotsByDate[minSlot.date].push(minSlot);
-            }
-          }
-
-          Object.keys(slotsByDate).forEach(date => {
-            slotsByDate[date].sort((a, b) => a.startTime.localeCompare(b.startTime));
-          });
-
-          return {
-            success: true,
-            slotsByDate,
-            availableDates: Object.keys(slotsByDate).sort(),
-          };
-        } catch (error: any) {
-          console.error("[BookingRouter] Erreur service iCal fallback:", error);
-          throw new Error(`Impossible de récupérer les disponibilités: ${error.message}`);
-        }
+        console.error("[BookingRouter] Service OAuth2 non initialisé - GOOGLE_REFRESH_TOKEN manquant");
+        throw new Error("Service de réservation temporairement indisponible");
       }
 
       try {
@@ -439,7 +376,10 @@ export const bookingRouter = router({
     .input(bookAppointmentSchema)
     .mutation(async ({ input }) => {
       const service = getOptimizedGoogleCalendarService();
-      const fallbackService = getGoogleCalendarIcalService();
+      
+      if (!service || !service.isInitialized) {
+        throw new Error("Service de réservation temporairement indisponible");
+      }
       
       try {
         // Calculer l'heure de fin (60 minutes après le début)
@@ -451,56 +391,19 @@ export const bookingRouter = router({
         const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // +60 minutes
         const endTime = endDateTime.toTimeString().slice(0, 5); // HH:mm
 
-        let eventId: string | null = null;
-
-        // Essayer avec le service OAuth2 d'abord
-        if (service && service.isInitialized) {
-          try {
-            console.log("[BookingRouter] Tentative de réservation avec service OAuth2...");
-            
-            eventId = await service.bookAppointment({
-              date: appointmentDate,
-              startTime: input.startTime,
-              duration: 60,
-              patientName: `${input.firstName} ${input.lastName}`,
-              patientEmail: input.email,
-              patientPhone: input.phone,
-              reason: input.reason,
-            });
-
-            if (eventId) {
-              console.log("[BookingRouter] ✅ Rendez-vous créé avec OAuth2:", eventId);
-            }
-          } catch (oauthError: any) {
-            console.warn("[BookingRouter] ⚠️ Erreur OAuth2, tentative fallback iCal:", oauthError.message);
-          }
-        }
-
-        // Fallback vers l'ancien service iCal si OAuth2 échoue
-        if (!eventId && fallbackService) {
-          try {
-            console.log("[BookingRouter] Tentative de réservation avec service iCal fallback...");
-            
-            eventId = await fallbackService.bookAppointment({
-              patientName: `${input.firstName} ${input.lastName}`,
-              patientEmail: input.email,
-              patientPhone: input.phone,
-              date: appointmentDate,
-              startTime: input.startTime,
-              endTime: endTime,
-              reason: input.reason,
-            });
-
-            if (eventId) {
-              console.log("[BookingRouter] ✅ Rendez-vous créé avec iCal fallback:", eventId);
-            }
-          } catch (icalError: any) {
-            console.error("[BookingRouter] ❌ Erreur service iCal fallback:", icalError);
-          }
-        }
+        // Créer le rendez-vous avec le service OAuth2
+        const eventId = await service.bookAppointment({
+          date: appointmentDate,
+          startTime: input.startTime,
+          duration: 60,
+          patientName: `${input.firstName} ${input.lastName}`,
+          patientEmail: input.email,
+          patientPhone: input.phone,
+          reason: input.reason,
+        });
 
         if (!eventId) {
-          throw new Error("Impossible de créer le rendez-vous avec aucun des services disponibles");
+          throw new Error("Impossible de créer le rendez-vous");
         }
 
         // Envoyer l'email de confirmation
@@ -558,44 +461,15 @@ export const bookingRouter = router({
     }))
     .query(async ({ input }) => {
       const service = getOptimizedGoogleCalendarService();
-      const fallbackService = getGoogleCalendarIcalService();
+      
+      if (!service || !service.isInitialized) {
+        throw new Error("Service de vérification indisponible");
+      }
       
       try {
-        // Calculer l'heure de fin (60 minutes)
-        const [hours, minutes] = input.startTime.split(':').map(Number);
-        const startDateTime = new Date(`${input.date}T${input.startTime}:00`);
-        const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
-        const endTime = endDateTime.toTimeString().slice(0, 5);
-
-        let isAvailable = false;
-
-        // Essayer avec le service OAuth2 d'abord
-        if (service && service.isInitialized) {
-          try {
-            const availableSlots = await service.getAvailableSlots(startDateTime, 60);
-            isAvailable = availableSlots.includes(input.startTime);
-            
-            if (isAvailable) {
-              console.log("[BookingRouter] Créneau disponible confirmé via OAuth2");
-            }
-          } catch (oauthError: any) {
-            console.warn("[BookingRouter] Erreur vérification OAuth2:", oauthError.message);
-          }
-        }
-
-        // Fallback vers l'ancien service iCal si OAuth2 échoue ou si pas disponible
-        if (!isAvailable && fallbackService) {
-          try {
-            isAvailable = await fallbackService.isSlotAvailable(input.date, input.startTime, endTime);
-            
-            if (isAvailable) {
-              console.log("[BookingRouter] Créneau disponible confirmé via iCal fallback");
-            }
-          } catch (icalError: any) {
-            console.error("[BookingRouter] Erreur vérification iCal fallback:", icalError);
-          }
-        }
-
+        const availableSlots = await service.getAvailableSlots(new Date(input.date), 60);
+        const isAvailable = availableSlots.includes(input.startTime);
+        
         return {
           success: true,
           available: isAvailable,
