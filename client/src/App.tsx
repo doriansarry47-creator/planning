@@ -20,13 +20,17 @@ import AvailableSlots from "./pages/AvailableSlots";
 import ImprovedBooking from "./pages/ImprovedBooking";
 import AdminAvailability from "./pages/AdminAvailability";
 import SimpleBooking from "./pages/SimpleBooking";
+import OptimizedBooking from "./pages/OptimizedBooking";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"\\"} component={Home} />
-      <Route path={"/book-appointment"} component={BookAppointmentV2} />
+      {/* Route principale de réservation optimisée */}
+      <Route path={"/book-appointment"} component={OptimizedBooking} />
+      {/* Routes alternatives pour les anciennes versions */}
+      <Route path={"/book-appointment-v2"} component={BookAppointmentV2} />
       <Route path={"/book-appointment-old"} component={BookAppointment} />
       <Route path={"/book"} component={EnhancedBookAppointment} />
       <Route path={"/available-slots"} component={AvailableSlots} />
