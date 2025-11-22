@@ -18,6 +18,7 @@ import CancelAppointment from "./pages/CancelAppointment";
 import AvailableSlots from "./pages/AvailableSlots";
 import ImprovedBooking from "./pages/ImprovedBooking";
 import AdminAvailability from "./pages/AdminAvailability";
+import SimpleBooking from "./pages/SimpleBooking";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -28,6 +29,7 @@ function Router() {
       <Route path={"/book"} component={EnhancedBookAppointment} />
       <Route path={"/available-slots"} component={AvailableSlots} />
       <Route path={"/booking"} component={ImprovedBooking} />
+      <Route path={"/simple-booking"} component={SimpleBooking} />
       <Route path={"/login"} component={Login} />
       <Route path={"/appointments/cancel/:hash"} component={CancelAppointment} />
       <Route path={"/appointments"} component={() => <ProtectedRoute component={MyAppointments} role="user" />} />
