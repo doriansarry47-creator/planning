@@ -4,7 +4,9 @@ Application web de gestion de rendez-vous et de planification construite avec Re
 
 ## 🚀 Déploiement Production
 
-**URL de production** : https://webapp-frtjapec0-ikips-projects.vercel.app
+**URL de production** : https://webapp-frtjapec0-ikips-projects.vercel.app ✅
+
+**Intégration Google Calendar** : ✅ Activée - Nov 22, 2025
 
 ## ✨ Fonctionnalités
 
