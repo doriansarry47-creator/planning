@@ -18,8 +18,8 @@ class OptimizedGoogleCalendarService {
   private isInitialized = false;
   
   // Configuration OAuth2 pour doriansarry47@gmail.com
-  public clientId = "603850749287-8c0hrol8l5gulsal23mna3raeolmd2l2.apps.googleusercontent.com";
-  public clientSecret = "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";
+  public clientId = process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+  public clientSecret = process.env.GOOGLE_CLIENT_SECRET || "YOUR_GOOGLE_CLIENT_SECRET";
   public redirectUri = "https://planning-7qkb7uw7v-ikips-projects.vercel.app/api/oauth/callback";
   private calendarEmail = "doriansarry47@gmail.com";
 
