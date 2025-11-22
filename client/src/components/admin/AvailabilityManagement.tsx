@@ -166,7 +166,6 @@ export default function AvailabilityManagement() {
             capacity: 1,
             isActive: true,
             notes: slotData.consultationType || undefined,
-            emailPatient: slotData.emailPatient,
           });
         })
       );
