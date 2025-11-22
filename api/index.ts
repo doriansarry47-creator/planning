@@ -54,8 +54,18 @@ class GoogleCalendarService {
       const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
       const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
       
+      console.log("🔑 Google Calendar init - Email found:", !!serviceAccountEmail);
+      console.log("🔑 Google Calendar init - Private key found:", !!privateKey);
+      
       if (!serviceAccountEmail || !privateKey) {
-        console.error("Google service account credentials not found");
+        console.error("❌ Google service account credentials not found");
+        console.error("Required env vars: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY");
+        return;
+      }
+
+      // Vérifier que la clé privée commence correctement
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        console.error("❌ Invalid private key format - missing BEGIN PRIVATE KEY header");
         return;
       }
 
@@ -67,9 +77,16 @@ class GoogleCalendarService {
 
       this.calendar = google.calendar({ version: 'v3', auth });
       this.isInitialized = true;
-      console.log("Google Calendar initialized successfully");
+      console.log("✅ Google Calendar initialized successfully");
     } catch (error) {
-      console.error("Failed to initialize Google Calendar:", error);
+      console.error("❌ Failed to initialize Google Calendar:", {
+        error: error.message || error,
+        stack: error.stack,
+        envVars: {
+          hasServiceAccount: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+          hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY
+        }
+      });
     }
   }
 
