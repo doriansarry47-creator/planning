@@ -7,6 +7,7 @@ import { adminRouter } from "./adminRouter";
 import { servicesRouter } from "./servicesRouter";
 import { scheduleRouter } from "./scheduleRouter";
 import { googleCalendarRouter } from "./googleCalendarRouter";
+import { appointmentBookingRouter } from "./appointmentBookingRouter";
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { createPractitionerSchema } from "../shared/zodSchemas";
 
@@ -17,6 +18,7 @@ export const appRouter = router({
   services: servicesRouter,
   schedule: scheduleRouter,
   googleCalendar: googleCalendarRouter,
+  appointmentBooking: appointmentBookingRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

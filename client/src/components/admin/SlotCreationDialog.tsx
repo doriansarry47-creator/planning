@@ -56,7 +56,6 @@ export interface SlotData {
   endTime: string;
   consultationType: string;
   isRecurring: boolean;
-  emailPatient?: string; // Email du patient pour invitation Google Calendar
   recurrence?: {
     frequency: 'daily' | 'weekly' | 'monthly';
     interval: number;
@@ -115,7 +114,6 @@ export default function SlotCreationDialog({
     duration: 60,
     interval: 60,
     consultationType: 'consultation',
-    emailPatient: '', // Email du patient pour invitation Google Calendar
   });
 
   // Mettre à jour la date et l'horaire quand selectedDate ou selectedTime changent
@@ -153,7 +151,6 @@ export default function SlotCreationDialog({
     slotDuration: 60,
     breakDuration: 0,
     consultationType: 'consultation',
-    emailPatient: '', // Email du patient pour invitation Google Calendar
     frequency: 'weekly' as 'daily' | 'weekly' | 'monthly',
     interval: 1,
     selectedDays: [1, 2, 3, 4, 5] as number[],
@@ -211,7 +208,6 @@ export default function SlotCreationDialog({
           startTime: currentTime,
           endTime: slotEndTime,
           consultationType: simpleSlot.consultationType,
-          emailPatient: simpleSlot.emailPatient || undefined,
           isRecurring: false,
           recurrence: undefined,
         });
@@ -271,7 +267,6 @@ export default function SlotCreationDialog({
             startTime: currentTime,
             endTime: slotEndTime,
             consultationType: recurringSlot.consultationType,
-            emailPatient: recurringSlot.emailPatient || undefined,
             isRecurring: true,
             recurrence: {
               frequency: recurringSlot.frequency,
@@ -561,25 +556,6 @@ export default function SlotCreationDialog({
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Email patient pour invitation Google Calendar */}
-                  {slotType === 'availability' && (
-                    <div className="space-y-3">
-                      <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                        Email patient (optionnel)
-                      </Label>
-                      <Input
-                        type="email"
-                        placeholder="patient@exemple.com"
-                        value={simpleSlot.emailPatient}
-                        onChange={(e) => setSimpleSlot({ ...simpleSlot, emailPatient: e.target.value })}
-                        className="h-12 text-base border-2 bg-white dark:bg-gray-800"
-                      />
-                      <p className="text-sm text-gray-500">
-                        Si renseigné, le patient sera invité automatiquement sur Google Calendar
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <Separator className="my-6" />
@@ -769,25 +745,6 @@ export default function SlotCreationDialog({
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Email patient pour invitation Google Calendar */}
-                  {slotType === 'availability' && (
-                    <div className="space-y-3">
-                      <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                        Email patient (optionnel)
-                      </Label>
-                      <Input
-                        type="email"
-                        placeholder="patient@exemple.com"
-                        value={simpleSlot.emailPatient}
-                        onChange={(e) => setSimpleSlot({ ...simpleSlot, emailPatient: e.target.value })}
-                        className="h-12 text-base border-2 bg-white dark:bg-gray-800"
-                      />
-                      <p className="text-sm text-gray-500">
-                        Si renseigné, le patient sera invité automatiquement sur Google Calendar
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <Separator className="my-6" />
