@@ -52,7 +52,7 @@ class GoogleCalendarService {
       
       // Service Account authentication
       const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-      const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      let privateKey = process.env.GOOGLE_PRIVATE_KEY;
       
       console.log("🔑 Google Calendar init - Email found:", !!serviceAccountEmail);
       console.log("🔑 Google Calendar init - Private key found:", !!privateKey);
@@ -63,11 +63,24 @@ class GoogleCalendarService {
         return;
       }
 
+      // Nettoyer et formater la clé privée
+      privateKey = privateKey.replace(/\\n/g, '\n').trim();
+      
       // Vérifier que la clé privée commence correctement
       if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
         console.error("❌ Invalid private key format - missing BEGIN PRIVATE KEY header");
+        console.error("Private key preview:", privateKey.substring(0, 100));
         return;
       }
+      
+      if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+        console.error("❌ Invalid private key format - missing END PRIVATE KEY footer");
+        return;
+      }
+      
+      console.log("✅ Private key format validated");
+      console.log("✅ Key length:", privateKey.length);
+      console.log("✅ Key preview:", privateKey.substring(0, 50) + "...");
 
       const auth = new google.auth.JWT({
         email: serviceAccountEmail,
@@ -79,12 +92,15 @@ class GoogleCalendarService {
       this.isInitialized = true;
       console.log("✅ Google Calendar initialized successfully");
     } catch (error) {
-      console.error("❌ Failed to initialize Google Calendar:", {
-        error: error.message || error,
-        stack: error.stack,
+      console.error("❌ Failed to initialize Google Calendar:");
+      console.error("Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined,
         envVars: {
           hasServiceAccount: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-          hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY
+          hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+          privateKeyPreview: process.env.GOOGLE_PRIVATE_KEY?.substring(0, 50) + "..."
         }
       });
     }
