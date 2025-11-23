@@ -11,17 +11,14 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
-  User,
   Mail,
   Phone,
   ArrowRight,
   RefreshCw,
-  AlertCircle,
   CalendarIcon
 } from 'lucide-react';
 
-// Créneaux disponibles par défaut (9h-17h, toutes les heures)
-const DEFAULT_TIME_SLOTS = [
+const TIME_SLOTS = [
   '09:00', '10:00', '11:00', '12:00',
   '14:00', '15:00', '16:00', '17:00'
 ];
@@ -286,7 +283,7 @@ export default function BookAppointment() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
-                {DEFAULT_TIME_SLOTS.map((time) => (
+                {TIME_SLOTS.map((time) => (
                   <Button
                     key={time}
                     variant={selectedTime === time ? 'default' : 'outline'}
