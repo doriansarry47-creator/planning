@@ -42,35 +42,41 @@ export default function BookAppointment() {
     try {
       const dateStr = date.toISOString().split('T')[0];
       const endDate = new Date(date);
-      endDate.setDate(endDate.getDate() + 1); // Next day for the range
+      endDate.setDate(endDate.getDate() + 1);
+      const endDateStr = endDate.toISOString().split('T')[0];
       
-      const response = await fetch('/api/trpc/booking.getAvailabilitiesByDate', {
+      // Use direct API endpoint
+      const response = await fetch('/api/availabilities', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          input: {
-            startDate: dateStr,
-            endDate: endDate.toISOString().split('T')[0],
-          }
+          startDate: dateStr,
+          endDate: endDateStr,
         })
       });
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la récupération des créneaux");
+        const errorData = await response.json();
+        console.error("API Error:", errorData);
+        throw new Error(errorData?.error || "Erreur lors de la récupération des créneaux");
       }
 
       const result = await response.json();
-      if (result.result?.data?.json?.slotsByDate?.[dateStr]) {
-        const slots = result.result.data.json.slotsByDate[dateStr].map((slot: any) => slot.startTime);
+      console.log("API Response:", result);
+      
+      if (result.success && result.slotsByDate?.[dateStr]) {
+        const slots = result.slotsByDate[dateStr].map((slot: any) => slot.startTime);
+        console.log("Available slots for", dateStr, ":", slots);
         setAvailableSlots(slots);
       } else {
+        console.log("No slots found in response for", dateStr);
         setAvailableSlots([]);
       }
     } catch (error) {
       console.error("Erreur:", error);
-      toast.error("Impossible de récupérer les créneaux disponibles");
+      toast.error(error instanceof Error ? error.message : "Impossible de récupérer les créneaux disponibles");
       setAvailableSlots([]);
     } finally {
       setLoadingSlots(false);

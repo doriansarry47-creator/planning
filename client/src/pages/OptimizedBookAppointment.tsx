@@ -89,17 +89,29 @@ export default function OptimizedBookAppointment() {
   const loadAvailableSlots = async (date: Date) => {
     setIsLoadingSlots(true);
     try {
-      const dateStr = date.toISOString().split('T')[0]; // Format YYYY-MM-DD
-      const result = await callTRPC('getAvailableSlots', { date: dateStr });
+      const dateStr = date.toISOString().split('T')[0];
+      const endDate = new Date(date);
+      endDate.setDate(endDate.getDate() + 1);
+      const endDateStr = endDate.toISOString().split('T')[0];
       
-      setAvailableSlots(result.availableSlots || []);
+      // Use direct API endpoint
+      const response = await fetch('/api/availabilities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate: dateStr, endDate: endDateStr })
+      });
       
-      if (result.availableSlots.length === 0) {
+      if (!response.ok) throw new Error("Erreur API");
+      
+      const result = await response.json();
+      const slots = result.slotsByDate?.[dateStr]?.map((s: any) => s.startTime) || [];
+      setAvailableSlots(slots);
+      
+      if (slots.length === 0) {
         toast.info("Aucun créneau disponible pour cette date");
       } else {
-        toast.success(`${result.availableSlots.length} créneaux disponibles`);
+        toast.success(`${slots.length} créneaux disponibles`);
       }
-      
     } catch (error) {
       console.error("❌ Erreur chargement créneaux:", error);
       toast.error("Impossible de charger les créneaux disponibles");

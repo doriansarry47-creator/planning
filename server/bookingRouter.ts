@@ -218,7 +218,7 @@ class GoogleCalendarServiceAccount {
 // Instance singleton du service Service Account
 let googleCalendarServiceInstance: GoogleCalendarServiceAccount | null = null;
 
-function getGoogleCalendarService(): GoogleCalendarServiceAccount | null {
+export function getGoogleCalendarService(): GoogleCalendarServiceAccount | null {
   if (!googleCalendarServiceInstance) {
     googleCalendarServiceInstance = new GoogleCalendarServiceAccount();
   }
@@ -292,7 +292,7 @@ export const bookingRouter = router({
    */
   getAvailabilities: publicProcedure
     .input(getAvailabilitiesSchema)
-    .query(async ({ input }) => {
+    .mutation(async ({ input }) => {
       console.log("[BookingRouter] Récupération des disponibilités via Service Account JWT");
       const service = getGoogleCalendarService();
       
@@ -343,7 +343,7 @@ export const bookingRouter = router({
    */
   getAvailabilitiesByDate: publicProcedure
     .input(getAvailabilitiesSchema)
-    .query(async ({ input }) => {
+    .mutation(async ({ input }) => {
       console.log("[BookingRouter] Récupération des disponibilités groupées par date via Service Account JWT");
       const service = getGoogleCalendarService();
       

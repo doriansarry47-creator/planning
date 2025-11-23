@@ -20,7 +20,7 @@ import AvailableSlots from "./pages/AvailableSlots";
 import ImprovedBooking from "./pages/ImprovedBooking";
 import AdminAvailability from "./pages/AdminAvailability";
 import SimpleBooking from "./pages/SimpleBooking";
-import OptimizedBooking from "./pages/OptimizedBooking";
+import OptimizedBooking from "./pages/OptimizedBookAppointment";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
