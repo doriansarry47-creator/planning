@@ -10,6 +10,7 @@ import { googleCalendarRouter } from "./googleCalendarRouter";
 import { appointmentBookingRouter } from "./appointmentBookingRouter";
 import { patientBookingRouter } from "./patientBookingRouter";
 import { bookingRouter } from "./bookingRouter";
+import { patientAppointmentsRouter } from "./patientAppointmentsRouter";
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { createPractitionerSchema } from "../shared/zodSchemas";
 
@@ -23,6 +24,7 @@ export const appRouter = router({
   appointmentBooking: appointmentBookingRouter,
   patientBooking: patientBookingRouter,
   booking: bookingRouter, // Nouveau router pour la réservation simplifiée
+  patientAppointments: patientAppointmentsRouter, // Nouveau router pour consulter/annuler les rendez-vous
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

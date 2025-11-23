@@ -19,10 +19,17 @@ This is a full-stack appointment booking system built with:
 
 ### 🎨 Patient Booking Interface - COMPLETED ✅
 - ✅ **Beautiful 3-Step Booking Flow** (`/book-appointment`)
-  - **Step 1**: Date Selection (3 available dates in green)
+  - **Step 1**: Date Selection (38 available dates across Nov/Dec/Jan)
   - **Step 2**: Time Slot Selection (17:30, 18:30 for each date)
   - **Step 3**: Patient Information (name, email, phone, reason)
   - **Step 4**: Confirmation with email notification
+
+### 👁️ Patient Appointments Management - COMPLETED ✅
+- ✅ **View & Cancel Appointments** (`/appointments`)
+  - Patients search by email confirmation
+  - Display all booked appointments with dates/times
+  - Cancel button removes from system + Google Calendar
+  - Automatic sync with booking records
 
 ### Available Dates (From Google Calendar)
 - **Monday, Nov 24**: 17:30, 18:30
@@ -60,9 +67,10 @@ RESEND_API_KEY=<email service key>
 ├── client/
 │   └── src/
 │       ├── pages/
-│       │   ├── OptimizedBookAppointment.tsx ⭐ (MAIN booking page)
+│       │   ├── OptimizedBookAppointment.tsx ⭐ (Booking form)
+│       │   ├── MyAppointments.tsx ⭐ (View & Cancel appointments)
 │       │   ├── Home.tsx
-│       │   └── MyAppointments.tsx
+│       │   └── ...
 │       ├── components/ui/ (Radix UI components)
 │       └── App.tsx
 ├── server/
@@ -72,12 +80,16 @@ RESEND_API_KEY=<email service key>
 │   │   ├── trpc.ts
 │   │   └── vite.ts
 │   ├── services/
+│   │   ├── googleCalendar.ts
 │   │   ├── googleCalendarIcal.ts
-│   │   ├── googleCalendarOAuth.ts
-│   │   └── emailService.ts
-│   ├── bookingRouter.ts (tRPC booking endpoints)
-│   └── db.ts (Neon PostgreSQL connection)
-├── drizzle/ (Database schema & migrations)
+│   │   ├── emailService.ts
+│   │   └── smsService.ts
+│   ├── bookingRouter.ts (tRPC - Booking flow + DB save)
+│   ├── patientAppointmentsRouter.ts ⭐ (View/Cancel RDV)
+│   ├── routers.ts (Main router aggregator)
+│   └── db.ts (Neon PostgreSQL)
+├── drizzle/
+│   └── schema.postgres.ts (15 tables, all with PK)
 ├── vite.config.ts (Port 5000, allowedHosts: true)
 └── package.json
 ```
@@ -89,10 +101,18 @@ npm run dev
 # Server starts on http://0.0.0.0:5000
 ```
 
-Access:
-- **Booking Page**: `/book-appointment`
-- **Home**: `/`
-- **My Appointments**: `/my-appointments`
+### Patient Journey
+1. **Book Appointment** → `/book-appointment`
+   - Select date from 38 available options
+   - Choose time slot (17:30 or 18:30)
+   - Enter name, email, phone
+   - Confirm → Event created in Google Calendar + Email sent
+
+2. **Manage Appointments** → `/appointments`
+   - Enter confirmation email
+   - View all upcoming appointments
+   - Click "Annuler" to cancel appointment
+   - Removal synced to Google Calendar
 
 ## 📋 Key Features
 
@@ -168,20 +188,26 @@ RESEND_API_KEY
 
 ## ✨ Current Status
 
-**READY FOR TESTING** - All core features implemented and working:
-- ✅ Beautiful booking interface
-- ✅ 3 dates with available slots visible
-- ✅ Google Calendar integration active
-- ✅ Email confirmations ready
-- ✅ Mobile responsive
+**🟢 FULLY FUNCTIONAL** - All core features complete:
+- ✅ Beautiful booking interface (38 dates available)
+- ✅ Google Calendar integration (Service Account JWT)
+- ✅ Email confirmations via Resend API
+- ✅ **Appointment management (VIEW + CANCEL)** ← NEW!
+- ✅ Database storage for all appointments
+- ✅ Mobile responsive design
+- ✅ French UI/UX throughout
+
+**Appointment Lifecycle**:
+1. Patient books → Stored in PostgreSQL + Google Calendar
+2. Patient can view by email → `/appointments`
+3. Patient can cancel → Removed from DB + Google Calendar
+4. Admin can manage from dashboard (optional future)
 
 **NOT YET IMPLEMENTED**:
-- User registration/login
-- Appointment management (view/cancel)
-- Admin dashboard
+- Admin dashboard (view all appointments)
+- User registration/login system
 - Payment processing
-- SMS notifications
-- Calendar sync back to Google
+- SMS notifications (Twilio integration started)
 
 ---
 

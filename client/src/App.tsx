@@ -27,7 +27,7 @@ function Router() {
       <Route path={"/available-slots"} component={AvailableSlots} />
       <Route path={"/login"} component={Login} />
       <Route path={"/appointments/cancel/:hash"} component={CancelAppointment} />
-      <Route path={"/appointments"} component={() => <ProtectedRoute component={MyAppointments} role="user" />} />
+      <Route path={"/appointments"} component={MyAppointments} />
       <Route path={"/admin"} component={() => <ProtectedRoute component={AdminDashboard} role="admin" />} />
       <Route path={"/admin/availability"} component={() => <ProtectedRoute component={AdminAvailability} role="admin" />} />
       <Route path={"/404"} component={NotFound} />

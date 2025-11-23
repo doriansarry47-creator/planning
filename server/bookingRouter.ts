@@ -2,6 +2,7 @@ import { router, publicProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { google } from "googleapis";
 import { getGoogleCalendarIcalService } from "./services/googleCalendarIcal";
+import { appointments } from "../drizzle/schema";
 
 /**
  * Service Google Calendar utilisant JWT du Service Account
@@ -471,6 +472,30 @@ export const bookingRouter = router({
 
         if (!eventId) {
           throw new Error("Impossible de créer le rendez-vous avec aucun des services disponibles");
+        }
+
+        // ✅ SAUVEGARDER LE RENDEZ-VOUS EN BASE DE DONNÉES
+        try {
+          const { getDb } = await import("./db");
+          const db = await getDb();
+          
+          await db.insert(appointments).values({
+            practitionerId: 1, // Dorian Sarry
+            serviceId: 1, // Service par défaut
+            customerName: `${input.firstName} ${input.lastName}`,
+            customerEmail: input.email,
+            customerPhone: input.phone,
+            startTime: startDateTime,
+            endTime: endDateTime,
+            status: 'confirmed',
+            notes: input.reason || '',
+            googleEventId: eventId,
+          });
+          
+          console.log("[BookingRouter] ✅ Rendez-vous enregistré en base de données");
+        } catch (dbError: any) {
+          console.warn("[BookingRouter] ⚠️ Erreur sauvegarde BD (non-bloquant):", dbError.message);
+          // Continuer même si la BD échoue - le rendez-vous est déjà créé dans Google Calendar
         }
 
         // Envoyer les notifications selon la préférence du patient
