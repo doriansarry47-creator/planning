@@ -80,9 +80,46 @@ export default function OptimizedBookAppointment() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation stricte avant envoi
+    if (!selectedDate) {
+      toast.error('❌ Veuillez sélectionner une date');
+      return;
+    }
+    if (!selectedTime) {
+      toast.error('❌ Veuillez sélectionner un créneau horaire');
+      return;
+    }
+    if (!form.firstName.trim()) {
+      toast.error('❌ Prénom requis');
+      return;
+    }
+    if (!form.lastName.trim()) {
+      toast.error('❌ Nom requis');
+      return;
+    }
+    if (!form.email.trim()) {
+      toast.error('❌ Email requis');
+      return;
+    }
+    if (!form.phone.trim()) {
+      toast.error('❌ Téléphone requis');
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
+      console.log('📤 Envoi des données:', {
+        date: selectedDate,
+        startTime: selectedTime,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        reason: form.reason,
+      });
+      
       const response = await fetch('/api/trpc/booking.bookAppointment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,11 +127,11 @@ export default function OptimizedBookAppointment() {
           json: {
             date: selectedDate,
             startTime: selectedTime,
-            firstName: form.firstName,
-            lastName: form.lastName,
-            email: form.email,
-            phone: form.phone,
-            reason: form.reason,
+            firstName: form.firstName.trim(),
+            lastName: form.lastName.trim(),
+            email: form.email.trim(),
+            phone: form.phone.trim(),
+            reason: form.reason.trim(),
           }
         })
       });
