@@ -245,16 +245,18 @@ export async function initializeGoogleCalendarService(): Promise<void> {
  */
 
 // Schéma de validation pour la réservation
+// Compatible avec le format envoyé par OptimizedBookAppointment.tsx
 const bookAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"), // Format YYYY-MM-DD
-  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide (HH:mm)"), // Format HH:mm
-  firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
-  lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
-  email: z.string().email("Email invalide"),
-  phone: z.string().min(10, "Numéro de téléphone invalide"),
-  reason: z.string().optional().default(''),
-  sendNotifications: z.enum(['email', 'sms', 'both']).catch('both'),
-}).strict(); // Strict mode pour éviter les champs supplémentaires
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide (HH:mm)"), // Format HH:mm
+  patientInfo: z.object({
+    firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
+    lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+    email: z.string().email("Email invalide"),
+    phone: z.string().min(8, "Numéro de téléphone invalide (min 8 caractères)"),
+    reason: z.string().optional(),
+  }),
+});
 
 // Schéma pour récupérer les disponibilités
 const getAvailabilitiesSchema = z.object({
@@ -409,15 +411,19 @@ export const bookingRouter = router({
   bookAppointment: publicProcedure
     .input(bookAppointmentSchema)
     .mutation(async ({ input }) => {
-      console.log("[BookingRouter] 📥 Données reçues (après validation Zod):", JSON.stringify(input, null, 2));
+      console.log('[BookingRouter] 📥 Données reçues pour réservation:', JSON.stringify(input, null, 2));
       
-      const service = getGoogleCalendarService();
+      const service = getOptimizedGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
+      
+      // Extraire les données du patientInfo
+      const { firstName, lastName, email, phone, reason } = input.patientInfo;
+      const startTime = input.time; // Renommer 'time' en 'startTime' pour cohérence
       
       try {
         // Calculer l'heure de fin (60 minutes après le début)
         const appointmentDate = new Date(input.date);
-        const [hours, minutes] = input.startTime.split(':').map(Number);
+        const [hours, minutes] = startTime.split(':').map(Number);
         const startDateTime = new Date(appointmentDate);
         startDateTime.setHours(hours, minutes, 0, 0);
         
@@ -433,12 +439,12 @@ export const bookingRouter = router({
             
             eventId = await service.bookAppointment({
               date: appointmentDate,
-              startTime: input.startTime,
+              startTime: startTime,
               duration: 60,
-              patientName: `${input.firstName} ${input.lastName}`,
-              patientEmail: input.email,
-              patientPhone: input.phone,
-              reason: input.reason,
+              patientName: `${firstName} ${lastName}`,
+              patientEmail: email,
+              patientPhone: phone,
+              reason: reason,
             });
 
             if (eventId) {
@@ -455,13 +461,13 @@ export const bookingRouter = router({
             console.log("[BookingRouter] Tentative de réservation avec service iCal fallback...");
             
             eventId = await fallbackService.bookAppointment({
-              patientName: `${input.firstName} ${input.lastName}`,
-              patientEmail: input.email,
-              patientPhone: input.phone,
+              patientName: `${firstName} ${lastName}`,
+              patientEmail: email,
+              patientPhone: phone,
               date: appointmentDate,
-              startTime: input.startTime,
+              startTime: startTime,
               endTime: endTime,
-              reason: input.reason,
+              reason: reason,
             });
 
             if (eventId) {
@@ -481,17 +487,16 @@ export const bookingRouter = router({
           const { getDb } = await import("./db");
           const db = await getDb();
           
-          await db.insert(appointments).values({
-            practitionerId: 1, // Dorian Sarry
-            serviceId: 1, // Service par défaut
-            customerName: `${input.firstName} ${input.lastName}`,
-            customerEmail: input.email,
-            customerPhone: input.phone,
-            startTime: startDateTime,
-            endTime: endDateTime,
-            status: 'confirmed',
-            notes: input.reason || '',
-            googleEventId: eventId,
+          const emailResult = await sendAppointmentConfirmationEmail({
+            patientName: `${firstName} ${lastName}`,
+            patientEmail: email,
+            practitionerName: "Dorian Sarry",
+            date: appointmentDate,
+            startTime: startTime,
+            endTime: endTime,
+            reason: reason || "",
+            location: "Cabinet - Voir email pour l'adresse exacte",
+            appointmentHash: eventId, // Utiliser l'eventId comme hash pour l'annulation
           });
           
           console.log("[BookingRouter] ✅ Rendez-vous enregistré en base de données");
@@ -568,11 +573,11 @@ export const bookingRouter = router({
           notificationStatus: notificationResults,
           appointmentDetails: {
             date: input.date,
-            startTime: input.startTime,
+            startTime: startTime,
             endTime: endTime,
             duration: 60,
-            patientName: `${input.firstName} ${input.lastName}`,
-            patientEmail: input.email,
+            patientName: `${firstName} ${lastName}`,
+            patientEmail: email,
           },
         };
       } catch (error: any) {
@@ -638,6 +643,82 @@ export const bookingRouter = router({
         return {
           success: false,
           available: false,
+          error: error.message,
+        };
+      }
+    }),
+
+  /**
+   * Health check pour vérifier l'état du service
+   */
+  healthCheck: publicProcedure
+    .input(z.object({}))
+    .query(async () => {
+      const service = getOptimizedGoogleCalendarService();
+      const fallbackService = getGoogleCalendarIcalService();
+
+      return {
+        success: true,
+        oauth2Available: service?.isInitialized || false,
+        icalAvailable: !!fallbackService,
+        timestamp: new Date().toISOString(),
+      };
+    }),
+
+  /**
+   * Récupérer les créneaux disponibles pour une date spécifique
+   */
+  getAvailableSlots: publicProcedure
+    .input(z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Format YYYY-MM-DD
+    }))
+    .query(async ({ input }) => {
+      const service = getOptimizedGoogleCalendarService();
+      const fallbackService = getGoogleCalendarIcalService();
+
+      try {
+        const targetDate = new Date(input.date);
+        let availableSlots: string[] = [];
+
+        // Essayer avec OAuth2 d'abord
+        if (service && service.isInitialized) {
+          try {
+            availableSlots = await service.getAvailableSlots(targetDate, 60);
+            console.log(`[BookingRouter] OAuth2: ${availableSlots.length} créneaux trouvés pour ${input.date}`);
+          } catch (oauthError: any) {
+            console.warn("[BookingRouter] Erreur OAuth2, utilisation fallback iCal:", oauthError.message);
+          }
+        }
+
+        // Fallback vers iCal si OAuth2 échoue
+        if (availableSlots.length === 0 && fallbackService) {
+          try {
+            const dayStart = new Date(targetDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(targetDate);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            const slots = await fallbackService.getAvailableSlots(dayStart, dayEnd);
+            availableSlots = slots
+              .filter(slot => slot.date === input.date)
+              .map(slot => slot.startTime);
+
+            console.log(`[BookingRouter] iCal: ${availableSlots.length} créneaux trouvés pour ${input.date}`);
+          } catch (icalError: any) {
+            console.error("[BookingRouter] Erreur iCal fallback:", icalError);
+          }
+        }
+
+        return {
+          success: true,
+          availableSlots,
+          date: input.date,
+        };
+      } catch (error: any) {
+        console.error("[BookingRouter] Erreur lors de la récupération des créneaux:", error);
+        return {
+          success: false,
+          availableSlots: [],
           error: error.message,
         };
       }
