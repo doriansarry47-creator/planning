@@ -895,3 +895,10 @@
 # uploads/
 # downloads/
 
+
+# Backup files with potential secrets
+*-backup-*.ts
+*-backup-*.tsx
+*-backup-*.js
+*-backup-*.jsx
+*.backup.*
