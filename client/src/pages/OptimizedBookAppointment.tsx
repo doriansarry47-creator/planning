@@ -120,32 +120,30 @@ export default function OptimizedBookAppointment() {
     setIsSubmitting(true);
 
     try {
-      console.log('📤 Envoi de la réservation:', {
+      // Validation finale stricte
+      if (!selectedDate || !selectedTime || !form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.phone.trim()) {
+        toast.error('❌ Données manquantes. Veuillez compléter tous les champs');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const payload = {
         date: selectedDate,
         startTime: selectedTime,
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        phone: form.phone,
-        reason: form.reason,
-        notifications: notificationPreference,
-      });
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        reason: form.reason.trim() || '',
+        sendNotifications: notificationPreference || 'both',
+      };
+
+      console.log('📤 Envoi de la réservation:', payload);
       
       const response = await fetch('/api/trpc/booking.bookAppointment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          json: {
-            date: selectedDate,
-            startTime: selectedTime,
-            firstName: form.firstName.trim(),
-            lastName: form.lastName.trim(),
-            email: form.email.trim(),
-            phone: form.phone.trim(),
-            reason: form.reason.trim(),
-            sendNotifications: notificationPreference,
-          }
-        })
+        body: JSON.stringify({ json: payload })
       });
 
       const result = await response.json();

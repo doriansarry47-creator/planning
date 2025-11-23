@@ -246,15 +246,15 @@ export async function initializeGoogleCalendarService(): Promise<void> {
 
 // Schéma de validation pour la réservation
 const bookAppointmentSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Format YYYY-MM-DD
-  startTime: z.string().regex(/^\d{2}:\d{2}$/), // Format HH:mm
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"), // Format YYYY-MM-DD
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide (HH:mm)"), // Format HH:mm
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
   lastName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   email: z.string().email("Email invalide"),
   phone: z.string().min(10, "Numéro de téléphone invalide"),
-  reason: z.string().optional(),
-  sendNotifications: z.enum(['email', 'sms', 'both']).optional().default('both'),
-});
+  reason: z.string().optional().default(''),
+  sendNotifications: z.enum(['email', 'sms', 'both']).catch('both'),
+}).strict(); // Strict mode pour éviter les champs supplémentaires
 
 // Schéma pour récupérer les disponibilités
 const getAvailabilitiesSchema = z.object({
@@ -409,6 +409,8 @@ export const bookingRouter = router({
   bookAppointment: publicProcedure
     .input(bookAppointmentSchema)
     .mutation(async ({ input }) => {
+      console.log("[BookingRouter] 📥 Données reçues (après validation Zod):", JSON.stringify(input, null, 2));
+      
       const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
       
