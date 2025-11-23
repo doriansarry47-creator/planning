@@ -54,11 +54,10 @@ const groupDatesByMonth = () => {
 const DATES_BY_MONTH = groupDatesByMonth();
 
 export default function OptimizedBookAppointment() {
-  const [step, setStep] = useState<'date' | 'time' | 'info' | 'notification' | 'done'>('date');
+  const [step, setStep] = useState<'date' | 'time' | 'info' | 'done'>('date');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [notificationPreference, setNotificationPreference] = useState<'both' | 'email' | 'sms' | ''>('both');
 
   const [form, setForm] = useState({
     firstName: '',
@@ -77,10 +76,6 @@ export default function OptimizedBookAppointment() {
   const handleSelectTime = (time: string) => {
     setSelectedTime(time);
     setStep('info');
-  };
-
-  const handleGoToNotification = () => {
-    setStep('notification');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,8 +107,8 @@ export default function OptimizedBookAppointment() {
       return;
     }
     
-    // Aller à l'étape de notification
-    handleGoToNotification();
+    // Envoyer directement la réservation
+    await handleConfirmBooking();
   };
 
   const handleConfirmBooking = async () => {
@@ -135,7 +130,7 @@ export default function OptimizedBookAppointment() {
         email: form.email.trim(),
         phone: form.phone.trim(),
         reason: form.reason.trim() || '',
-        sendNotifications: notificationPreference || 'both',
+        sendNotifications: 'both' as const,
       };
 
       console.log('📤 Envoi de la réservation:', payload);
@@ -343,7 +338,7 @@ export default function OptimizedBookAppointment() {
                     Retour
                   </Button>
                   <Button type="submit" disabled={isSubmitting} className="flex-1">
-                    {isSubmitting ? 'Confirmation...' : 'Confirmer'}
+                    {isSubmitting ? '⏳ Finalisation...' : '✅ Finaliser'}
                   </Button>
                 </div>
               </form>
@@ -351,114 +346,6 @@ export default function OptimizedBookAppointment() {
           </Card>
         )}
 
-        {/* STEP 4: Notification Preferences */}
-        {step === 'notification' && (
-          <Card>
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Notifications</CardTitle>
-              <CardDescription>Comment voulez-vous être notifié?</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Email Option */}
-                <div
-                  onClick={() => setNotificationPreference('email')}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    notificationPreference === 'email'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="notification"
-                      value="email"
-                      checked={notificationPreference === 'email'}
-                      onChange={(e) => setNotificationPreference(e.target.value as any)}
-                      className="w-5 h-5"
-                    />
-                    <div>
-                      <p className="font-semibold text-gray-800">📧 Email uniquement</p>
-                      <p className="text-sm text-gray-600">Recevez une confirmation par email</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SMS Option */}
-                <div
-                  onClick={() => setNotificationPreference('sms')}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    notificationPreference === 'sms'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="notification"
-                      value="sms"
-                      checked={notificationPreference === 'sms'}
-                      onChange={(e) => setNotificationPreference(e.target.value as any)}
-                      className="w-5 h-5"
-                    />
-                    <div>
-                      <p className="font-semibold text-gray-800">📱 SMS uniquement</p>
-                      <p className="text-sm text-gray-600">Recevez une confirmation par SMS</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Both Option */}
-                <div
-                  onClick={() => setNotificationPreference('both')}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    notificationPreference === 'both'
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="notification"
-                      value="both"
-                      checked={notificationPreference === 'both'}
-                      onChange={(e) => setNotificationPreference(e.target.value as any)}
-                      className="w-5 h-5"
-                    />
-                    <div>
-                      <p className="font-semibold text-gray-800">📧📱 Email + SMS</p>
-                      <p className="text-sm text-gray-600">Recevez une confirmation par les deux canaux</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStep('info')}
-                    disabled={isSubmitting}
-                    className="flex-1"
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Retour
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleConfirmBooking}
-                    disabled={isSubmitting || !notificationPreference}
-                    className="flex-1"
-                  >
-                    {isSubmitting ? 'Confirmation...' : '✅ Finaliser'}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
