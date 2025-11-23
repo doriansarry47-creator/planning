@@ -61,11 +61,20 @@ export default function OptimizedBookAppointment() {
       });
 
       const result = await response.json();
-      if (result.result?.data?.json?.success) {
+      console.log('📋 Réponse API:', result);
+      
+      // tRPC retourne { result: { data: { json: { success: true, ... } } } }
+      const success = result?.result?.data?.json?.success || result?.success;
+      const error = result?.error?.json?.message || result?.error?.message || result?.message;
+      
+      if (success) {
         setStep('done');
         toast.success('✅ Rendez-vous confirmé!');
-      } else if (result.error) {
-        toast.error('Erreur: ' + (result.error.json?.message || 'Impossible de réserver'));
+      } else if (error || result?.error) {
+        toast.error('Erreur: ' + (error || 'Impossible de réserver'));
+      } else {
+        console.warn('❌ Réponse inattendue:', result);
+        toast.error('Erreur: Réponse serveur invalide');
       }
     } catch (error) {
       console.error('Erreur:', error);
