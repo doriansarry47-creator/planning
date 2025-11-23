@@ -45,7 +45,7 @@ export default function Home() {
             par l'approche sensori-motrice
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/simple-booking">
+            <Link href="/book-appointment">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 px-8 py-6 text-lg">
                 Prendre rendez-vous
               </Button>
