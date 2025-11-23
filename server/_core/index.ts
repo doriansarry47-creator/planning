@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { initializeGoogleCalendarService } from "../bookingRouter";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -28,6 +29,15 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // Initialiser le service Google Calendar OAuth2 au démarrage
+  try {
+    console.log("[Server] Initializing Google Calendar OAuth2 service...");
+    await initializeGoogleCalendarService();
+    console.log("[Server] ✅ Google Calendar OAuth2 service initialized");
+  } catch (error) {
+    console.warn("[Server] ⚠️ Google Calendar OAuth2 initialization failed:", error);
+  }
+
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads

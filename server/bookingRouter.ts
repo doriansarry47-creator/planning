@@ -24,7 +24,7 @@ class OptimizedGoogleCalendarService {
       
       // Configuration OAuth2 avec refresh token
       const clientId = "407408718192.apps.googleusercontent.com";
-      const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+      const clientSecret = "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"; // OAuth2 client secret
       const refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN;
       
       if (!refreshToken) {
@@ -35,25 +35,15 @@ class OptimizedGoogleCalendarService {
       
       console.log("📝 Refresh token trouvé, création du client OAuth2...");
       
-      // Initialiser OAuth2 client
+      // Initialiser OAuth2 client avec credentials
       this.auth = new google.auth.OAuth2(clientId, clientSecret);
       
-      // Utiliser le refresh token pour obtenir un access token
+      // Utiliser le refresh token directement
       this.auth.setCredentials({
         refresh_token: refreshToken
       });
       
-      // Générer un access token valide
-      try {
-        const { credentials } = await this.auth.refreshAccessToken();
-        this.auth.setCredentials(credentials);
-        console.log("✅ Access token obtenu via refresh token");
-      } catch (tokenError: any) {
-        console.warn("⚠️ Erreur lors du refresh du token:", tokenError.message);
-        // Continue avec le refresh token même si la vérification échoue
-      }
-      
-      // Configuration pour calendrier
+      // Configuration pour calendrier - l'auth lib gérera automatiquement les refresh
       this.calendar = google.calendar({
         version: 'v3',
         auth: this.auth
@@ -61,6 +51,7 @@ class OptimizedGoogleCalendarService {
       
       this.isInitialized = true;
       console.log("✅ Google Calendar OAuth2 initialisé avec succès");
+      console.log("📍 Calendrier configuré: doriansarry47@gmail.com");
       
     } catch (error) {
       console.error("❌ Erreur initialisation Google Calendar OAuth2:", error);
@@ -232,6 +223,14 @@ function getOptimizedGoogleCalendarService(): OptimizedGoogleCalendarService | n
     optimizedServiceInstance = new OptimizedGoogleCalendarService();
   }
   return optimizedServiceInstance;
+}
+
+// Export function to initialize on server startup
+export async function initializeGoogleCalendarService(): Promise<void> {
+  const service = getOptimizedGoogleCalendarService();
+  if (service) {
+    await service.ensureInitialized();
+  }
 }
 
 /**
