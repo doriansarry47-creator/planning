@@ -1,0 +1,29 @@
+POST /token HTTP/1.1
+Host: oauth2.googleapis.com
+Content-length: 261
+content-type: application/x-www-form-urlencoded
+user-agent: google-oauth-playground
+code=4%2F0Ab32j93WdYI31VhrtVojQ2qCYQIq1dFrMJ2YZWTWQTdXtuQxatEoXFlrLVk4XHcSr1kIQQ&redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&client_id=407408718192.apps.googleusercontent.com&client_secret=************&scope=&grant_type=authorization_code
+HTTP/1.1 200 OK
+Content-length: 1428
+X-xss-protection: 0
+X-content-type-options: nosniff
+Transfer-encoding: chunked
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Vary: Origin, X-Origin, Referer
+Server: scaffolding on HTTPServer2
+-content-encoding: gzip
+Pragma: no-cache
+Cache-control: no-cache, no-store, max-age=0, must-revalidate
+Date: Sun, 23 Nov 2025 11:51:45 GMT
+X-frame-options: SAMEORIGIN
+Alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-type: application/json; charset=utf-8
+{
+  "access_token": "ya29.a0ATi6K2s56mOBm7iyejR-4Ops9Y1Tym7KAdz-28F84iJXmBWR4WtwQfFisQ3k5vQgZwmQEPwdin3eXh4mSpGlexASqjPUufmpfO2oamkl7JdUxt2k05W47tCeSBsbNQZUWhmQOaQCAzzMM7ubvblue_Az2eGuCofEPjZGBecZlUmnx8DlaoFXjyCnPjOZr4n5NVnHCZoaCgYKAX0SARYSFQHGX2Mih1S_KxigBhwFLtZKCZhzwQ0206", 
+  "refresh_token_expires_in": 604799, 
+  "expires_in": 3599, 
+  "token_type": "Bearer", 
+  "scope": "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events.freebusy https://www.googleapis.com/auth/calendar.calendarlist https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.calendars.readonly https://www.googleapis.com/auth/calendar.events.owned https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.calendars https://www.googleapis.com/auth/calendar.events.public.readonly https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.acls.readonly https://www.googleapis.com/auth/calendar.settings.readonly https://www.googleapis.com/auth/calendar.acls https://www.googleapis.com/auth/calendar.events.owned.readonly", 
+  "refresh_token": "1//04hgSreyeYL5gCgYIARAAGAQSNwF-L9IrREqeWZQPEmE1bxFFVtxgR50DGwrp35fWDtTgyaKqgEUPDz7AntHKCZx_a7R1ZLO9Bnw"
+}
