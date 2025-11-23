@@ -123,16 +123,57 @@ npm run db:generate:postgres
 npm run db:seed
 ```
 
-## 🔐 Authentication
+## 🔐 Google Calendar Integration Status
 
-Currently: **Mock authentication** (for development)
-- Patient booking is public (no auth required)
-- Admin panel requires user role with admin privileges
+### Current Issue: Calendar Access Denied
+The application needs proper Google Calendar access to read "DISPONIBLE" availability markers. Three approaches were attempted:
 
-To implement real auth:
-1. Configure Google OAuth2 (GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET)
-2. Use JWT tokens stored in httpOnly cookies
-3. Implement protected routes with middleware
+**Approach 1: OAuth2 Refresh Token** ❌
+- Failed with "invalid_client" error
+- The client secret provided doesn't match Google's validation
+
+**Approach 2: Service Account JWT** ⚠️ 
+- Currently in use but has OpenSSL signing compatibility issues
+- Needs GOOGLE_CALENDAR_PRIVATE_KEY to be in correct format
+
+**Approach 3: Public iCal Feed** ❌
+- Requires calendar to be publicly shared
+- Returns 404 error (calendar not public yet)
+
+### How to Fix (Choose ONE):
+
+#### Option A: Share Calendar with Service Account (Recommended)
+1. **Share your Google Calendar with the Service Account:**
+   - Email: `planningadmin@apaddicto.iam.gserviceaccount.com`
+   - Open Google Calendar → Settings → Share with specific people
+   - Grant Editor permissions
+   - The app will then be able to read your "DISPONIBLE" events automatically
+
+2. **Once shared:** Restart the app and test
+
+#### Option B: Use Public iCal Link
+1. Open Google Calendar → Settings → Integrate calendar
+2. Enable "Make available to public"
+3. Copy the iCal URL: `https://calendar.google.com/calendar/ical/doriansarry47@gmail.com/public/basic.ics`
+4. This allows the app to read your events without authentication
+
+#### Option C: Manual Timezone Fix
+The private key might need timezone adjustments:
+- Contact Replit support to ensure OpenSSL is properly configured
+- Or regenerate Service Account credentials in Google Cloud Console
+
+### Testing the Integration
+Once configured:
+1. Create events in your Google Calendar with "DISPONIBLE" in the title
+2. Visit `/book-appointment` page
+3. You should see available time slots
+
+### Current App Status
+- ✅ Frontend complete with 3-step booking flow
+- ✅ Backend API operational
+- ✅ Email confirmations ready (Resend API configured)
+- ⏳ Waiting for Google Calendar access
+- ✅ Database schema complete
 
 ## 📧 Email Configuration
 

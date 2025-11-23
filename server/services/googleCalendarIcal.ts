@@ -228,7 +228,7 @@ export class GoogleCalendarIcalService {
 
       // Créer le rendez-vous dans Google Calendar
       const response = await this.calendar.events.insert({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         resource: event,
         sendUpdates: 'all', // Envoyer des notifications aux participants
       });
@@ -257,7 +257,7 @@ export class GoogleCalendarIcalService {
 
       // Rechercher l'événement de disponibilité correspondant
       const response = await this.calendar.events.list({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         timeMin: startDateTime.toISOString(),
         timeMax: endDateTime.toISOString(),
         q: 'DISPONIBLE',
@@ -276,7 +276,7 @@ export class GoogleCalendarIcalService {
               eventEnd.getTime() === endDateTime.getTime()) {
             // Supprimer le créneau de disponibilité
             await this.calendar.events.delete({
-              calendarId: this.calendarEmail,
+              calendarId: this.targetCalendarId,
               eventId: event.id,
             });
             console.log('[GoogleCalendarIcal] Créneau de disponibilité supprimé:', event.id);
@@ -296,7 +296,7 @@ export class GoogleCalendarIcalService {
   async cancelAppointment(eventId: string): Promise<boolean> {
     try {
       await this.calendar.events.delete({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         eventId: eventId,
         sendUpdates: 'all', // Notifier les participants
       });
@@ -348,7 +348,7 @@ export class GoogleCalendarIcalService {
       };
 
       await this.calendar.events.update({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         eventId: eventId,
         resource: event,
         sendUpdates: 'all',
