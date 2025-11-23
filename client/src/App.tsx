@@ -9,15 +9,12 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { trpc, trpcClient, queryClient } from "./lib/trpc";
 import Home from "./pages/Home";
-import BookAppointment from "./pages/BookAppointment";
 import MyAppointments from "./pages/MyAppointments";
 import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import CancelAppointment from "./pages/CancelAppointment";
 import AvailableSlots from "./pages/AvailableSlots";
-import ImprovedBooking from "./pages/ImprovedBooking";
 import AdminAvailability from "./pages/AdminAvailability";
-import SimpleBooking from "./pages/SimpleBooking";
 import OptimizedBooking from "./pages/OptimizedBookAppointment";
 
 function Router() {
@@ -27,11 +24,7 @@ function Router() {
       <Route path={"\\"} component={Home} />
       {/* Route principale de réservation */}
       <Route path={"/book-appointment"} component={OptimizedBooking} />
-      {/* Alternative booking page (old version) */}
-      <Route path={"/book-appointment-old"} component={BookAppointment} />
       <Route path={"/available-slots"} component={AvailableSlots} />
-      <Route path={"/booking"} component={ImprovedBooking} />
-      <Route path={"/simple-booking"} component={SimpleBooking} />
       <Route path={"/login"} component={Login} />
       <Route path={"/appointments/cancel/:hash"} component={CancelAppointment} />
       <Route path={"/appointments"} component={() => <ProtectedRoute component={MyAppointments} role="user" />} />
