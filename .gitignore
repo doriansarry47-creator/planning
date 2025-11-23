@@ -904,3 +904,4 @@
 *.backup.*
 .env
 .env
+.env
