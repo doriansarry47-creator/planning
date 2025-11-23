@@ -16,7 +16,7 @@ GOOGLE_CALENDAR_ICAL_URL = "https://calendar.google.com/calendar/ical/doriansarr
 GOOGLE_SERVICE_ACCOUNT_EMAIL = "planningadmin@apaddicto.iam.gserviceaccount.com"
 GOOGLE_CALENDAR_EMAIL = "planningadmin@apaddicto.iam.gserviceaccount.com"
 GOOGLE_CALENDAR_ID = "doriansarry47@gmail.com"
-RESEND_API_KEY = "re_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd"
+RESEND_API_KEY = "re_7rUdEZBo_QQZMqEBboCu78DBFtZFFhDFX"
 APP_URL = "http://localhost:5000"
 
 [workflows]
