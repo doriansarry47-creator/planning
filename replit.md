@@ -27,20 +27,20 @@ This is a full-stack appointment booking system built with:
   - Séance de Suivi
 
 ### Google Calendar Integration
-- ✅ **Service Account**: Connected with private key
-- ✅ **iCal Feed**: Configured to read availability from personal calendar
-- ✅ **OAuth2 Ready**: Can be enabled with GOOGLE_CLIENT_ID + GOOGLE_REFRESH_TOKEN
+- ✅ **OAuth2**: FULLY CONFIGURED with refresh token (GOOGLE_CALENDAR_REFRESH_TOKEN)
+- ✅ **Availability Reading**: System reads events marked "DISPONIBLE" from personal calendar in real-time
+- ✅ **Service Account**: Connected as backup for appointment creation
 - ✅ **Appointment Creation**: System creates 60-minute appointments in Google Calendar
+- ✅ **Dynamic Updates**: Slots automatically refresh from Google Calendar
 
 ### Environment Variables Configured
 ```
 NODE_ENV=development
 PORT=5000
 DATABASE_URL=<PostgreSQL connection string>
-GOOGLE_CALENDAR_ICAL_URL=<public calendar feed>
+GOOGLE_CALENDAR_REFRESH_TOKEN=<user's OAuth2 refresh token>
 GOOGLE_SERVICE_ACCOUNT_EMAIL=planningadmin@apaddicto.iam.gserviceaccount.com
 GOOGLE_CALENDAR_PRIVATE_KEY=<service account private key>
-GOOGLE_CALENDAR_EMAIL=planningadmin@apaddicto.iam.gserviceaccount.com
 GOOGLE_CALENDAR_ID=doriansarry47@gmail.com
 RESEND_API_KEY=<email service key>
 ```
@@ -153,17 +153,14 @@ Configure in `RESEND_API_KEY` environment variable.
 
 ## 🐛 Known Issues & Limitations
 
-1. **Availability Display**: Currently shows "No availabilities" if no events in Google Calendar
+1. **Availability Display**: Shows "No slots available" if no events marked "DISPONIBLE" in Google Calendar
    - **Fix**: Add availability markers in personal Google Calendar
-   - **Format**: Events with "DISPONIBLE" or "AVAILABLE" in title
+   - **Format**: Create events titled "DISPONIBLE", "Disponible", or "DISPO"
+   - **Duration**: Events are split into 60-minute slots automatically
 
-2. **OAuth2 Configuration**: Refresh token not yet configured
-   - **Current Fallback**: Using Service Account + iCal (works well)
-   - **Alternative**: Can enable OAuth2 with refresh token for automatic sync
-
-3. **React Hook Warnings**: Some warnings about Radix UI components with refs
+2. **React Hook Warnings**: Some warnings about Radix UI components with refs
    - **Impact**: None - application works fine
-   - **Fix**: Upgrade Radix UI libraries
+   - **Status**: Minor, cosmetic warnings only
 
 ## 🔗 Live URL
 

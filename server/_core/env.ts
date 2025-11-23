@@ -16,6 +16,6 @@ export const ENV = {
   googleCalendarEmail: process.env.GOOGLE_CALENDAR_EMAIL ?? process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "",
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-  googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN ?? "",
+  googleRefreshToken: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN ?? "",
   googleCalendarId: process.env.GOOGLE_CALENDAR_ID ?? "primary",
 };

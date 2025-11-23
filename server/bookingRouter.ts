@@ -10,49 +10,57 @@ import { getGoogleCalendarIcalService } from "./services/googleCalendarIcal";
 class OptimizedGoogleCalendarService {
   private calendar: any;
   private auth: any;
-  private isInitialized = false;
-  
-  // Configuration OAuth2 pour doriansarry47@gmail.com
-  public clientId = process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
-  public clientSecret = process.env.GOOGLE_CLIENT_SECRET || "YOUR_GOOGLE_CLIENT_SECRET";
-  public redirectUri = "https://planning-7qkb7uw7v-ikips-projects.vercel.app/api/oauth/callback";
+  public isInitialized = false;
   private calendarEmail = "doriansarry47@gmail.com";
+  private initPromise: Promise<void>;
 
   constructor() {
-    this.initializeCalendar();
+    this.initPromise = this.initializeCalendar();
   }
 
   private async initializeCalendar() {
     try {
       console.log("🔑 Initialisation Google Calendar OAuth2 pour doriansarry47@gmail.com");
       
-      // Initialiser OAuth2 client
-      this.auth = new google.auth.OAuth2(this.clientId, this.clientSecret, this.redirectUri);
+      // Configuration OAuth2 avec refresh token
+      const clientId = "407408718192.apps.googleusercontent.com";
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+      const refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN;
       
-      // Configuration pour calendrier de doriansarry47@gmail.com
-      this.calendar = google.calendar({
-        version: 'v3',
-        auth: this.auth
-      });
-      
-      // Tentative d'authentification avec le refresh token stocké
-      const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
       if (!refreshToken) {
-        console.log("⚠️ GOOGLE_REFRESH_TOKEN manquant - OAuth2 requis");
+        console.warn("⚠️ GOOGLE_CALENDAR_REFRESH_TOKEN manquant");
         this.isInitialized = false;
         return;
       }
       
+      console.log("📝 Refresh token trouvé, création du client OAuth2...");
+      
+      // Initialiser OAuth2 client
+      this.auth = new google.auth.OAuth2(clientId, clientSecret);
+      
+      // Utiliser le refresh token pour obtenir un access token
       this.auth.setCredentials({
         refresh_token: refreshToken
       });
       
       // Générer un access token valide
-      const { credentials } = await this.auth.refreshAccessToken();
-      this.auth.setCredentials(credentials);
+      try {
+        const { credentials } = await this.auth.refreshAccessToken();
+        this.auth.setCredentials(credentials);
+        console.log("✅ Access token obtenu via refresh token");
+      } catch (tokenError: any) {
+        console.warn("⚠️ Erreur lors du refresh du token:", tokenError.message);
+        // Continue avec le refresh token même si la vérification échoue
+      }
       
-      console.log("✅ Google Calendar OAuth2 initialisé pour doriansarry47@gmail.com");
+      // Configuration pour calendrier
+      this.calendar = google.calendar({
+        version: 'v3',
+        auth: this.auth
+      });
+      
       this.isInitialized = true;
+      console.log("✅ Google Calendar OAuth2 initialisé avec succès");
       
     } catch (error) {
       console.error("❌ Erreur initialisation Google Calendar OAuth2:", error);
@@ -60,13 +68,19 @@ class OptimizedGoogleCalendarService {
     }
   }
 
+  async ensureInitialized(): Promise<void> {
+    await this.initPromise;
+  }
+
   async getAvailableSlots(date: Date, durationMinutes: number = 60): Promise<string[]> {
     if (!this.isInitialized) {
-      console.warn("⚠️ Google Calendar non initialisé - utilisation des créneaux par défaut");
-      return this.getDefaultAvailableSlots(date);
+      console.warn("⚠️ Google Calendar non initialisé");
+      return [];
     }
 
     try {
+      console.log(`[OAuth2] Recherche des créneaux disponibles pour ${date.toISOString().split('T')[0]}`);
+      
       // Définir la plage horaire (9h-17h)
       const dayStart = new Date(date);
       dayStart.setHours(9, 0, 0, 0);
@@ -74,32 +88,53 @@ class OptimizedGoogleCalendarService {
       const dayEnd = new Date(date);
       dayEnd.setHours(17, 0, 0, 0);
 
-      // Récupérer les événements existants pour ce jour
-      const events = await this.calendar.events.list({
+      // Récupérer les événements du calendrier
+      const response = await this.calendar.events.list({
         calendarId: this.calendarEmail,
         timeMin: dayStart.toISOString(),
         timeMax: dayEnd.toISOString(),
         singleEvents: true,
-        orderBy: 'startTime'
       });
 
-      // Créer une liste de tous les créneaux possibles (9h-17h, toutes les heures)
-      const allPossibleSlots = [];
-      for (let hour = 9; hour < 17; hour++) {
-        allPossibleSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+      const events = response.data.items || [];
+      console.log(`[OAuth2] ${events.length} événements trouvés`);
+      
+      const slots: string[] = [];
+
+      // Chercher les événements marqués comme "DISPONIBLE"
+      for (const event of events) {
+        const title = event.summary?.toLowerCase() || '';
+        const isAvailable = 
+          title.includes('disponible') || 
+          title.includes('available') || 
+          title.includes('dispo');
+
+        if (isAvailable) {
+          const eventStart = new Date(event.start.dateTime || event.start.date);
+          const eventEnd = new Date(event.end.dateTime || event.end.date);
+          
+          // Générer les créneaux de 60 minutes dans ce créneau disponible
+          let currentTime = new Date(eventStart);
+          while (currentTime < eventEnd) {
+            const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
+            if (slotEnd <= eventEnd) {
+              const timeStr = currentTime.toTimeString().slice(0, 5);
+              if (!slots.includes(timeStr)) {
+                slots.push(timeStr);
+                console.log(`[OAuth2] ✅ Créneau ajouté: ${timeStr} (${event.summary})`);
+              }
+            }
+            currentTime.setMinutes(currentTime.getMinutes() + 60);
+          }
+        }
       }
 
-      // Filtrer les créneaux pris par des événements existants
-      const busySlots = events.data.items?.map(event => {
-        const startTime = event.start.dateTime || event.start.date;
-        return new Date(startTime).getHours();
-      }) || [];
-
-      // Retourner les créneaux libres
-      return allPossibleSlots.filter(slot => !busySlots.includes(parseInt(slot.split(':')[0])));
+      slots.sort();
+      console.log(`[OAuth2] Total: ${slots.length} créneaux disponibles`);
+      return slots;
     } catch (error) {
-      console.error("❌ Erreur lors de la récupération des créneaux:", error);
-      return this.getDefaultAvailableSlots(date);
+      console.error("⚠️ Erreur OAuth2:", error);
+      return [];
     }
   }
 
@@ -261,6 +296,10 @@ export const bookingRouter = router({
     .query(async ({ input }) => {
       const service = getOptimizedGoogleCalendarService();
       
+      if (service) {
+        await service.ensureInitialized();
+      }
+      
       if (!service || !service.isInitialized) {
         console.warn("[BookingRouter] Service OAuth2 non initialisé, utilisation service iCal fallback");
         // Fallback vers l'ancien service iCal
@@ -335,6 +374,10 @@ export const bookingRouter = router({
     .input(getAvailabilitiesSchema)
     .query(async ({ input }) => {
       const service = getOptimizedGoogleCalendarService();
+      
+      if (service) {
+        await service.ensureInitialized();
+      }
       
       if (!service || !service.isInitialized) {
         console.warn("[BookingRouter] Service OAuth2 non initialisé, utilisation service iCal fallback");

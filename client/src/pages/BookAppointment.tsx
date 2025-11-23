@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,13 +15,9 @@ import {
   Phone,
   ArrowRight,
   RefreshCw,
-  CalendarIcon
+  CalendarIcon,
+  Loader
 } from 'lucide-react';
-
-const TIME_SLOTS = [
-  '09:00', '10:00', '11:00', '12:00',
-  '14:00', '15:00', '16:00', '17:00'
-];
 
 export default function BookAppointment() {
   const [step, setStep] = useState(1);
@@ -29,6 +25,8 @@ export default function BookAppointment() {
   const [selectedTime, setSelectedTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -38,9 +36,53 @@ export default function BookAppointment() {
     reason: '',
   });
 
+  // Fetch available slots for a specific date
+  const fetchAvailableSlots = async (date: Date) => {
+    setLoadingSlots(true);
+    try {
+      const dateStr = date.toISOString().split('T')[0];
+      const endDate = new Date(date);
+      endDate.setDate(endDate.getDate() + 1); // Next day for the range
+      
+      const response = await fetch('/api/trpc/booking.getAvailabilitiesByDate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: {
+            startDate: dateStr,
+            endDate: endDate.toISOString().split('T')[0],
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des créneaux");
+      }
+
+      const result = await response.json();
+      if (result.result?.data?.json?.slotsByDate?.[dateStr]) {
+        const slots = result.result.data.json.slotsByDate[dateStr].map((slot: any) => slot.startTime);
+        setAvailableSlots(slots);
+      } else {
+        setAvailableSlots([]);
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Impossible de récupérer les créneaux disponibles");
+      setAvailableSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
+      setSelectedTime('');
+      setAvailableSlots([]);
+      fetchAvailableSlots(date);
       setStep(2);
     }
   };
@@ -282,32 +324,51 @@ export default function BookAppointment() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
-                {TIME_SLOTS.map((time) => (
-                  <Button
-                    key={time}
-                    variant={selectedTime === time ? 'default' : 'outline'}
-                    className={`h-14 text-lg font-medium transition-all ${
-                      selectedTime === time 
-                        ? 'bg-blue-600 text-white shadow-lg scale-105' 
-                        : 'hover:bg-blue-50 hover:border-blue-300'
-                    }`}
-                    onClick={() => handleTimeSelect(time)}
-                  >
-                    <div className="flex flex-col items-center">
-                      <Clock className="h-5 w-5 mb-1" />
-                      {time}
-                    </div>
+              {loadingSlots ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader className="h-8 w-8 text-blue-600 animate-spin mb-4" />
+                  <p className="text-gray-600">Chargement des créneaux disponibles...</p>
+                </div>
+              ) : availableSlots.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
+                    {availableSlots.map((time) => (
+                      <Button
+                        key={time}
+                        variant={selectedTime === time ? 'default' : 'outline'}
+                        className={`h-14 text-lg font-medium transition-all ${
+                          selectedTime === time 
+                            ? 'bg-blue-600 text-white shadow-lg scale-105' 
+                            : 'hover:bg-blue-50 hover:border-blue-300'
+                        }`}
+                        onClick={() => handleTimeSelect(time)}
+                      >
+                        <div className="flex flex-col items-center">
+                          <Clock className="h-5 w-5 mb-1" />
+                          {time}
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                  
+                  <div className="text-center">
+                    <Button variant="ghost" onClick={() => setStep(1)}>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Changer la date
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-600 text-lg mb-6">
+                    Aucun créneau disponible pour cette date
+                  </p>
+                  <Button variant="outline" onClick={() => setStep(1)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Choisir une autre date
                   </Button>
-                ))}
-              </div>
-              
-              <div className="text-center">
-                <Button variant="ghost" onClick={() => setStep(1)}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Changer la date
-                </Button>
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
