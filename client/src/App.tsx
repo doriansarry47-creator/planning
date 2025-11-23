@@ -10,8 +10,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { trpc, trpcClient, queryClient } from "./lib/trpc";
 import Home from "./pages/Home";
 import BookAppointment from "./pages/BookAppointment";
-import BookAppointmentV2 from "./pages/BookAppointmentV2";
-import EnhancedBookAppointment from "./pages/EnhancedBookAppointment";
 import MyAppointments from "./pages/MyAppointments";
 import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
@@ -27,12 +25,10 @@ function Router() {
   return (
     <Switch>
       <Route path={"\\"} component={Home} />
-      {/* Route principale de réservation optimisée */}
+      {/* Route principale de réservation */}
       <Route path={"/book-appointment"} component={OptimizedBooking} />
-      {/* Routes alternatives pour les anciennes versions */}
-      <Route path={"/book-appointment-v2"} component={BookAppointmentV2} />
+      {/* Alternative booking page (old version) */}
       <Route path={"/book-appointment-old"} component={BookAppointment} />
-      <Route path={"/book"} component={EnhancedBookAppointment} />
       <Route path={"/available-slots"} component={AvailableSlots} />
       <Route path={"/booking"} component={ImprovedBooking} />
       <Route path={"/simple-booking"} component={SimpleBooking} />
