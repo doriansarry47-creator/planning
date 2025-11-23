@@ -27,18 +27,20 @@ export interface AppointmentData {
 export class GoogleCalendarIcalService {
   private icalUrl: string;
   private privateKey: string;
-  private calendarEmail: string;
+  private serviceAccountEmail: string;
+  private targetCalendarId: string;
   private auth: any;
   private calendar: any;
 
-  constructor(icalUrl: string, privateKey: string, calendarEmail: string) {
+  constructor(icalUrl: string, privateKey: string, serviceAccountEmail: string, targetCalendarId?: string) {
     this.icalUrl = icalUrl;
     this.privateKey = privateKey;
-    this.calendarEmail = calendarEmail;
+    this.serviceAccountEmail = serviceAccountEmail;
+    this.targetCalendarId = targetCalendarId || serviceAccountEmail; // Par défaut, le calendrier du Service Account
 
     // Initialiser l'authentification avec la clé privée
     this.auth = new google.auth.JWT({
-      email: calendarEmail,
+      email: serviceAccountEmail,
       key: privateKey.replace(/\\n/g, '\n'),
       scopes: ['https://www.googleapis.com/auth/calendar'],
     });
@@ -52,23 +54,28 @@ export class GoogleCalendarIcalService {
    */
   async getAvailableSlots(startDate?: Date, endDate?: Date): Promise<AvailableSlot[]> {
     try {
-      console.log('[GoogleCalendarIcal] Récupération des disponibilités depuis iCal...');
+      console.log('[GoogleCalendarIcal] Récupération des disponibilités depuis iCal URL...');
+      console.log('[GoogleCalendarIcal] URL iCal:', this.icalUrl?.substring(0, 100) + '...');
       
-      // Parser le calendrier iCal
-      const events = await ical.async.fromURL(this.icalUrl);
-      const slots: AvailableSlot[] = [];
-
       const now = new Date();
       const filterStartDate = startDate || now;
       const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 jours par défaut
 
+      const slots: AvailableSlot[] = [];
+
+      // Parser l'URL iCal
+      const events = await ical.async.fromURL(this.icalUrl);
+      console.log('[GoogleCalendarIcal] Événements total dans iCal:', Object.keys(events).length);
+      
       Object.values(events).forEach((event: any) => {
         // Filtrer uniquement les événements de type VEVENT
         if (event.type !== 'VEVENT') return;
 
-        // Filtrer les événements qui marquent les disponibilités
-        // On cherche des événements avec des mots-clés comme "DISPONIBLE", "AVAILABLE", "DISPO"
         const title = event.summary?.toLowerCase() || '';
+        console.log('[GoogleCalendarIcal] Événement trouvé:', event.summary, '| Disponible?', 
+          title.includes('disponible') || title.includes('available') || title.includes('dispo'));
+        
+        // Filtrer les événements qui marquent les disponibilités
         const isAvailable = 
           title.includes('disponible') || 
           title.includes('available') || 
@@ -96,6 +103,7 @@ export class GoogleCalendarIcalService {
         const startTime = eventStart.toTimeString().slice(0, 5); // HH:mm
         const endTime = eventEnd.toTimeString().slice(0, 5); // HH:mm
 
+        console.log('[GoogleCalendarIcal] ✅ Créneau disponible ajouté:', dateStr, startTime, '-', endTime);
         slots.push({
           date: dateStr,
           startTime,
@@ -105,7 +113,7 @@ export class GoogleCalendarIcalService {
         });
       });
 
-      console.log(`[GoogleCalendarIcal] ${slots.length} créneaux disponibles trouvés`);
+      console.log(`[GoogleCalendarIcal] ✅ ${slots.length} créneaux disponibles trouvés`);
       
       // Trier par date et heure
       slots.sort((a, b) => {
@@ -220,7 +228,7 @@ export class GoogleCalendarIcalService {
 
       // Créer le rendez-vous dans Google Calendar
       const response = await this.calendar.events.insert({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         resource: event,
         sendUpdates: 'all', // Envoyer des notifications aux participants
       });
@@ -249,7 +257,7 @@ export class GoogleCalendarIcalService {
 
       // Rechercher l'événement de disponibilité correspondant
       const response = await this.calendar.events.list({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         timeMin: startDateTime.toISOString(),
         timeMax: endDateTime.toISOString(),
         q: 'DISPONIBLE',
@@ -268,7 +276,7 @@ export class GoogleCalendarIcalService {
               eventEnd.getTime() === endDateTime.getTime()) {
             // Supprimer le créneau de disponibilité
             await this.calendar.events.delete({
-              calendarId: this.calendarEmail,
+              calendarId: this.targetCalendarId,
               eventId: event.id,
             });
             console.log('[GoogleCalendarIcal] Créneau de disponibilité supprimé:', event.id);
@@ -288,7 +296,7 @@ export class GoogleCalendarIcalService {
   async cancelAppointment(eventId: string): Promise<boolean> {
     try {
       await this.calendar.events.delete({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         eventId: eventId,
         sendUpdates: 'all', // Notifier les participants
       });
@@ -340,7 +348,7 @@ export class GoogleCalendarIcalService {
       };
 
       await this.calendar.events.update({
-        calendarId: this.calendarEmail,
+        calendarId: this.targetCalendarId,
         eventId: eventId,
         resource: event,
         sendUpdates: 'all',
@@ -361,18 +369,22 @@ export class GoogleCalendarIcalService {
 export function createGoogleCalendarIcalService(): GoogleCalendarIcalService | null {
   const icalUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
   const privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
-  const calendarEmail = process.env.GOOGLE_CALENDAR_EMAIL;
+  const serviceAccountEmail = process.env.GOOGLE_CALENDAR_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const targetCalendarId = process.env.GOOGLE_CALENDAR_ID; // Calendrier personnel de l'utilisateur
 
-  if (!icalUrl || !privateKey || !calendarEmail) {
+  if (!icalUrl || !privateKey || !serviceAccountEmail) {
     console.warn('[GoogleCalendarIcal] Configuration incomplète. Variables requises:');
     console.warn('  - GOOGLE_CALENDAR_ICAL_URL');
     console.warn('  - GOOGLE_CALENDAR_PRIVATE_KEY');
-    console.warn('  - GOOGLE_CALENDAR_EMAIL');
+    console.warn('  - GOOGLE_CALENDAR_EMAIL ou GOOGLE_SERVICE_ACCOUNT_EMAIL');
     return null;
   }
 
   try {
-    return new GoogleCalendarIcalService(icalUrl, privateKey, calendarEmail);
+    console.log('[GoogleCalendarIcal] Service initialisé avec:');
+    console.log('  - Service Account:', serviceAccountEmail);
+    console.log('  - Calendrier cible:', targetCalendarId || 'défaut (Service Account)');
+    return new GoogleCalendarIcalService(icalUrl, privateKey, serviceAccountEmail, targetCalendarId || undefined);
   } catch (error) {
     console.error('[GoogleCalendarIcal] Erreur lors de l\'initialisation:', error);
     return null;

@@ -1,5 +1,6 @@
-import { drizzle } from "drizzle-orm/mysql2";
-import { users, specialties } from "../drizzle/schema";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { users, specialties } from "../drizzle/schema.postgres";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -17,7 +18,8 @@ async function seedAdmin() {
     process.exit(1);
   }
 
-  const db = drizzle(process.env.DATABASE_URL);
+  const sql = neon(process.env.DATABASE_URL);
+  const db = drizzle(sql);
 
   try {
     // 1. Créer le compte administrateur
