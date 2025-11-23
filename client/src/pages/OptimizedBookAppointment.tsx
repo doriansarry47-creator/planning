@@ -48,7 +48,7 @@ export default function OptimizedBookAppointment() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          input: {
+          json: {
             date: selectedDate,
             startTime: selectedTime,
             firstName: form.firstName,
@@ -64,9 +64,12 @@ export default function OptimizedBookAppointment() {
       if (result.result?.data?.json?.success) {
         setStep('done');
         toast.success('✅ Rendez-vous confirmé!');
+      } else if (result.error) {
+        toast.error('Erreur: ' + (result.error.json?.message || 'Impossible de réserver'));
       }
     } catch (error) {
-      toast.error('Erreur de réservation');
+      console.error('Erreur:', error);
+      toast.error('Erreur de connexion');
     } finally {
       setIsSubmitting(false);
     }

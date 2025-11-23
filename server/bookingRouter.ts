@@ -44,7 +44,7 @@ class GoogleCalendarServiceAccount {
       this.auth = new google.auth.JWT({
         email: serviceAccountEmail,
         key: privateKey,
-        scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+        scopes: ['https://www.googleapis.com/auth/calendar'], // Accès complet (lecture/écriture)
       });
       
       // Configuration pour calendrier
@@ -150,7 +150,7 @@ class GoogleCalendarServiceAccount {
       // Calculer l'heure de fin
       const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 1000);
 
-      // Vérifier que le créneau est toujours libre
+      // Vérifier que le créneau est toujours libre (ignorer les événements "DISPONIBLE")
       const events = await this.calendar.events.list({
         calendarId: this.calendarEmail,
         timeMin: startDateTime.toISOString(),
@@ -158,7 +158,14 @@ class GoogleCalendarServiceAccount {
         singleEvents: true,
       });
 
-      if (events.data.items && events.data.items.length > 0) {
+      // Filtrer pour voir s'il y a d'autres événements (pas juste "DISPONIBLE")
+      const blockedEvents = events.data.items?.filter(e => {
+        const title = (e.summary || '').toLowerCase();
+        const isAvailable = title.includes('disponible') || title.includes('available') || title.includes('dispo');
+        return !isAvailable;
+      });
+
+      if (blockedEvents && blockedEvents.length > 0) {
         throw new Error("Ce créneau n'est plus disponible");
       }
 
@@ -172,7 +179,7 @@ class GoogleCalendarServiceAccount {
         description += `\n📱 Téléphone: ${patientPhone}`;
       }
 
-      // Créer l'événement
+      // Créer l'événement (sans attendees car le Service Account n'a pas les permissions Domain-Wide Delegation)
       const event = {
         summary: `🩺 Consultation - ${patientName}`,
         description: description,
@@ -184,9 +191,6 @@ class GoogleCalendarServiceAccount {
           dateTime: endDateTime.toISOString(),
           timeZone: 'Europe/Paris',
         },
-        attendees: [
-          { email: patientEmail, displayName: patientName },
-        ],
         reminders: {
           useDefault: false,
           overrides: [
@@ -198,7 +202,7 @@ class GoogleCalendarServiceAccount {
         transparency: 'opaque', // Bloquer le créneau
       };
 
-      // Créer le rendez-vous
+      // Créer le rendez-vous (sendUpdates n'enverra pas de notifications aux attendees car on n'en a pas)
       const response = await this.calendar.events.insert({
         calendarId: this.calendarEmail,
         resource: event,
@@ -397,13 +401,13 @@ export const bookingRouter = router({
     }),
 
   /**
-   * Réserver un rendez-vous (OAuth2 avec fallback)
+   * Réserver un rendez-vous (Service Account JWT avec fallback)
    * Crée un événement dans Google Calendar et envoie les emails de confirmation
    */
   bookAppointment: publicProcedure
     .input(bookAppointmentSchema)
     .mutation(async ({ input }) => {
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
       
       try {
@@ -418,10 +422,10 @@ export const bookingRouter = router({
 
         let eventId: string | null = null;
 
-        // Essayer avec le service OAuth2 d'abord
+        // Essayer avec le service Service Account JWT d'abord
         if (service && service.isInitialized) {
           try {
-            console.log("[BookingRouter] Tentative de réservation avec service OAuth2...");
+            console.log("[BookingRouter] Tentative de réservation avec service JWT...");
             
             eventId = await service.bookAppointment({
               date: appointmentDate,
@@ -434,10 +438,10 @@ export const bookingRouter = router({
             });
 
             if (eventId) {
-              console.log("[BookingRouter] ✅ Rendez-vous créé avec OAuth2:", eventId);
+              console.log("[BookingRouter] ✅ Rendez-vous créé avec JWT:", eventId);
             }
-          } catch (oauthError: any) {
-            console.warn("[BookingRouter] ⚠️ Erreur OAuth2, tentative fallback iCal:", oauthError.message);
+          } catch (jwtError: any) {
+            console.warn("[BookingRouter] ⚠️ Erreur JWT, tentative fallback iCal:", jwtError.message);
           }
         }
 
@@ -514,7 +518,7 @@ export const bookingRouter = router({
     }),
 
   /**
-   * Vérifier si un créneau spécifique est disponible (OAuth2 avec fallback)
+   * Vérifier si un créneau spécifique est disponible (Service Account JWT avec fallback)
    */
   checkAvailability: publicProcedure
     .input(z.object({
@@ -522,7 +526,7 @@ export const bookingRouter = router({
       startTime: z.string(),
     }))
     .query(async ({ input }) => {
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
       
       try {

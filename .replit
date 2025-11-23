@@ -47,6 +47,10 @@ outputType = "webview"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 38429
+externalPort = 3000
+
 [deployment]
 deploymentTarget = "autoscale"
 run = ["node", "--loader", "tsx", "server/_core/index.ts"]
