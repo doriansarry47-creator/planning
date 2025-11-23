@@ -902,3 +902,5 @@
 *-backup-*.js
 *-backup-*.jsx
 *.backup.*
+.env
+.env
