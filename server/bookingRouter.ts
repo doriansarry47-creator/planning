@@ -252,6 +252,7 @@ const bookAppointmentSchema = z.object({
   email: z.string().email("Email invalide"),
   phone: z.string().min(10, "Numéro de téléphone invalide"),
   reason: z.string().optional(),
+  sendNotifications: z.enum(['email', 'sms', 'both']).optional().default('both'),
 });
 
 // Schéma pour récupérer les disponibilités
@@ -472,36 +473,72 @@ export const bookingRouter = router({
           throw new Error("Impossible de créer le rendez-vous avec aucun des services disponibles");
         }
 
-        // Envoyer l'email de confirmation
-        try {
-          const { sendAppointmentConfirmationEmail } = await import("./services/emailService");
-          
-          const emailResult = await sendAppointmentConfirmationEmail({
-            patientName: `${input.firstName} ${input.lastName}`,
-            patientEmail: input.email,
-            practitionerName: "Dorian Sarry",
-            date: appointmentDate,
-            startTime: input.startTime,
-            endTime: endTime,
-            reason: input.reason || "",
-            location: "Cabinet - Voir email pour l'adresse exacte",
-            appointmentHash: eventId, // Utiliser l'eventId comme hash pour l'annulation
-          });
+        // Envoyer les notifications selon la préférence du patient
+        const sendNotifications = input.sendNotifications || 'both';
+        const notificationResults: { email?: string; sms?: string } = {};
 
-          if (!emailResult.success) {
-            console.warn("[BookingRouter] ⚠️ Email de confirmation non envoyé:", emailResult.error);
-          } else {
-            console.log("[BookingRouter] ✅ Email de confirmation envoyé:", emailResult.messageId);
+        // Envoyer l'email si demandé
+        if (sendNotifications === 'email' || sendNotifications === 'both') {
+          try {
+            const { sendAppointmentConfirmationEmail } = await import("./services/emailService");
+            
+            const emailResult = await sendAppointmentConfirmationEmail({
+              patientName: `${input.firstName} ${input.lastName}`,
+              patientEmail: input.email,
+              practitionerName: "Dorian Sarry",
+              date: appointmentDate,
+              startTime: input.startTime,
+              endTime: endTime,
+              reason: input.reason || "",
+              location: "Cabinet - Voir email pour l'adresse exacte",
+              appointmentHash: eventId,
+            });
+
+            if (!emailResult.success) {
+              console.warn("[BookingRouter] ⚠️ Email de confirmation non envoyé:", emailResult.error);
+              notificationResults.email = `Erreur: ${emailResult.error}`;
+            } else {
+              console.log("[BookingRouter] ✅ Email de confirmation envoyé:", emailResult.messageId);
+              notificationResults.email = "✅ Email envoyé";
+            }
+          } catch (emailError: any) {
+            console.error("[BookingRouter] ❌ Erreur lors de l'envoi de l'email:", emailError);
+            notificationResults.email = `Erreur: ${emailError.message}`;
           }
-        } catch (emailError: any) {
-          console.error("[BookingRouter] ❌ Erreur lors de l'envoi de l'email:", emailError);
-          // Ne pas bloquer la réservation si l'email échoue
+        }
+
+        // Envoyer le SMS si demandé
+        if (sendNotifications === 'sms' || sendNotifications === 'both') {
+          try {
+            const { sendAppointmentSMS } = await import("./services/smsService");
+            
+            const smsResult = await sendAppointmentSMS({
+              patientName: `${input.firstName} ${input.lastName}`,
+              patientPhone: input.phone,
+              date: appointmentDate,
+              startTime: input.startTime,
+              endTime: endTime,
+              practitionerName: "Dorian Sarry",
+            });
+
+            if (!smsResult.success) {
+              console.warn("[BookingRouter] ⚠️ SMS de confirmation non envoyé:", smsResult.error);
+              notificationResults.sms = `Erreur: ${smsResult.error}`;
+            } else {
+              console.log("[BookingRouter] ✅ SMS de confirmation envoyé:", smsResult.messageId);
+              notificationResults.sms = "✅ SMS envoyé";
+            }
+          } catch (smsError: any) {
+            console.error("[BookingRouter] ❌ Erreur lors de l'envoi du SMS:", smsError);
+            notificationResults.sms = `Erreur: ${smsError.message}`;
+          }
         }
 
         return {
           success: true,
           eventId,
-          message: "Rendez-vous confirmé ! Un email de confirmation vous a été envoyé.",
+          message: "Rendez-vous confirmé ! Vous allez recevoir une confirmation.",
+          notificationStatus: notificationResults,
           appointmentDetails: {
             date: input.date,
             startTime: input.startTime,
