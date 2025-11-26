@@ -124,12 +124,14 @@ export default function OptimizedBooking() {
 
       const result = await trpcClient.booking.bookAppointment.mutate({
         date: dateStr,
-        startTime: selectedTime,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        reason: formData.reason,
+        time: selectedTime,
+        patientInfo: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          reason: formData.reason,
+        },
       });
 
       if (result.success) {
