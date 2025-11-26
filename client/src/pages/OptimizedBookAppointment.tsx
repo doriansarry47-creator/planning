@@ -40,7 +40,11 @@ export default function OptimizedBookAppointment() {
         });
         
         const result = await response.json();
-        const slots = result?.result?.data?.json?.slotsByDate || {};
+        console.log('📅 Réponse complète des disponibilités:', result);
+        
+        // Tenter différentes structures de parsing
+        let slots = result?.result?.data?.json?.slotsByDate || result?.json?.slotsByDate || result?.slotsByDate || {};
+        console.log('📅 Créneaux extraits:', slots);
         
         // Récupérer les rendez-vous réservés
         const reservedResponse = await fetch('/api/trpc/booking.getReservedSlots', {
@@ -49,10 +53,13 @@ export default function OptimizedBookAppointment() {
         });
         
         const reservedResult = await reservedResponse.json();
-        const reserved = reservedResult?.result?.data?.json || [];
+        console.log('📅 Réponse réservations:', reservedResult);
+        
+        let reserved = reservedResult?.result?.data?.json || reservedResult?.json || reservedResult || [];
+        console.log('📅 Rendez-vous réservés:', reserved);
         
         setAvailableSlots(slots);
-        setReservedSlots(reserved);
+        setReservedSlots(Array.isArray(reserved) ? reserved : []);
         
         // Grouper les dates par mois en filtrant passées et réservées
         const now = new Date();
