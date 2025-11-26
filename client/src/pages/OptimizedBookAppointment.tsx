@@ -8,56 +8,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Clock, ArrowLeft, CheckCircle2, ChevronDown } from 'lucide-react';
 
-// Générer toutes les dates disponibles (nov, déc, jan)
-const generateAvailableDates = () => {
-  const dates = [];
-  // Novembre 2025: 24, 25, 27, 28
-  // Décembre 2025: 1-5, 8-12, 15-19, 22-26, 29-31
-  // Janvier 2026: 1-9, 12-16, 19-23, 26-30
-  const dateStrings = [
-    // Novembre
-    '2025-11-24', '2025-11-25', '2025-11-27', '2025-11-28',
-    // Décembre
-    '2025-12-01', '2025-12-02', '2025-12-04', '2025-12-05', '2025-12-08', '2025-12-09', 
-    '2025-12-11', '2025-12-12', '2025-12-15', '2025-12-16', '2025-12-18', '2025-12-19',
-    '2025-12-22', '2025-12-23', '2025-12-25', '2025-12-26', '2025-12-29', '2025-12-30',
-    // Janvier
-    '2026-01-05', '2026-01-06', '2026-01-08', '2026-01-09', '2026-01-12', '2026-01-13',
-    '2026-01-15', '2026-01-16', '2026-01-19', '2026-01-20', '2026-01-22', '2026-01-23',
-    '2026-01-26', '2026-01-27', '2026-01-29', '2026-01-30',
-  ];
-  
-  return dateStrings.map(date => ({
-    date,
-    slots: ['17:30', '18:30']
-  }));
-};
-
-const AVAILABLE_DATES = generateAvailableDates();
-
-// Grouper les dates par mois
-const groupDatesByMonth = () => {
-  const grouped: Record<string, typeof AVAILABLE_DATES> = {};
-  
-  AVAILABLE_DATES.forEach(item => {
-    const date = new Date(item.date);
-    const monthKey = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    if (!grouped[monthKey]) {
-      grouped[monthKey] = [];
-    }
-    grouped[monthKey].push(item);
-  });
-  
-  return grouped;
-};
-
-const DATES_BY_MONTH = groupDatesByMonth();
-
 export default function OptimizedBookAppointment() {
   const [step, setStep] = useState<'date' | 'time' | 'info' | 'done'>('date');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<Record<string, string[]>>({});
+  const [reservedSlots, setReservedSlots] = useState<Array<{date: string, startTime: string}>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [datesByMonth, setDatesByMonth] = useState<Record<string, Array<{date: string, slots: string[]}>>>({});
 
   const [form, setForm] = useState({
     firstName: '',
@@ -66,6 +25,82 @@ export default function OptimizedBookAppointment() {
     phone: '',
     reason: ''
   });
+
+  // Charger les créneaux disponibles et les rendez-vous réservés
+  useEffect(() => {
+    const loadAvailabilities = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Récupérer les créneaux disponibles depuis Google Calendar
+        const response = await fetch('/api/trpc/booking.getAvailabilitiesByDate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ json: {} })
+        });
+        
+        const result = await response.json();
+        const slots = result?.result?.data?.json?.slotsByDate || {};
+        
+        // Récupérer les rendez-vous réservés
+        const reservedResponse = await fetch('/api/trpc/booking.getReservedSlots', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const reservedResult = await reservedResponse.json();
+        const reserved = reservedResult?.result?.data?.json || [];
+        
+        setAvailableSlots(slots);
+        setReservedSlots(reserved);
+        
+        // Grouper les dates par mois en filtrant passées et réservées
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        
+        const grouped: Record<string, Array<{date: string, slots: string[]}>> = {};
+        
+        Object.entries(slots).forEach(([date, times]: [string, any]) => {
+          const dateObj = new Date(date);
+          dateObj.setHours(0, 0, 0, 0);
+          
+          // Filtrer: ne garder que les dates futures
+          if (dateObj >= now) {
+            const monthKey = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            if (!grouped[monthKey]) {
+              grouped[monthKey] = [];
+            }
+            
+            // Filtrer les créneaux réservés ou passés
+            const availableTimes = (times as any[])
+              .filter((slot: any) => {
+                const slotDateTime = new Date(`${date}T${slot.startTime}`);
+                const isReserved = reserved.some((r: any) => r.date === date && r.startTime === slot.startTime);
+                const isPast = slotDateTime < new Date();
+                return !isReserved && !isPast;
+              })
+              .map((slot: any) => slot.startTime);
+            
+            if (availableTimes.length > 0) {
+              grouped[monthKey].push({
+                date,
+                slots: availableTimes
+              });
+            }
+          }
+        });
+        
+        setDatesByMonth(grouped);
+      } catch (error) {
+        console.error('Erreur lors du chargement des disponibilités:', error);
+        toast.error('Impossible de charger les disponibilités');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadAvailabilities();
+  }, []);
 
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);
@@ -205,40 +240,52 @@ export default function OptimizedBookAppointment() {
           <Card>
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Choisissez une date</CardTitle>
-              <CardDescription>{AVAILABLE_DATES.length} date(s) disponible(s)</CardDescription>
+              <CardDescription>
+                {isLoading ? '⏳ Chargement...' : `${Object.values(datesByMonth).flat().length} date(s) disponible(s)`}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
-                {Object.entries(DATES_BY_MONTH).map(([monthKey, dates]) => (
-                  <div key={monthKey}>
-                    {/* Month Header */}
-                    <div className="mb-4 pb-3 border-b-2 border-gray-300">
-                      <h3 className="text-lg font-bold text-gray-800 capitalize">{monthKey}</h3>
-                      <p className="text-sm text-gray-500">{dates.length} date(s) disponible(s)</p>
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">Chargement des disponibilités...</p>
+                </div>
+              ) : Object.keys(datesByMonth).length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">❌ Aucune date disponible pour le moment</p>
+                </div>
+              ) : (
+                <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+                  {Object.entries(datesByMonth).map(([monthKey, dates]) => (
+                    <div key={monthKey}>
+                      {/* Month Header */}
+                      <div className="mb-4 pb-3 border-b-2 border-gray-300">
+                        <h3 className="text-lg font-bold text-gray-800 capitalize">{monthKey}</h3>
+                        <p className="text-sm text-gray-500">{dates.length} date(s) disponible(s)</p>
+                      </div>
+                      
+                      {/* Dates Grid */}
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        {dates.map(({ date }) => {
+                          const dateObj = new Date(date);
+                          const dayNumber = dateObj.getDate();
+                          const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase();
+                          
+                          return (
+                            <button
+                              key={date}
+                              onClick={() => handleSelectDate(date)}
+                              className="flex flex-col items-center justify-center p-3 rounded-lg bg-green-50 border-2 border-green-400 hover:bg-green-100 hover:border-green-500 transition-colors"
+                            >
+                              <span className="text-xs font-bold text-green-600">{dayName}</span>
+                              <span className="text-xl font-bold text-green-700">{dayNumber}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    
-                    {/* Dates Grid */}
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      {dates.map(({ date }) => {
-                        const dateObj = new Date(date);
-                        const dayNumber = dateObj.getDate();
-                        const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase();
-                        
-                        return (
-                          <button
-                            key={date}
-                            onClick={() => handleSelectDate(date)}
-                            className="flex flex-col items-center justify-center p-3 rounded-lg bg-green-50 border-2 border-green-400 hover:bg-green-100 hover:border-green-500 transition-colors"
-                          >
-                            <span className="text-xs font-bold text-green-600">{dayName}</span>
-                            <span className="text-xl font-bold text-green-700">{dayNumber}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -252,7 +299,7 @@ export default function OptimizedBookAppointment() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3 mb-4">
-                {AVAILABLE_DATES.find(d => d.date === selectedDate)?.slots.map((time) => (
+                {(availableSlots[selectedDate] || []).map((time) => (
                   <button
                     key={time}
                     onClick={() => handleSelectTime(time)}
@@ -263,6 +310,9 @@ export default function OptimizedBookAppointment() {
                   </button>
                 ))}
               </div>
+              {(!availableSlots[selectedDate] || availableSlots[selectedDate].length === 0) && (
+                <p className="text-center text-gray-500 mb-4">❌ Aucun créneau disponible pour cette date</p>
+              )}
               <Button variant="outline" onClick={() => setStep('date')} className="w-full">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Retour

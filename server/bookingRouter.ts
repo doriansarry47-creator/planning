@@ -405,6 +405,26 @@ export const bookingRouter = router({
     }),
 
   /**
+   * Récupérer tous les rendez-vous réservés pour filtrer les slots indisponibles
+   */
+  getReservedSlots: publicProcedure
+    .query(async () => {
+      const { getAllAppointments } = await import("./db");
+      const allAppointments = await getAllAppointments();
+      
+      // Formater les rendez-vous réservés avec leurs créneaux
+      return allAppointments
+        .filter((apt: any) => apt.status === 'scheduled' || apt.status === 'pending')
+        .map((apt: any) => ({
+          date: apt.appointmentDate ? new Date(apt.appointmentDate).toISOString().split('T')[0] : '',
+          startTime: apt.startTime,
+          endTime: apt.endTime,
+          id: apt.id,
+        }))
+        .filter((slot: any) => slot.date); // Filtrer les dates invalides
+    }),
+
+  /**
    * Réserver un rendez-vous (Service Account JWT avec fallback)
    * Crée un événement dans Google Calendar et envoie les emails de confirmation
    */
