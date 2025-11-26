@@ -9,7 +9,7 @@ import { google } from "googleapis";
 import { Resend } from "resend";
 
 // Service d'email
-const resend = new Resend(process.env.RESEND_API_KEY || 're_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Service Google Calendar OAuth2
 class OptimizedGoogleCalendarService {
@@ -17,11 +17,11 @@ class OptimizedGoogleCalendarService {
   private auth: any;
   private isInitialized = false;
   
-  // Configuration OAuth2 pour doriansarry47@gmail.com
-  public clientId = "603850749287-8c0hrol8l5gulsal23mna3raeolmd2l2.apps.googleusercontent.com";
-  public clientSecret = "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";
-  public redirectUri = "https://planning-7qkb7uw7v-ikips-projects.vercel.app/api/oauth/callback";
-  private calendarEmail = "doriansarry47@gmail.com";
+  // Configuration OAuth2 - Utilise les variables d'environnement
+  public clientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "";
+  public clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  public redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.APP_URL}/api/oauth/callback`;
+  private calendarEmail = process.env.GOOGLE_CALENDAR_EMAIL || "doriansarry47@gmail.com";
 
   constructor() {
     this.initializeCalendar();
@@ -374,8 +374,7 @@ const OptimizedTRPCRouter = router({
   }),
 });
 
-// Import du router principal avec bookingRouter corrigé
-import { appRouter } from "../server/routers";
+// Express App
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -384,7 +383,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(
   "/api/trpc",
   createExpressMiddleware({
-    router: appRouter, // Utilise le router principal avec bookingRouter corrigé
+    router: OptimizedTRPCRouter,
     createContext: ({ req, res }: CreateExpressContextOptions) => ({
       req,
       res,

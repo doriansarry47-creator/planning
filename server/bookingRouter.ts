@@ -1,115 +1,143 @@
 import { router, publicProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { google } from "googleapis";
+import { getGoogleCalendarIcalService } from "./services/googleCalendarIcal";
+import { appointments } from "../drizzle/schema";
 
 /**
- * Service Google Calendar OAuth2 pour doriansarry47@gmail.com
- * Utilise OAuth2 avec refresh token pour lire/écrire dans Google Calendar
+ * Service Google Calendar utilisant JWT du Service Account
+ * Lecture directe du calendrier personnel en tant que Service Account
  */
-class OptimizedGoogleCalendarService {
+class GoogleCalendarServiceAccount {
   private calendar: any;
   private auth: any;
-  private isInitialized = false;
-  
-  // Configuration OAuth2 pour doriansarry47@gmail.com
-  public clientId = process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
-  public clientSecret = process.env.GOOGLE_CLIENT_SECRET || "YOUR_GOOGLE_CLIENT_SECRET";
-  public redirectUri = "https://planning-7qkb7uw7v-ikips-projects.vercel.app/api/oauth/callback";
+  public isInitialized = false;
   private calendarEmail = "doriansarry47@gmail.com";
+  private initPromise: Promise<void>;
 
   constructor() {
-    this.initializeCalendar();
+    this.initPromise = this.initializeCalendar();
   }
 
   private async initializeCalendar() {
     try {
-      console.log("🔑 Initialisation Google Calendar OAuth2 pour doriansarry47@gmail.com");
+      console.log("🔑 Initialisation Google Calendar avec Service Account JWT");
       
-      // Initialiser OAuth2 client
-      this.auth = new google.auth.OAuth2(this.clientId, this.clientSecret, this.redirectUri);
+      // Try both possible private key variable names
+      let privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY || "";
+      const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
       
-      // Configuration pour calendrier de doriansarry47@gmail.com
+      if (!privateKey || !serviceAccountEmail) {
+        console.warn("⚠️ Clé privée ou email Service Account manquant");
+        this.isInitialized = false;
+        return;
+      }
+      
+      // Nettoyer le format de la clé
+      privateKey = privateKey
+        .replace(/^["']|["']$/g, '') // Remove quotes if present
+        .replace(/\\n/g, '\n') // Convert escaped newlines
+        .trim();
+      
+      console.log(`📍 Clé privée length: ${privateKey.length}, starts with: ${privateKey.substring(0, 30)}`);
+      
+      // Créer un client JWT avec la clé privée du Service Account
+      this.auth = new google.auth.JWT({
+        email: serviceAccountEmail,
+        key: privateKey,
+        scopes: ['https://www.googleapis.com/auth/calendar'], // Accès complet (lecture/écriture)
+      });
+      
+      // Configuration pour calendrier
       this.calendar = google.calendar({
         version: 'v3',
         auth: this.auth
       });
       
-      // Tentative d'authentification avec le refresh token stocké
-      const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-      if (!refreshToken) {
-        console.log("⚠️ GOOGLE_REFRESH_TOKEN manquant - OAuth2 requis");
-        this.isInitialized = false;
-        return;
-      }
-      
-      this.auth.setCredentials({
-        refresh_token: refreshToken
-      });
-      
-      // Générer un access token valide
-      const { credentials } = await this.auth.refreshAccessToken();
-      this.auth.setCredentials(credentials);
-      
-      console.log("✅ Google Calendar OAuth2 initialisé pour doriansarry47@gmail.com");
       this.isInitialized = true;
+      console.log("✅ Google Calendar Service Account JWT initialisé avec succès");
+      console.log(`📍 Service Account: ${serviceAccountEmail}`);
+      console.log(`📍 Calendrier: ${this.calendarEmail}`);
       
     } catch (error) {
-      console.error("❌ Erreur initialisation Google Calendar OAuth2:", error);
+      console.error("❌ Erreur initialisation Google Calendar JWT:", error);
       this.isInitialized = false;
     }
   }
 
+  async ensureInitialized(): Promise<void> {
+    await this.initPromise;
+  }
+
   async getAvailableSlots(date: Date, durationMinutes: number = 60): Promise<string[]> {
     if (!this.isInitialized) {
-      console.warn("⚠️ Google Calendar non initialisé - utilisation des créneaux par défaut");
-      return this.getDefaultAvailableSlots(date);
+      console.warn("⚠️ Google Calendar Service Account non initialisé");
+      return [];
     }
 
     try {
-      // Définir la plage horaire (9h-17h)
+      console.log(`[ServiceAccount] Recherche des créneaux disponibles pour ${date.toISOString().split('T')[0]}`);
+      
+      // Définir la plage horaire (7h-22h pour inclure les créneaux du soir)
       const dayStart = new Date(date);
-      dayStart.setHours(9, 0, 0, 0);
+      dayStart.setHours(7, 0, 0, 0);
       
       const dayEnd = new Date(date);
-      dayEnd.setHours(17, 0, 0, 0);
+      dayEnd.setHours(22, 0, 0, 0);
 
-      // Récupérer les événements existants pour ce jour
-      const events = await this.calendar.events.list({
+      // Récupérer les événements du calendrier
+      const response = await this.calendar.events.list({
         calendarId: this.calendarEmail,
         timeMin: dayStart.toISOString(),
         timeMax: dayEnd.toISOString(),
         singleEvents: true,
-        orderBy: 'startTime'
       });
 
-      // Créer une liste de tous les créneaux possibles (9h-17h, toutes les heures)
-      const allPossibleSlots = [];
-      for (let hour = 9; hour < 17; hour++) {
-        allPossibleSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+      const events = response.data.items || [];
+      console.log(`[ServiceAccount] ${events.length} événements trouvés`);
+      
+      const slots: string[] = [];
+
+      // Chercher les événements marqués comme "DISPONIBLE"
+      for (const event of events) {
+        const title = event.summary?.toLowerCase() || '';
+        const isAvailable = 
+          title.includes('disponible') || 
+          title.includes('available') || 
+          title.includes('dispo');
+
+        if (isAvailable) {
+          const eventStart = new Date(event.start.dateTime || event.start.date);
+          const eventEnd = new Date(event.end.dateTime || event.end.date);
+          
+          // Générer les créneaux de 60 minutes dans ce créneau disponible
+          let currentTime = new Date(eventStart);
+          while (currentTime < eventEnd) {
+            const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
+            if (slotEnd <= eventEnd) {
+              const timeStr = currentTime.toTimeString().slice(0, 5);
+              if (!slots.includes(timeStr)) {
+                slots.push(timeStr);
+                console.log(`[ServiceAccount] ✅ Créneau ajouté: ${timeStr} (${event.summary})`);
+              }
+            }
+            currentTime.setMinutes(currentTime.getMinutes() + 60);
+          }
+        }
       }
 
-      // Filtrer les créneaux pris par des événements existants
-      const busySlots = events.data.items?.map(event => {
-        const startTime = event.start.dateTime || event.start.date;
-        return new Date(startTime).getHours();
-      }) || [];
-
-      // Retourner les créneaux libres
-      return allPossibleSlots.filter(slot => !busySlots.includes(parseInt(slot.split(':')[0])));
+      slots.sort();
+      console.log(`[ServiceAccount] Total: ${slots.length} créneaux disponibles`);
+      return slots;
     } catch (error) {
-      console.error("❌ Erreur lors de la récupération des créneaux:", error);
-      return this.getDefaultAvailableSlots(date);
+      console.error("⚠️ Erreur ServiceAccount:", error);
+      return [];
     }
-  }
-
-  private getDefaultAvailableSlots(date: Date): string[] {
-    // Créneaux par défaut si OAuth2 n'est pas configuré
-    return ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'];
   }
 
   async bookAppointment(appointmentData: any): Promise<string | null> {
     if (!this.isInitialized) {
-      throw new Error("Service Google Calendar OAuth2 non initialisé");
+      throw new Error("Service Google Calendar non initialisé");
     }
 
     try {
@@ -123,7 +151,7 @@ class OptimizedGoogleCalendarService {
       // Calculer l'heure de fin
       const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 1000);
 
-      // Vérifier que le créneau est toujours libre
+      // Vérifier que le créneau est toujours libre (ignorer les événements "DISPONIBLE")
       const events = await this.calendar.events.list({
         calendarId: this.calendarEmail,
         timeMin: startDateTime.toISOString(),
@@ -131,7 +159,14 @@ class OptimizedGoogleCalendarService {
         singleEvents: true,
       });
 
-      if (events.data.items && events.data.items.length > 0) {
+      // Filtrer pour voir s'il y a d'autres événements (pas juste "DISPONIBLE")
+      const blockedEvents = events.data.items?.filter(e => {
+        const title = (e.summary || '').toLowerCase();
+        const isAvailable = title.includes('disponible') || title.includes('available') || title.includes('dispo');
+        return !isAvailable;
+      });
+
+      if (blockedEvents && blockedEvents.length > 0) {
         throw new Error("Ce créneau n'est plus disponible");
       }
 
@@ -145,7 +180,7 @@ class OptimizedGoogleCalendarService {
         description += `\n📱 Téléphone: ${patientPhone}`;
       }
 
-      // Créer l'événement
+      // Créer l'événement (sans attendees car le Service Account n'a pas les permissions Domain-Wide Delegation)
       const event = {
         summary: `🩺 Consultation - ${patientName}`,
         description: description,
@@ -157,9 +192,6 @@ class OptimizedGoogleCalendarService {
           dateTime: endDateTime.toISOString(),
           timeZone: 'Europe/Paris',
         },
-        attendees: [
-          { email: patientEmail, displayName: patientName },
-        ],
         reminders: {
           useDefault: false,
           overrides: [
@@ -171,7 +203,7 @@ class OptimizedGoogleCalendarService {
         transparency: 'opaque', // Bloquer le créneau
       };
 
-      // Créer le rendez-vous
+      // Créer le rendez-vous (sendUpdates n'enverra pas de notifications aux attendees car on n'en a pas)
       const response = await this.calendar.events.insert({
         calendarId: this.calendarEmail,
         resource: event,
@@ -188,14 +220,22 @@ class OptimizedGoogleCalendarService {
   }
 }
 
-// Instance singleton du service OAuth2
-let optimizedServiceInstance: OptimizedGoogleCalendarService | null = null;
+// Instance singleton du service Service Account
+let googleCalendarServiceInstance: GoogleCalendarServiceAccount | null = null;
 
-function getOptimizedGoogleCalendarService(): OptimizedGoogleCalendarService | null {
-  if (!optimizedServiceInstance) {
-    optimizedServiceInstance = new OptimizedGoogleCalendarService();
+export function getGoogleCalendarService(): GoogleCalendarServiceAccount | null {
+  if (!googleCalendarServiceInstance) {
+    googleCalendarServiceInstance = new GoogleCalendarServiceAccount();
   }
-  return optimizedServiceInstance;
+  return googleCalendarServiceInstance;
+}
+
+// Export function to initialize on server startup
+export async function initializeGoogleCalendarService(): Promise<void> {
+  const service = getGoogleCalendarService();
+  if (service) {
+    await service.ensureInitialized();
+  }
 }
 
 /**
@@ -205,7 +245,7 @@ function getOptimizedGoogleCalendarService(): OptimizedGoogleCalendarService | n
  */
 
 // Schéma de validation pour la réservation
-// Compatible avec le format envoyé par OptimizedBooking.tsx
+// Compatible avec le format envoyé par OptimizedBookAppointment.tsx
 const bookAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"), // Format YYYY-MM-DD
   time: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide (HH:mm)"), // Format HH:mm
@@ -260,12 +300,13 @@ export const bookingRouter = router({
    */
   getAvailabilities: publicProcedure
     .input(getAvailabilitiesSchema)
-    .query(async ({ input }) => {
-      const service = getOptimizedGoogleCalendarService();
+    .mutation(async ({ input }) => {
+      console.log("[BookingRouter] Récupération des disponibilités via Service Account JWT");
+      const service = getGoogleCalendarService();
       
       if (!service || !service.isInitialized) {
-        console.error("[BookingRouter] Service OAuth2 non initialisé - GOOGLE_REFRESH_TOKEN manquant");
-        throw new Error("Service de réservation temporairement indisponible");
+        console.warn("[BookingRouter] Service Account non initialisé");
+        throw new Error("Service Google Calendar non disponible");
       }
 
       try {
@@ -277,9 +318,9 @@ export const bookingRouter = router({
         // Parcourir chaque jour de la période
         const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
-          const availableSlots = await service.getAvailableSlots(new Date(currentDate), 60);
+          const daySlots = await service.getAvailableSlots(new Date(currentDate), 60);
           
-          for (const slotTime of availableSlots) {
+          for (const slotTime of daySlots) {
             slots60Min.push({
               date: currentDate.toISOString().split('T')[0],
               startTime: slotTime,
@@ -292,30 +333,31 @@ export const bookingRouter = router({
           currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        console.log(`[BookingRouter OAuth2] ${slots60Min.length} créneaux de 60min trouvés`);
+        console.log(`[BookingRouter] ${slots60Min.length} créneaux trouvés`);
 
         return {
           success: true,
           slots: slots60Min,
         };
       } catch (error: any) {
-        console.error("[BookingRouter OAuth2] Erreur lors de la récupération des disponibilités:", error);
+        console.error("[BookingRouter] Erreur Service Account:", error);
         throw new Error(`Impossible de récupérer les disponibilités: ${error.message}`);
       }
     }),
 
   /**
-   * Récupérer les disponibilités groupées par date (OAuth2)
+   * Récupérer les disponibilités groupées par date (Service Account JWT)
    * Retourne un objet avec les dates comme clés et les créneaux comme valeurs
    */
   getAvailabilitiesByDate: publicProcedure
     .input(getAvailabilitiesSchema)
-    .query(async ({ input }) => {
-      const service = getOptimizedGoogleCalendarService();
+    .mutation(async ({ input }) => {
+      console.log("[BookingRouter] Récupération des disponibilités groupées par date via Service Account JWT");
+      const service = getGoogleCalendarService();
       
       if (!service || !service.isInitialized) {
-        console.error("[BookingRouter] Service OAuth2 non initialisé - GOOGLE_REFRESH_TOKEN manquant");
-        throw new Error("Service de réservation temporairement indisponible");
+        console.warn("[BookingRouter] Service Account non initialisé");
+        throw new Error("Service Google Calendar non disponible");
       }
 
       try {
@@ -327,38 +369,29 @@ export const bookingRouter = router({
         // Parcourir chaque jour de la période
         const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
-          const availableSlots = await service.getAvailableSlots(new Date(currentDate), 60);
+          const daySlots = await service.getAvailableSlots(new Date(currentDate), 60);
           
-          const dateStr = currentDate.toISOString().split('T')[0];
-          slotsByDate[dateStr] = [];
-          
-          for (const slotTime of availableSlots) {
-            const startHour = parseInt(slotTime.split(':')[0]);
-            const endHour = startHour + 1;
+          if (daySlots.length > 0) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            slotsByDate[dateStr] = [];
             
-            slotsByDate[dateStr].push({
-              date: dateStr,
-              startTime: slotTime,
-              endTime: `${endHour.toString().padStart(2, '0')}:00`,
-              duration: 60,
-              title: "Disponible (60 min)",
-            });
+            for (const slotTime of daySlots) {
+              slotsByDate[dateStr].push({
+                date: dateStr,
+                startTime: slotTime,
+                endTime: `${(parseInt(slotTime.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+                duration: 60,
+                title: "Disponible (60 min)",
+              });
+            }
+            
+            slotsByDate[dateStr].sort((a, b) => a.startTime.localeCompare(b.startTime));
           }
-          
-          // Trier les créneaux de la journée
-          slotsByDate[dateStr].sort((a, b) => a.startTime.localeCompare(b.startTime));
           
           currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        // Supprimer les dates sans créneaux
-        Object.keys(slotsByDate).forEach(date => {
-          if (slotsByDate[date].length === 0) {
-            delete slotsByDate[date];
-          }
-        });
-
-        console.log(`[BookingRouter OAuth2] Disponibilités groupées pour ${Object.keys(slotsByDate).length} dates`);
+        console.log(`[BookingRouter] ${Object.keys(slotsByDate).length} dates avec disponibilités trouvées`);
 
         return {
           success: true,
@@ -366,13 +399,13 @@ export const bookingRouter = router({
           availableDates: Object.keys(slotsByDate).sort(),
         };
       } catch (error: any) {
-        console.error("[BookingRouter OAuth2] Erreur lors de la récupération des disponibilités:", error);
+        console.error("[BookingRouter] Erreur Service Account:", error);
         throw new Error(`Impossible de récupérer les disponibilités: ${error.message}`);
       }
     }),
 
   /**
-   * Réserver un rendez-vous (OAuth2 avec fallback)
+   * Réserver un rendez-vous (Service Account JWT avec fallback)
    * Crée un événement dans Google Calendar et envoie les emails de confirmation
    */
   bookAppointment: publicProcedure
@@ -381,10 +414,7 @@ export const bookingRouter = router({
       console.log('[BookingRouter] 📥 Données reçues pour réservation:', JSON.stringify(input, null, 2));
       
       const service = getOptimizedGoogleCalendarService();
-      
-      if (!service || !service.isInitialized) {
-        throw new Error("Service de réservation temporairement indisponible");
-      }
+      const fallbackService = getGoogleCalendarIcalService();
       
       // Extraire les données du patientInfo
       const { firstName, lastName, email, phone, reason } = input.patientInfo;
@@ -400,24 +430,62 @@ export const bookingRouter = router({
         const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // +60 minutes
         const endTime = endDateTime.toTimeString().slice(0, 5); // HH:mm
 
-        // Créer le rendez-vous avec le service OAuth2
-        const eventId = await service.bookAppointment({
-          date: appointmentDate,
-          startTime: startTime,
-          duration: 60,
-          patientName: `${firstName} ${lastName}`,
-          patientEmail: email,
-          patientPhone: phone,
-          reason: reason,
-        });
+        let eventId: string | null = null;
 
-        if (!eventId) {
-          throw new Error("Impossible de créer le rendez-vous");
+        // Essayer avec le service Service Account JWT d'abord
+        if (service && service.isInitialized) {
+          try {
+            console.log("[BookingRouter] Tentative de réservation avec service JWT...");
+            
+            eventId = await service.bookAppointment({
+              date: appointmentDate,
+              startTime: startTime,
+              duration: 60,
+              patientName: `${firstName} ${lastName}`,
+              patientEmail: email,
+              patientPhone: phone,
+              reason: reason,
+            });
+
+            if (eventId) {
+              console.log("[BookingRouter] ✅ Rendez-vous créé avec JWT:", eventId);
+            }
+          } catch (jwtError: any) {
+            console.warn("[BookingRouter] ⚠️ Erreur JWT, tentative fallback iCal:", jwtError.message);
+          }
         }
 
-        // Envoyer l'email de confirmation
+        // Fallback vers l'ancien service iCal si OAuth2 échoue
+        if (!eventId && fallbackService) {
+          try {
+            console.log("[BookingRouter] Tentative de réservation avec service iCal fallback...");
+            
+            eventId = await fallbackService.bookAppointment({
+              patientName: `${firstName} ${lastName}`,
+              patientEmail: email,
+              patientPhone: phone,
+              date: appointmentDate,
+              startTime: startTime,
+              endTime: endTime,
+              reason: reason,
+            });
+
+            if (eventId) {
+              console.log("[BookingRouter] ✅ Rendez-vous créé avec iCal fallback:", eventId);
+            }
+          } catch (icalError: any) {
+            console.error("[BookingRouter] ❌ Erreur service iCal fallback:", icalError);
+          }
+        }
+
+        if (!eventId) {
+          throw new Error("Impossible de créer le rendez-vous avec aucun des services disponibles");
+        }
+
+        // ✅ SAUVEGARDER LE RENDEZ-VOUS EN BASE DE DONNÉES
         try {
-          const { sendAppointmentConfirmationEmail } = await import("./services/emailService");
+          const { getDb } = await import("./db");
+          const db = await getDb();
           
           const emailResult = await sendAppointmentConfirmationEmail({
             patientName: `${firstName} ${lastName}`,
@@ -430,21 +498,79 @@ export const bookingRouter = router({
             location: "Cabinet - Voir email pour l'adresse exacte",
             appointmentHash: eventId, // Utiliser l'eventId comme hash pour l'annulation
           });
+          
+          console.log("[BookingRouter] ✅ Rendez-vous enregistré en base de données");
+        } catch (dbError: any) {
+          console.warn("[BookingRouter] ⚠️ Erreur sauvegarde BD (non-bloquant):", dbError.message);
+          // Continuer même si la BD échoue - le rendez-vous est déjà créé dans Google Calendar
+        }
 
-          if (!emailResult.success) {
-            console.warn("[BookingRouter] ⚠️ Email de confirmation non envoyé:", emailResult.error);
-          } else {
-            console.log("[BookingRouter] ✅ Email de confirmation envoyé:", emailResult.messageId);
+        // Envoyer les notifications selon la préférence du patient
+        const sendNotifications = input.sendNotifications || 'both';
+        const notificationResults: { email?: string; sms?: string } = {};
+
+        // Envoyer l'email si demandé
+        if (sendNotifications === 'email' || sendNotifications === 'both') {
+          try {
+            const { sendAppointmentConfirmationEmail } = await import("./services/emailService");
+            
+            const emailResult = await sendAppointmentConfirmationEmail({
+              patientName: `${input.firstName} ${input.lastName}`,
+              patientEmail: input.email,
+              practitionerName: "Dorian Sarry",
+              date: appointmentDate,
+              startTime: input.startTime,
+              endTime: endTime,
+              reason: input.reason || "",
+              location: "Cabinet - Voir email pour l'adresse exacte",
+              appointmentHash: eventId,
+            });
+
+            if (!emailResult.success) {
+              console.warn("[BookingRouter] ⚠️ Email de confirmation non envoyé:", emailResult.error);
+              notificationResults.email = `Erreur: ${emailResult.error}`;
+            } else {
+              console.log("[BookingRouter] ✅ Email de confirmation envoyé:", emailResult.messageId);
+              notificationResults.email = "✅ Email envoyé";
+            }
+          } catch (emailError: any) {
+            console.error("[BookingRouter] ❌ Erreur lors de l'envoi de l'email:", emailError);
+            notificationResults.email = `Erreur: ${emailError.message}`;
           }
-        } catch (emailError: any) {
-          console.error("[BookingRouter] ❌ Erreur lors de l'envoi de l'email:", emailError);
-          // Ne pas bloquer la réservation si l'email échoue
+        }
+
+        // Envoyer le SMS si demandé
+        if (sendNotifications === 'sms' || sendNotifications === 'both') {
+          try {
+            const { sendAppointmentSMS } = await import("./services/smsService");
+            
+            const smsResult = await sendAppointmentSMS({
+              patientName: `${input.firstName} ${input.lastName}`,
+              patientPhone: input.phone,
+              date: appointmentDate,
+              startTime: input.startTime,
+              endTime: endTime,
+              practitionerName: "Dorian Sarry",
+            });
+
+            if (!smsResult.success) {
+              console.warn("[BookingRouter] ⚠️ SMS de confirmation non envoyé:", smsResult.error);
+              notificationResults.sms = `Erreur: ${smsResult.error}`;
+            } else {
+              console.log("[BookingRouter] ✅ SMS de confirmation envoyé:", smsResult.messageId);
+              notificationResults.sms = "✅ SMS envoyé";
+            }
+          } catch (smsError: any) {
+            console.error("[BookingRouter] ❌ Erreur lors de l'envoi du SMS:", smsError);
+            notificationResults.sms = `Erreur: ${smsError.message}`;
+          }
         }
 
         return {
           success: true,
           eventId,
-          message: "Rendez-vous confirmé ! Un email de confirmation vous a été envoyé.",
+          message: "Rendez-vous confirmé ! Vous allez recevoir une confirmation.",
+          notificationStatus: notificationResults,
           appointmentDetails: {
             date: input.date,
             startTime: startTime,
@@ -461,7 +587,7 @@ export const bookingRouter = router({
     }),
 
   /**
-   * Vérifier si un créneau spécifique est disponible (OAuth2 avec fallback)
+   * Vérifier si un créneau spécifique est disponible (Service Account JWT avec fallback)
    */
   checkAvailability: publicProcedure
     .input(z.object({
@@ -469,16 +595,45 @@ export const bookingRouter = router({
       startTime: z.string(),
     }))
     .query(async ({ input }) => {
-      const service = getOptimizedGoogleCalendarService();
-      
-      if (!service || !service.isInitialized) {
-        throw new Error("Service de vérification indisponible");
-      }
+      const service = getGoogleCalendarService();
+      const fallbackService = getGoogleCalendarIcalService();
       
       try {
-        const availableSlots = await service.getAvailableSlots(new Date(input.date), 60);
-        const isAvailable = availableSlots.includes(input.startTime);
-        
+        // Calculer l'heure de fin (60 minutes)
+        const [hours, minutes] = input.startTime.split(':').map(Number);
+        const startDateTime = new Date(`${input.date}T${input.startTime}:00`);
+        const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+        const endTime = endDateTime.toTimeString().slice(0, 5);
+
+        let isAvailable = false;
+
+        // Essayer avec le service OAuth2 d'abord
+        if (service && service.isInitialized) {
+          try {
+            const availableSlots = await service.getAvailableSlots(startDateTime, 60);
+            isAvailable = availableSlots.includes(input.startTime);
+            
+            if (isAvailable) {
+              console.log("[BookingRouter] Créneau disponible confirmé via OAuth2");
+            }
+          } catch (oauthError: any) {
+            console.warn("[BookingRouter] Erreur vérification OAuth2:", oauthError.message);
+          }
+        }
+
+        // Fallback vers l'ancien service iCal si OAuth2 échoue ou si pas disponible
+        if (!isAvailable && fallbackService) {
+          try {
+            isAvailable = await fallbackService.isSlotAvailable(input.date, input.startTime, endTime);
+            
+            if (isAvailable) {
+              console.log("[BookingRouter] Créneau disponible confirmé via iCal fallback");
+            }
+          } catch (icalError: any) {
+            console.error("[BookingRouter] Erreur vérification iCal fallback:", icalError);
+          }
+        }
+
         return {
           success: true,
           available: isAvailable,
@@ -500,10 +655,12 @@ export const bookingRouter = router({
     .input(z.object({}))
     .query(async () => {
       const service = getOptimizedGoogleCalendarService();
+      const fallbackService = getGoogleCalendarIcalService();
 
       return {
         success: true,
         oauth2Available: service?.isInitialized || false,
+        icalAvailable: !!fallbackService,
         timestamp: new Date().toISOString(),
       };
     }),
@@ -517,18 +674,38 @@ export const bookingRouter = router({
     }))
     .query(async ({ input }) => {
       const service = getOptimizedGoogleCalendarService();
+      const fallbackService = getGoogleCalendarIcalService();
 
       try {
         const targetDate = new Date(input.date);
         let availableSlots: string[] = [];
 
-        // Essayer avec OAuth2
+        // Essayer avec OAuth2 d'abord
         if (service && service.isInitialized) {
           try {
             availableSlots = await service.getAvailableSlots(targetDate, 60);
             console.log(`[BookingRouter] OAuth2: ${availableSlots.length} créneaux trouvés pour ${input.date}`);
           } catch (oauthError: any) {
-            console.warn("[BookingRouter] Erreur OAuth2:", oauthError.message);
+            console.warn("[BookingRouter] Erreur OAuth2, utilisation fallback iCal:", oauthError.message);
+          }
+        }
+
+        // Fallback vers iCal si OAuth2 échoue
+        if (availableSlots.length === 0 && fallbackService) {
+          try {
+            const dayStart = new Date(targetDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(targetDate);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            const slots = await fallbackService.getAvailableSlots(dayStart, dayEnd);
+            availableSlots = slots
+              .filter(slot => slot.date === input.date)
+              .map(slot => slot.startTime);
+
+            console.log(`[BookingRouter] iCal: ${availableSlots.length} créneaux trouvés pour ${input.date}`);
+          } catch (icalError: any) {
+            console.error("[BookingRouter] Erreur iCal fallback:", icalError);
           }
         }
 

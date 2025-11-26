@@ -895,4 +895,13 @@
 # uploads/
 # downloads/
 
-planning-2/
+
+# Backup files with potential secrets
+*-backup-*.ts
+*-backup-*.tsx
+*-backup-*.js
+*-backup-*.jsx
+*.backup.*
+.env
+.env
+.env

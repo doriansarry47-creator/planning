@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { initializeGoogleCalendarService, getGoogleCalendarService } from "../bookingRouter";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -28,6 +29,15 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // Initialiser le service Google Calendar OAuth2 au démarrage
+  try {
+    console.log("[Server] Initializing Google Calendar OAuth2 service...");
+    await initializeGoogleCalendarService();
+    console.log("[Server] ✅ Google Calendar OAuth2 service initialized");
+  } catch (error) {
+    console.warn("[Server] ⚠️ Google Calendar OAuth2 initialization failed:", error);
+  }
+
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
@@ -35,6 +45,60 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  
+  // Direct API endpoint for availabilities (before tRPC middleware)
+  app.post("/api/availabilities", async (req, res) => {
+    try {
+      const service = getGoogleCalendarService();
+      
+      if (!service || !service.isInitialized) {
+        return res.status(503).json({
+          error: "Google Calendar service not available"
+        });
+      }
+      
+      const { startDate, endDate } = req.body;
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          error: "Missing startDate or endDate"
+        });
+      }
+      
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const slotsByDate: Record<string, any[]> = {};
+      
+      const currentDate = new Date(start);
+      while (currentDate <= end) {
+        const daySlots = await service.getAvailableSlots(new Date(currentDate), 60);
+        
+        if (daySlots.length > 0) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          slotsByDate[dateStr] = daySlots.map(slotTime => ({
+            date: dateStr,
+            startTime: slotTime,
+            endTime: `${(parseInt(slotTime.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+            duration: 60,
+            title: "Disponible (60 min)"
+          }));
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      res.json({
+        success: true,
+        slotsByDate,
+        availableDates: Object.keys(slotsByDate).sort()
+      });
+    } catch (error: any) {
+      console.error("[API] Error fetching availabilities:", error);
+      res.status(500).json({
+        error: error.message || "Failed to fetch availabilities"
+      });
+    }
+  });
+  
   // tRPC API
   app.use(
     "/api/trpc",
@@ -50,15 +114,15 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
+  const preferredPort = parseInt(process.env.PORT || "5000");
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${port}/`);
   });
 }
 

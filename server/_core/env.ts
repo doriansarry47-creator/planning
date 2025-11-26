@@ -9,4 +9,13 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   appUrl: process.env.APP_URL ?? "http://localhost:5173",
+  
+  // Google Calendar Configuration
+  googleCalendarIcalUrl: process.env.GOOGLE_CALENDAR_ICAL_URL ?? "",
+  googleCalendarPrivateKey: process.env.GOOGLE_CALENDAR_PRIVATE_KEY ?? "",
+  googleCalendarEmail: process.env.GOOGLE_CALENDAR_EMAIL ?? process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "",
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  googleRefreshToken: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN ?? "",
+  googleCalendarId: process.env.GOOGLE_CALENDAR_ID ?? "primary",
 };
