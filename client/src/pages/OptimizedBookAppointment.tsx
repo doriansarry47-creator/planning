@@ -6,58 +6,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Clock, ArrowLeft, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Clock, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 
-// Générer toutes les dates disponibles (nov, déc, jan)
-const generateAvailableDates = () => {
-  const dates = [];
-  // Novembre 2025: 24, 25, 27, 28
-  // Décembre 2025: 1-5, 8-12, 15-19, 22-26, 29-31
-  // Janvier 2026: 1-9, 12-16, 19-23, 26-30
-  const dateStrings = [
-    // Novembre
-    '2025-11-24', '2025-11-25', '2025-11-27', '2025-11-28',
-    // Décembre
-    '2025-12-01', '2025-12-02', '2025-12-04', '2025-12-05', '2025-12-08', '2025-12-09', 
-    '2025-12-11', '2025-12-12', '2025-12-15', '2025-12-16', '2025-12-18', '2025-12-19',
-    '2025-12-22', '2025-12-23', '2025-12-25', '2025-12-26', '2025-12-29', '2025-12-30',
-    // Janvier
-    '2026-01-05', '2026-01-06', '2026-01-08', '2026-01-09', '2026-01-12', '2026-01-13',
-    '2026-01-15', '2026-01-16', '2026-01-19', '2026-01-20', '2026-01-22', '2026-01-23',
-    '2026-01-26', '2026-01-27', '2026-01-29', '2026-01-30',
-  ];
-  
-  return dateStrings.map(date => ({
-    date,
-    slots: ['17:30', '18:30']
-  }));
+type AvailabilitySlot = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  title: string;
 };
 
-const AVAILABLE_DATES = generateAvailableDates();
-
-// Grouper les dates par mois
-const groupDatesByMonth = () => {
-  const grouped: Record<string, typeof AVAILABLE_DATES> = {};
-  
-  AVAILABLE_DATES.forEach(item => {
-    const date = new Date(item.date);
-    const monthKey = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    if (!grouped[monthKey]) {
-      grouped[monthKey] = [];
-    }
-    grouped[monthKey].push(item);
-  });
-  
-  return grouped;
-};
-
-const DATES_BY_MONTH = groupDatesByMonth();
+type SlotsByDate = Record<string, AvailabilitySlot[]>;
 
 export default function OptimizedBookAppointment() {
   const [step, setStep] = useState<'date' | 'time' | 'info' | 'done'>('date');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(true);
+  const [slotsByDate, setSlotsByDate] = useState<SlotsByDate>({});
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     firstName: '',
@@ -66,6 +34,66 @@ export default function OptimizedBookAppointment() {
     phone: '',
     reason: ''
   });
+
+  // Charger les disponibilités depuis l'API au montage du composant
+  useEffect(() => {
+    const fetchAvailabilities = async () => {
+      setIsLoadingSlots(true);
+      try {
+        const today = new Date();
+        const endDate = new Date();
+        endDate.setDate(today.getDate() + 90); // 3 mois de disponibilités
+
+        const response = await fetch('/api/trpc/booking.getAvailabilitiesByDate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            json: {
+              startDate: today.toISOString().split('T')[0],
+              endDate: endDate.toISOString().split('T')[0],
+            }
+          })
+        });
+
+        const result = await response.json();
+        console.log('📋 Disponibilités reçues:', result);
+
+        if (result?.result?.data?.json?.success) {
+          const data = result.result.data.json;
+          setSlotsByDate(data.slotsByDate || {});
+          setAvailableDates(data.availableDates || []);
+        } else {
+          console.error('❌ Erreur chargement disponibilités:', result);
+          toast.error('Impossible de charger les disponibilités');
+        }
+      } catch (error) {
+        console.error('❌ Erreur réseau:', error);
+        toast.error('Erreur de connexion au serveur');
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+
+    fetchAvailabilities();
+  }, []);
+
+  // Grouper les dates par mois
+  const groupDatesByMonth = () => {
+    const grouped: Record<string, string[]> = {};
+    
+    availableDates.forEach(dateStr => {
+      const date = new Date(dateStr);
+      const monthKey = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = [];
+      }
+      grouped[monthKey].push(dateStr);
+    });
+    
+    return grouped;
+  };
+
+  const datesByMonth = groupDatesByMonth();
 
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);
@@ -205,40 +233,60 @@ export default function OptimizedBookAppointment() {
           <Card>
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Choisissez une date</CardTitle>
-              <CardDescription>{AVAILABLE_DATES.length} date(s) disponible(s)</CardDescription>
+              <CardDescription>
+                {isLoadingSlots ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Chargement des disponibilités...
+                  </span>
+                ) : (
+                  `${availableDates.length} date(s) disponible(s)`
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
-                {Object.entries(DATES_BY_MONTH).map(([monthKey, dates]) => (
-                  <div key={monthKey}>
-                    {/* Month Header */}
-                    <div className="mb-4 pb-3 border-b-2 border-gray-300">
-                      <h3 className="text-lg font-bold text-gray-800 capitalize">{monthKey}</h3>
-                      <p className="text-sm text-gray-500">{dates.length} date(s) disponible(s)</p>
+              {isLoadingSlots ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                </div>
+              ) : availableDates.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <p>Aucune disponibilité pour le moment.</p>
+                  <p className="text-sm mt-2">Veuillez réessayer plus tard.</p>
+                </div>
+              ) : (
+                <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+                  {Object.entries(datesByMonth).map(([monthKey, dates]) => (
+                    <div key={monthKey}>
+                      {/* Month Header */}
+                      <div className="mb-4 pb-3 border-b-2 border-gray-300">
+                        <h3 className="text-lg font-bold text-gray-800 capitalize">{monthKey}</h3>
+                        <p className="text-sm text-gray-500">{dates.length} date(s) disponible(s)</p>
+                      </div>
+                      
+                      {/* Dates Grid */}
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        {dates.map((dateStr) => {
+                          const dateObj = new Date(dateStr);
+                          const dayNumber = dateObj.getDate();
+                          const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase();
+                          
+                          return (
+                            <button
+                              key={dateStr}
+                              onClick={() => handleSelectDate(dateStr)}
+                              className="flex flex-col items-center justify-center p-3 rounded-lg bg-green-50 border-2 border-green-400 hover:bg-green-100 hover:border-green-500 transition-colors"
+                            >
+                              <span className="text-xs font-bold text-green-600">{dayName}</span>
+                              <span className="text-xl font-bold text-green-700">{dayNumber}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    
-                    {/* Dates Grid */}
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      {dates.map(({ date }) => {
-                        const dateObj = new Date(date);
-                        const dayNumber = dateObj.getDate();
-                        const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase();
-                        
-                        return (
-                          <button
-                            key={date}
-                            onClick={() => handleSelectDate(date)}
-                            className="flex flex-col items-center justify-center p-3 rounded-lg bg-green-50 border-2 border-green-400 hover:bg-green-100 hover:border-green-500 transition-colors"
-                          >
-                            <span className="text-xs font-bold text-green-600">{dayName}</span>
-                            <span className="text-xl font-bold text-green-700">{dayNumber}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -251,18 +299,24 @@ export default function OptimizedBookAppointment() {
               <CardDescription>{selectedDate}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                {AVAILABLE_DATES.find(d => d.date === selectedDate)?.slots.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => handleSelectTime(time)}
-                    className="p-4 rounded-lg bg-blue-50 border-2 border-blue-300 text-blue-700 hover:bg-blue-100 font-semibold"
-                  >
-                    <Clock className="inline h-4 w-4 mr-2" />
-                    {time}
-                  </button>
-                ))}
-              </div>
+              {slotsByDate[selectedDate] && slotsByDate[selectedDate].length > 0 ? (
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {slotsByDate[selectedDate].map((slot) => (
+                    <button
+                      key={slot.startTime}
+                      onClick={() => handleSelectTime(slot.startTime)}
+                      className="p-4 rounded-lg bg-blue-50 border-2 border-blue-300 text-blue-700 hover:bg-blue-100 font-semibold"
+                    >
+                      <Clock className="inline h-4 w-4 mr-2" />
+                      {slot.startTime}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Aucun créneau disponible pour cette date.</p>
+                </div>
+              )}
               <Button variant="outline" onClick={() => setStep('date')} className="w-full">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Retour
