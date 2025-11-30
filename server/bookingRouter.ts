@@ -97,6 +97,7 @@ class GoogleCalendarServiceAccount {
       console.log(`[ServiceAccount] ${events.length} événements trouvés`);
       
       const slots: string[] = [];
+      const now = new Date();
 
       // Chercher les événements marqués comme "DISPONIBLE"
       for (const event of events) {
@@ -114,7 +115,9 @@ class GoogleCalendarServiceAccount {
           let currentTime = new Date(eventStart);
           while (currentTime < eventEnd) {
             const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
-            if (slotEnd <= eventEnd) {
+            
+            // Filtrer les créneaux passés : ne garder que les créneaux futurs
+            if (slotEnd <= eventEnd && currentTime > now) {
               const timeStr = currentTime.toTimeString().slice(0, 5);
               if (!slots.includes(timeStr)) {
                 slots.push(timeStr);
@@ -151,7 +154,7 @@ class GoogleCalendarServiceAccount {
       // Calculer l'heure de fin
       const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 1000);
 
-      // Vérifier que le créneau est toujours libre (ignorer les événements "DISPONIBLE")
+      // Vérifier que le créneau est dans un événement "DISPONIBLE" et qu'il n'y a pas d'autre événement
       const events = await this.calendar.events.list({
         calendarId: this.calendarEmail,
         timeMin: startDateTime.toISOString(),
@@ -159,12 +162,28 @@ class GoogleCalendarServiceAccount {
         singleEvents: true,
       });
 
-      // Filtrer pour voir s'il y a d'autres événements (pas juste "DISPONIBLE")
+      // Vérifier s'il y a un événement "DISPONIBLE" qui couvre ce créneau
+      const availableEvents = events.data.items?.filter(e => {
+        const title = (e.summary || '').toLowerCase();
+        const isAvailable = title.includes('disponible') || title.includes('available') || title.includes('dispo');
+        if (!isAvailable) return false;
+        
+        // Vérifier que l'événement DISPONIBLE couvre bien tout le créneau
+        const eventStart = new Date(e.start.dateTime || e.start.date);
+        const eventEnd = new Date(e.end.dateTime || e.end.date);
+        return eventStart <= startDateTime && eventEnd >= endDateTime;
+      });
+
+      // Vérifier s'il y a des événements de rendez-vous (pas "DISPONIBLE") qui bloquent le créneau
       const blockedEvents = events.data.items?.filter(e => {
         const title = (e.summary || '').toLowerCase();
         const isAvailable = title.includes('disponible') || title.includes('available') || title.includes('dispo');
         return !isAvailable;
       });
+
+      if (!availableEvents || availableEvents.length === 0) {
+        throw new Error("Ce créneau n'est plus disponible");
+      }
 
       if (blockedEvents && blockedEvents.length > 0) {
         throw new Error("Ce créneau n'est plus disponible");
@@ -413,7 +432,7 @@ export const bookingRouter = router({
     .mutation(async ({ input }) => {
       console.log('[BookingRouter] 📥 Données reçues pour réservation:', JSON.stringify(input, null, 2));
       
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
       
       // Extraire les données du patientInfo
@@ -654,7 +673,7 @@ export const bookingRouter = router({
   healthCheck: publicProcedure
     .input(z.object({}))
     .query(async () => {
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
 
       return {
@@ -673,7 +692,7 @@ export const bookingRouter = router({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Format YYYY-MM-DD
     }))
     .query(async ({ input }) => {
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
 
       try {
