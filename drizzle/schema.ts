@@ -198,14 +198,8 @@ export const appointments = pgTable("appointments", {
   customerEmail: varchar("customerEmail", { length: 320 }).notNull(),
   customerPhone: varchar("customerPhone", { length: 20 }),
   notes: text("notes"),
-  internalNotes: text("internalNotes"), // Notes internes visibles uniquement par l'admin
-  cancellationReason: text("cancellationReason"), // Motif d'annulation
   cancellationHash: varchar("cancellationHash", { length: 64 }),
   googleEventId: varchar("googleEventId", { length: 255 }),
-  reminderSent: boolean("reminderSent").default(false).notNull(), // Rappel envoyé
-  reminderSentAt: timestamp("reminderSentAt"), // Date d'envoi du rappel
-  confirmationSent: boolean("confirmationSent").default(false).notNull(), // Confirmation envoyée
-  confirmationSentAt: timestamp("confirmationSentAt"), // Date d'envoi de la confirmation
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });

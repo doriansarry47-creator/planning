@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "bash", "web", "postgresql-16"]
+modules = ["nodejs-20", "web", "bash", "postgresql-16"]
 [agent]
 expertMode = true
 
@@ -16,7 +16,6 @@ GOOGLE_CALENDAR_ICAL_URL = "https://calendar.google.com/calendar/ical/doriansarr
 GOOGLE_SERVICE_ACCOUNT_EMAIL = "planningadmin@apaddicto.iam.gserviceaccount.com"
 GOOGLE_CALENDAR_EMAIL = "planningadmin@apaddicto.iam.gserviceaccount.com"
 GOOGLE_CALENDAR_ID = "doriansarry47@gmail.com"
-RESEND_API_KEY = "re_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd"
 APP_URL = "http://localhost:5000"
 
 [workflows]
@@ -35,22 +34,19 @@ args = "Development Server"
 name = "Development Server"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[ports]]
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 35225
-externalPort = 3000
-
 [deployment]
 deploymentTarget = "autoscale"
-run = ["node", "--loader", "tsx", "server/_core/index.ts"]
+run = ["npm", "run", "start"]
+build = ["npm", "run", "build"]

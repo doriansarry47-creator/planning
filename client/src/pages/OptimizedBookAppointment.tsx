@@ -42,7 +42,7 @@ export default function OptimizedBookAppointment() {
       try {
         const today = new Date();
         const endDate = new Date();
-        endDate.setDate(today.getDate() + 90); // 3 mois de disponibilités
+        endDate.setDate(today.getDate() + 30); // 30 jours de disponibilités
 
         const response = await fetch('/api/trpc/booking.getAvailabilitiesByDate', {
           method: 'POST',
@@ -143,7 +143,6 @@ export default function OptimizedBookAppointment() {
     setIsSubmitting(true);
 
     try {
-      // Validation finale stricte
       if (!selectedDate || !selectedTime || !form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.phone.trim()) {
         toast.error('❌ Données manquantes. Veuillez compléter tous les champs');
         setIsSubmitting(false);
@@ -152,16 +151,17 @@ export default function OptimizedBookAppointment() {
 
       const payload = {
         date: selectedDate,
-        startTime: selectedTime,
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        reason: form.reason.trim() || '',
-        sendNotifications: 'both' as const,
+        time: selectedTime,
+        patientInfo: {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          reason: form.reason.trim() || ''
+        }
       };
 
-      console.log('📤 Envoi de la réservation:', payload);
+      console.log('📤 Envoi réservation:', JSON.stringify(payload));
       
       const response = await fetch('/api/trpc/booking.bookAppointment', {
         method: 'POST',
