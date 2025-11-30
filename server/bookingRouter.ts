@@ -412,7 +412,7 @@ export const bookingRouter = router({
     .mutation(async ({ input }) => {
       console.log('[BookingRouter] 📥 Données reçues pour réservation:', JSON.stringify(input, null, 2));
       
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
       
       // Extraire les données du patientInfo
@@ -594,7 +594,7 @@ export const bookingRouter = router({
   healthCheck: publicProcedure
     .input(z.object({}))
     .query(async () => {
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
 
       return {
@@ -613,7 +613,7 @@ export const bookingRouter = router({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Format YYYY-MM-DD
     }))
     .query(async ({ input }) => {
-      const service = getOptimizedGoogleCalendarService();
+      const service = getGoogleCalendarService();
       const fallbackService = getGoogleCalendarIcalService();
 
       try {

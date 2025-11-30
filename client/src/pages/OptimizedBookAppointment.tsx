@@ -126,12 +126,14 @@ export default function OptimizedBookAppointment() {
         body: JSON.stringify({
           json: {
             date: selectedDate,
-            startTime: selectedTime,
-            firstName: form.firstName.trim(),
-            lastName: form.lastName.trim(),
-            email: form.email.trim(),
-            phone: form.phone.trim(),
-            reason: form.reason.trim(),
+            time: selectedTime, // Utiliser 'time' au lieu de 'startTime'
+            patientInfo: {
+              firstName: form.firstName.trim(),
+              lastName: form.lastName.trim(),
+              email: form.email.trim(),
+              phone: form.phone.trim(),
+              reason: form.reason.trim(),
+            }
           }
         })
       });
@@ -247,7 +249,26 @@ export default function OptimizedBookAppointment() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3 mb-4">
-                {AVAILABLE_DATES.find(d => d.date === selectedDate)?.slots.map((time) => (
+                {AVAILABLE_DATES.find(d => d.date === selectedDate)?.slots.filter((time) => {
+                  // Filtrer les créneaux passés pour aujourd'hui
+                  const now = new Date();
+                  const slotDate = new Date(selectedDate);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  slotDate.setHours(0, 0, 0, 0);
+                  
+                  // Si ce n'est pas aujourd'hui, garder tous les créneaux
+                  if (slotDate.getTime() !== today.getTime()) {
+                    return true;
+                  }
+                  
+                  // Si c'est aujourd'hui, vérifier que l'heure n'est pas passée
+                  const [slotHour, slotMinute] = time.split(':').map(Number);
+                  const currentHour = now.getHours();
+                  const currentMinute = now.getMinutes();
+                  
+                  return slotHour > currentHour || (slotHour === currentHour && slotMinute > currentMinute);
+                }).map((time) => (
                   <button
                     key={time}
                     onClick={() => handleSelectTime(time)}
