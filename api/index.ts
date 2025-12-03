@@ -65,7 +65,7 @@ class OptimizedGoogleCalendarService {
     }
   }
 
-  async getAvailableSlots(date: Date, durationMinutes: number = 60): Promise<string[]> {
+  async getAvailableSlots(date: Date, _durationMinutes: number = 60): Promise<string[]> {
     if (!this.isInitialized) {
       console.warn("⚠️ Google Calendar non initialisé - utilisation des créneaux par défaut");
       return this.getDefaultAvailableSlots(date);
@@ -95,7 +95,7 @@ class OptimizedGoogleCalendarService {
       }
 
       // Filtrer les créneaux pris par des événements existants
-      const busySlots = events.data.items?.map(event => {
+      const busySlots = events.data.items?.map((event: any) => {
         const startTime = event.start.dateTime || event.start.date;
         return new Date(startTime).getHours();
       }) || [];
@@ -384,8 +384,7 @@ app.use(
   "/api/trpc",
   createExpressMiddleware({
     router: OptimizedTRPCRouter,
-    createContext: ({ req, res }: CreateExpressContextOptions) => ({
-      req,
+    createContext: ({ res }: CreateExpressContextOptions) => ({
       res,
       user: null, // Patient interface only
     }),
@@ -508,7 +507,7 @@ app.post("/api/oauth/set-token", (req: Request, res: Response) => {
 });
 
 // Health Check
-app.get("/api/health", (req: Request, res: Response) => {
+app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(),

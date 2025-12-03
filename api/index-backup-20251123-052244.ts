@@ -2,7 +2,7 @@ import "dotenv/config";
 import express, { Request, Response } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import superjson from "superjson";
-import { TRPCError, initTRPC } from "@trpc/server";
+import { initTRPC } from "@trpc/server";
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import { z } from "zod";
 
@@ -14,7 +14,7 @@ function getQueryParam(req: Request, key: string): string | undefined {
 
 const OAuthService = {
   registerRoutes(app: express.Express) {
-    app.get("/api/oauth/callback", async (req: Request, res: Response) => {
+    app.get("/api/oauth/callback", async (_req: Request, _res: Response) => {
       const code = getQueryParam(req, "code");
       const state = getQueryParam(req, "state");
 
