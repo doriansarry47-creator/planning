@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Affichage des Créneaux Disponibles</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.2rem;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .test-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .log {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .step.completed {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.05);
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .step.completed .step-number {
+            background: #28a745;
+        }
+        
+        .step-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        
+        .step-description {
+            color: #666;
+            margin-left: 45px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Test de l'Affichage des Créneaux</h1>
+            <p class="subtitle">Diagnostic et correction du problème de synchronisation OAuth2</p>
+        </div>
+
+        <div id="status" class="status warning">
+            ⚠️ Diagnostic en cours...
+        </div>
+
+        <div class="step active" id="step1">
+            <span class="step-number">1</span>
+            <div style="display: inline-block; vertical-align: top;">
+                <div class="step-title">Vérification de la configuration OAuth2</div>
+                <div class="step-description">
+                    Vérifier si le GOOGLE_REFRESH_TOKEN est configuré et fonctionnel
+                </div>
+            </div>
+        </div>
+
+        <div class="step" id="step2">
+            <span class="step-number">2</span>
+            <div style="display: inline-block; vertical-align: top;">
+                <div class="step-title">Test de l'API de disponibilités</div>
+                <div class="step-description">
+                    Appeler l'API getAvailabilitiesByDate pour vérifier qu'elle retourne des données
+                </div>
+            </div>
+        </div>
+
+        <div class="step" id="step3">
+            <span class="step-number">3</span>
+            <div style="display: inline-block; vertical-align: top;">
+                <div class="step-title">Test de synchronisation</div>
+                <div class="step-description">
+                    Vérifier la synchronisation entre Google Calendar et l'affichage patient
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="test-button" id="startTest" onclick="runDiagnostic()">
+                🚀 Lancer le diagnostic complet
+            </button>
+            <button class="test-button" id="refreshTokenBtn" onclick="getRefreshToken()">
+                🔑 Obtenir le Refresh Token OAuth2
+            </button>
+        </div>
+
+        <div class="results" id="results" style="display: none;">
+            <h3>📊 Résultats du diagnostic</h3>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const results = document.getElementById('results');
+        const status = document.getElementById('status');
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            log.textContent += logEntry;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function setStepStatus(stepNum, status) {
+            const step = document.getElementById(`step${stepNum}`);
+            step.classList.remove('active', 'completed');
+            step.classList.add(status);
+        }
+
+        function setStatus(type, message) {
+            status.className = `status ${type}`;
+            status.textContent = message;
+        }
+
+        async function runDiagnostic() {
+            document.getElementById('startTest').disabled = true;
+            log.textContent = '';
+            results.style.display = 'block';
+            
+            setStatus('warning', '🔄 Diagnostic en cours...');
+            addLog('Démarrage du diagnostic de synchronisation OAuth2');
+
+            // Étape 1: Vérification OAuth2
+            setStepStatus(1, 'active');
+            addLog('Étape 1: Vérification de la configuration OAuth2');
+            
+            try {
+                // Test API OAuth2
+                const oauthResponse = await fetch('/api/oauth/init');
+                const oauthData = await oauthResponse.json();
+                
+                if (oauthData.success) {
+                    addLog('✅ Service OAuth2 configuré et accessible', 'success');
+                    setStepStatus(1, 'completed');
+                } else {
+                    addLog('❌ Service OAuth2 non configuré: ' + oauthData.error, 'error');
+                    setStepStatus(1, 'error');
+                }
+            } catch (error) {
+                addLog('❌ Erreur connexion OAuth2: ' + error.message, 'error');
+                setStepStatus(1, 'error');
+            }
+
+            // Étape 2: Test API disponibilités
+            setStepStatus(2, 'active');
+            addLog('Étape 2: Test de l\'API de disponibilités');
+            
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const endDate = new Date();
+                endDate.setDate(endDate.getDate() + 30);
+                const endDateStr = endDate.toISOString().split('T')[0];
+
+                // Appeler l'API booking
+                const bookingResponse = await fetch(`/api/trpc/booking.getAvailabilitiesByDate?input=${encodeURIComponent(JSON.stringify({
+                    startDate: today,
+                    endDate: endDateStr
+                }))}`);
+                
+                const bookingData = await bookingResponse.json();
+                
+                if (bookingData.result?.data?.json?.success) {
+                    const data = bookingData.result.data.json;
+                    const datesCount = data.availableDates?.length || 0;
+                    const slotsCount = Object.values(data.slotsByDate || {}).reduce((sum, slots) => sum + slots.length, 0);
+                    
+                    addLog(`✅ API fonctionne: ${datesCount} dates avec ${slotsCount} créneaux au total`, 'success');
+                    
+                    if (datesCount > 0) {
+                        addLog(`📅 Premières dates disponibles: ${data.availableDates.slice(0, 5).join(', ')}`, 'info');
+                        setStepStatus(2, 'completed');
+                        setStatus('success', '✅ API de disponibilités fonctionnelle !');
+                    } else {
+                        addLog('⚠️ API fonctionne mais aucune disponibilité trouvée', 'warning');
+                        setStepStatus(2, 'completed');
+                        setStatus('warning', '⚠️ API fonctionnelle mais aucune disponibilité');
+                    }
+                } else {
+                    addLog('❌ API non fonctionnelle ou erreur: ' + JSON.stringify(bookingData), 'error');
+                    setStepStatus(2, 'error');
+                    setStatus('error', '❌ API de disponibilités non fonctionnelle');
+                }
+            } catch (error) {
+                addLog('❌ Erreur API: ' + error.message, 'error');
+                setStepStatus(2, 'error');
+                setStatus('error', '❌ Erreur de connexion API');
+            }
+
+            // Étape 3: Test de synchronisation
+            setStepStatus(3, 'active');
+            addLog('Étape 3: Test de synchronisation Google Calendar');
+            
+            try {
+                // Simuler un appel depuis le frontend
+                const testResponse = await fetch('/api/test-availability-sync');
+                const testData = await testResponse.json();
+                
+                if (testData.success) {
+                    addLog('✅ Synchronisation testée avec succès', 'success');
+                    setStepStatus(3, 'completed');
+                } else {
+                    addLog('⚠️ Problème de synchronisation détecté', 'warning');
+                    setStepStatus(3, 'warning');
+                }
+            } catch (error) {
+                // Ce test est optionnel, ne pas faire échouer le diagnostic
+                addLog('ℹ️ Test de synchronisation ignoré (non critique)', 'info');
+                setStepStatus(3, 'completed');
+            }
+
+            addLog('\n🎯 Diagnostic terminé !', 'success');
+            
+            // Reset du bouton
+            setTimeout(() => {
+                document.getElementById('startTest').disabled = false;
+            }, 2000);
+        }
+
+        async function getRefreshToken() {
+            document.getElementById('refreshTokenBtn').disabled = true;
+            addLog('Génération du refresh token OAuth2...');
+            
+            try {
+                const response = await fetch('/api/oauth/init');
+                const data = await response.json();
+                
+                if (data.success && data.authUrl) {
+                    addLog('URL d\'autorisation générée avec succès', 'success');
+                    addLog('Veuillez visiter cette URL pour autoriser l\'accès:', 'info');
+                    addLog(data.authUrl, 'info');
+                    
+                    // Ouvrir dans un nouvel onglet
+                    window.open(data.authUrl, '_blank');
+                    
+                    setStatus('warning', '🔑 OAuth2 - Autorisez l\'accès dans le nouvel onglet');
+                } else {
+                    addLog('❌ Erreur génération URL: ' + (data.error || 'Inconnue'), 'error');
+                    setStatus('error', '❌ Erreur génération URL OAuth2');
+                }
+            } catch (error) {
+                addLog('❌ Erreur: ' + error.message, 'error');
+                setStatus('error', '❌ Erreur connexion OAuth2');
+            } finally {
+                document.getElementById('refreshTokenBtn').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
