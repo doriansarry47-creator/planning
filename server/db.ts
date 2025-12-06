@@ -1,6 +1,6 @@
 import { eq, gte, lte, and, desc } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { 
   InsertUser, users, practitioners, availabilitySlots, appointments, 
   InsertAppointment, InsertAvailabilitySlot, InsertPractitioner, 
@@ -19,13 +19,17 @@ import { ENV } from './_core/env';
 import { nanoid } from 'nanoid';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: Pool | null = null;
 
-// Lazily create the drizzle instance for PostgreSQL/Neon
+// Lazily create the drizzle instance for PostgreSQL
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      const sql = neon(process.env.DATABASE_URL);
-      _db = drizzle(sql);
+      _pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+      });
+      _db = drizzle(_pool);
+      console.log("[Database] Connected successfully");
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
