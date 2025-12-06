@@ -23,7 +23,19 @@ interface AppointmentData {
   practitionerName?: string;
 }
 
-
+interface AvailabilitySlotData {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  title?: string;
+  description?: string;
+  recurrence?: {
+    frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+    until?: Date;
+    count?: number;
+    byWeekDay?: string[];
+  };
+}
 
 interface GoogleCalendarConfig {
   serviceAccountEmail: string;
@@ -226,6 +238,227 @@ export class GoogleCalendarService {
       console.error('[GoogleCalendar] Erreur lors de la vérification de disponibilité:', error);
       return false;
     }
+  }
+
+  /**
+   * Créer un créneau de disponibilité
+   */
+  async createAvailabilitySlot(slotData: AvailabilitySlotData): Promise<string | null> {
+    try {
+      const startDateTime = new Date(slotData.date);
+      const [startHours, startMinutes] = slotData.startTime.split(':').map(Number);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+      const endDateTime = new Date(slotData.date);
+      const [endHours, endMinutes] = slotData.endTime.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+      const event: any = {
+        summary: slotData.title || 'Disponibilité',
+        description: slotData.description || 'Créneau de disponibilité pour prise de rendez-vous',
+        start: {
+          dateTime: startDateTime.toISOString(),
+          timeZone: 'Europe/Paris',
+        },
+        end: {
+          dateTime: endDateTime.toISOString(),
+          timeZone: 'Europe/Paris',
+        },
+        transparency: 'transparent', // N'affecte pas la disponibilité
+        colorId: '2', // Sage (couleur pour les disponibilités)
+        extendedProperties: {
+          private: {
+            isAvailabilitySlot: 'true',
+          },
+        },
+      };
+
+      // Ajouter la récurrence si spécifiée
+      if (slotData.recurrence) {
+        const rrule = this.buildRecurrenceRule(slotData.recurrence);
+        if (rrule) {
+          event.recurrence = [rrule];
+        }
+      }
+
+      const response = await this.calendar.events.insert({
+        calendarId: this.config.calendarId,
+        resource: event,
+      });
+
+      console.log('[GoogleCalendar] Créneau de disponibilité créé:', response.data.id);
+      return response.data.id;
+    } catch (error) {
+      console.error('[GoogleCalendar] Erreur lors de la création du créneau:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Mettre à jour un créneau de disponibilité
+   */
+  async updateAvailabilitySlot(eventId: string, slotData: AvailabilitySlotData): Promise<boolean> {
+    try {
+      const startDateTime = new Date(slotData.date);
+      const [startHours, startMinutes] = slotData.startTime.split(':').map(Number);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+      const endDateTime = new Date(slotData.date);
+      const [endHours, endMinutes] = slotData.endTime.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+      const event: any = {
+        summary: slotData.title || 'Disponibilité',
+        description: slotData.description || 'Créneau de disponibilité pour prise de rendez-vous',
+        start: {
+          dateTime: startDateTime.toISOString(),
+          timeZone: 'Europe/Paris',
+        },
+        end: {
+          dateTime: endDateTime.toISOString(),
+          timeZone: 'Europe/Paris',
+        },
+        transparency: 'transparent',
+        colorId: '2',
+        extendedProperties: {
+          private: {
+            isAvailabilitySlot: 'true',
+          },
+        },
+      };
+
+      if (slotData.recurrence) {
+        const rrule = this.buildRecurrenceRule(slotData.recurrence);
+        if (rrule) {
+          event.recurrence = [rrule];
+        }
+      }
+
+      await this.calendar.events.update({
+        calendarId: this.config.calendarId,
+        eventId: eventId,
+        resource: event,
+      });
+
+      console.log('[GoogleCalendar] Créneau de disponibilité mis à jour:', eventId);
+      return true;
+    } catch (error) {
+      console.error('[GoogleCalendar] Erreur lors de la mise à jour du créneau:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Supprimer un créneau de disponibilité
+   */
+  async deleteAvailabilitySlot(eventId: string): Promise<boolean> {
+    try {
+      await this.calendar.events.delete({
+        calendarId: this.config.calendarId,
+        eventId: eventId,
+      });
+
+      console.log('[GoogleCalendar] Créneau de disponibilité supprimé:', eventId);
+      return true;
+    } catch (error) {
+      console.error('[GoogleCalendar] Erreur lors de la suppression du créneau:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Récupérer les créneaux de disponibilité
+   */
+  async getAvailabilitySlots(
+    startDate: Date,
+    endDate: Date,
+    slotDuration: number = 30
+  ): Promise<Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }>> {
+    try {
+      // Récupérer tous les événements (disponibilités + rendez-vous)
+      const response = await this.calendar.events.list({
+        calendarId: this.config.calendarId,
+        timeMin: startDate.toISOString(),
+        timeMax: endDate.toISOString(),
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+
+      const events = response.data.items || [];
+      const slots: Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }> = [];
+
+      // Séparer les créneaux de disponibilité des rendez-vous
+      const availabilityEvents = events.filter(
+        (event: any) => event.extendedProperties?.private?.isAvailabilitySlot === 'true'
+      );
+      const appointments = events.filter(
+        (event: any) => event.extendedProperties?.private?.isAvailabilitySlot !== 'true'
+      );
+
+      // Pour chaque créneau de disponibilité, découper en petits slots
+      for (const availEvent of availabilityEvents) {
+        if (!availEvent.start?.dateTime || !availEvent.end?.dateTime) continue;
+
+        const slotStart = new Date(availEvent.start.dateTime);
+        const slotEnd = new Date(availEvent.end.dateTime);
+
+        // Découper en créneaux de la durée spécifiée
+        let currentTime = new Date(slotStart);
+        while (currentTime < slotEnd) {
+          const nextTime = new Date(currentTime.getTime() + slotDuration * 60000);
+          if (nextTime > slotEnd) break;
+
+          const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
+          const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
+
+          // Vérifier si ce créneau est libre (pas de rendez-vous)
+          const isBooked = appointments.some((appt: any) => {
+            if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
+            const apptStart = new Date(appt.start.dateTime);
+            const apptEnd = new Date(appt.end.dateTime);
+            return currentTime < apptEnd && nextTime > apptStart;
+          });
+
+          slots.push({
+            date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            isAvailable: !isBooked,
+          });
+
+          currentTime = nextTime;
+        }
+      }
+
+      return slots;
+    } catch (error) {
+      console.error('[GoogleCalendar] Erreur lors de la récupération des créneaux:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Construire une règle de récurrence (RRULE)
+   */
+  private buildRecurrenceRule(recurrence: AvailabilitySlotData['recurrence']): string | null {
+    if (!recurrence) return null;
+
+    let rrule = `RRULE:FREQ=${recurrence.frequency}`;
+
+    if (recurrence.until) {
+      const untilStr = recurrence.until.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      rrule += `;UNTIL=${untilStr}`;
+    }
+
+    if (recurrence.count) {
+      rrule += `;COUNT=${recurrence.count}`;
+    }
+
+    if (recurrence.byWeekDay && recurrence.byWeekDay.length > 0) {
+      rrule += `;BYDAY=${recurrence.byWeekDay.join(',')}`;
+    }
+
+    return rrule;
   }
 }
 

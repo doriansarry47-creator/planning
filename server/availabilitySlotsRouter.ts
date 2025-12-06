@@ -1,4 +1,5 @@
 import { protectedProcedure, router, practitionerProcedure } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { createAvailabilitySlotSchema, updateAvailabilitySlotSchema, slotIdSchema, practitionerIdSchema, getAvailableSlotsSchema } from "../shared/zodSchemas";
 import { createAvailabilitySlot, updateAvailabilitySlot, deleteAvailabilitySlot, getPractitionerSlots, getAvailableSlots } from "./db";
 
