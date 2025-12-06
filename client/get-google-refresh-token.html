@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔑 Obtention Refresh Token Google OAuth2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4285f4, #3367d6);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .step {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid #4285f4;
+        }
+        
+        .step h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .step-number {
+            background: #4285f4;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .action-button {
+            background: linear-gradient(135deg, #4285f4, #3367d6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px 10px 10px 0;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(66, 133, 244, 0.3);
+        }
+        
+        .success-button {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+        
+        .success-button:hover {
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+        }
+        
+        .result {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+            border: 2px solid #e9ecef;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            border-color: #4CAF50;
+            background: #f8fff9;
+        }
+        
+        .error {
+            border-color: #f44336;
+            background: #fff9f9;
+        }
+        
+        .info {
+            border-color: #2196F3;
+            background: #f8fbff;
+        }
+        
+        .token-display {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        
+        .copy-button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+        
+        .copy-button:hover {
+            background: #555;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .warning strong {
+            color: #856404;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Obtention Refresh Token</h1>
+            <p>Configuration OAuth2 pour Google Calendar - Dorian Sarry</p>
+        </div>
+        
+        <div class="content">
+            <div class="step">
+                <h3>
+                    <div class="step-number">1</div>
+                    Générer l'URL d'autorisation OAuth2
+                </h3>
+                <p>Cliquez sur le bouton ci-dessous pour générer l'URL d'autorisation Google :</p>
+                <button class="action-button" onclick="generateAuthURL()">Générer URL d'autorisation</button>
+                <div id="authResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <div class="step">
+                <h3>
+                    <div class="step-number">2</div>
+                    Autoriser l'accès Google
+                </h3>
+                <p>Après avoir cliqué sur "Générer URL d'autorisation", ouvrez l'URL générée dans un nouvel onglet et autorisez l'accès.</p>
+                <div class="warning">
+                    <strong>Important :</strong> Assurez-vous de vous connecter avec le compte <strong>doriansarry47@gmail.com</strong> lors de l'autorisation.
+                </div>
+                <div id="authURLDisplay" style="display:none;">
+                    <p><strong>URL d'autorisation :</strong></p>
+                    <div class="token-display" id="generatedURL"></div>
+                    <button class="copy-button" onclick="copyToClipboard('generatedURL')">Copier l'URL</button>
+                    <button class="action-button" onclick="openAuthURL()">Ouvrir dans un nouvel onglet</button>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>
+                    <div class="step-number">3</div>
+                    Récupérer le Refresh Token
+                </h3>
+                <p>Après l'autorisation, vous serez redirigé vers une page qui contient votre refresh token.</p>
+                <p>Si la page affiche "Refresh Token received", copiez le refresh token ci-dessous :</p>
+                
+                <div id="tokenStep" style="display:none;">
+                    <p><strong>Votre Refresh Token :</strong></p>
+                    <div class="token-display" id="refreshToken"></div>
+                    <button class="copy-button" onclick="copyToClipboard('refreshToken')">Copier le token</button>
+                    <button class="action-button success-button" onclick="configureVercel()">Configuration Vercel</button>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>
+                    <div class="step-number">4</div>
+                    Configuration dans Vercel
+                </h3>
+                <p>Une fois le refresh token copié, configurez-le dans Vercel :</p>
+                <ol>
+                    <li>Allez sur <a href="https://vercel.com/dashboard" target="_blank">Vercel Dashboard</a></li>
+                    <li>Sélectionnez le projet <strong>planning-7qkb7uw7v-ikips-projects</strong></li>
+                    <li>Cliquez sur <strong>Settings</strong> → <strong>Environment Variables</strong></li>
+                    <li>Ajoutez : <code>GOOGLE_REFRESH_TOKEN</code> avec votre token</li>
+                    <li>Cliquez sur <strong>Save</strong></li>
+                    <li>Redéployez l'application</li>
+                </ol>
+                <button class="action-button" onclick="openVercelConfig()">Aller à la configuration Vercel</button>
+            </div>
+            
+            <div class="step">
+                <h3>
+                    <div class="step-number">5</div>
+                    Test final
+                </h3>
+                <p>Une fois la configuration terminée, testez le système :</p>
+                <button class="action-button success-button" onclick="testBookingSystem()">Tester la page de réservation</button>
+                <button class="action-button" onclick="testHealthAPI()">Test API de santé</button>
+                
+                <div id="testResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <div class="success-box" id="completionMessage" style="display:none;">
+                <h4>🎉 Configuration terminée !</h4>
+                <p>Votre système de réservation OAuth2 est maintenant configuré. Les créneaux configurés dans Google Calendar (lundi 15, mardi 16, jeudi 18, vendredi 19 à 17:30) devraient maintenant être visibles sur la page patient.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://planning-7qkb7uw7v-ikips-projects.vercel.app';
+        let authURL = '';
+        
+        function showResult(elementId, data, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+        
+        async function generateAuthURL() {
+            try {
+                showResult('authResult', {
+                    status: 'Génération de l\'URL d\'autorisation...',
+                    action: 'Veuillez patienter'
+                }, 'info');
+                
+                const response = await fetch(`${API_BASE}/api/oauth/init`, {
+                    method: 'GET'
+                });
+                
+                const data = await response.json();
+                
+                if (data.authUrl) {
+                    authURL = data.authUrl;
+                    showResult('authResult', {
+                        status: '✅ URL d\'autorisation générée avec succès',
+                        message: 'Étape 2 : Utilisez cette URL pour autoriser l\'accès',
+                        note: 'Assurez-vous de vous connecter avec doriansarry47@gmail.com'
+                    }, 'success');
+                    
+                    document.getElementById('authURLDisplay').style.display = 'block';
+                    document.getElementById('generatedURL').textContent = authURL;
+                    
+                } else {
+                    showResult('authResult', {
+                        error: 'Erreur lors de la génération',
+                        details: data
+                    }, 'error');
+                }
+                
+            } catch (error) {
+                showResult('authResult', {
+                    error: 'Erreur de connexion',
+                    details: error.message,
+                    suggestion: 'Vérifiez votre connexion internet et réessayez'
+                }, 'error');
+            }
+        }
+        
+        function openAuthURL() {
+            if (authURL) {
+                window.open(authURL, '_blank');
+            }
+        }
+        
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                // Create a temporary success message
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copié !';
+                button.style.background = '#4CAF50';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#333';
+                }, 2000);
+            });
+        }
+        
+        function configureVercel() {
+            // Display token configuration
+            const token = document.getElementById('refreshToken').textContent;
+            showResult('authResult', {
+                status: '🔧 Configuration Vercel requise',
+                refreshToken: token,
+                instructions: [
+                    '1. Allez sur Vercel Dashboard',
+                    '2. Sélectionnez le projet planning-7qkb7uw7v-ikips-projects',
+                    '3. Settings → Environment Variables',
+                    '4. Ajoutez: GOOGLE_REFRESH_TOKEN = ' + token,
+                    '5. Sauvegardez et redéployez'
+                ]
+            }, 'success');
+            
+            document.getElementById('completionMessage').style.display = 'block';
+        }
+        
+        function openVercelConfig() {
+            window.open('https://vercel.com/dashboard', '_blank');
+        }
+        
+        async function testBookingSystem() {
+            try {
+                showResult('testResult', {
+                    status: 'Test de la page de réservation...',
+                    url: `${API_BASE}/book-appointment`
+                }, 'info');
+                
+                const response = await fetch(`${API_BASE}/book-appointment`);
+                
+                if (response.ok) {
+                    showResult('testResult', {
+                        status: '✅ Page de réservation accessible',
+                        message: 'Les créneaux devraient maintenant être visibles',
+                        nextStep: 'Vérifiez visuellement que les dates 15, 16, 18, 19 novembre sont actives'
+                    }, 'success');
+                    
+                    // Open the page in new tab
+                    window.open(`${API_BASE}/book-appointment`, '_blank');
+                    
+                } else {
+                    showResult('testResult', {
+                        status: '⚠️ Problème d\'accès à la page',
+                        response: response.status,
+                        message: 'La page pourrait ne pas être déployée'
+                    }, 'error');
+                }
+                
+            } catch (error) {
+                showResult('testResult', {
+                    error: 'Erreur lors du test',
+                    details: error.message
+                }, 'error');
+            }
+        }
+        
+        async function testHealthAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                if (data.status === 'ok' && data.googleCalendar === 'initialized') {
+                    showResult('testResult', {
+                        status: '✅ API Health - Service opérationnel',
+                        googleCalendar: data.googleCalendar,
+                        message: 'Le système OAuth2 fonctionne correctement'
+                    }, 'success');
+                } else if (data.status === 'ok') {
+                    showResult('testResult', {
+                        status: '⚠️ API Health - Service partiellement opérationnel',
+                        googleCalendar: data.googleCalendar,
+                        message: 'GOOGLE_REFRESH_TOKEN pourrait ne pas être configuré'
+                    }, 'error');
+                } else {
+                    showResult('testResult', data, 'error');
+                }
+                
+            } catch (error) {
+                showResult('testResult', {
+                    error: 'API Health inaccessible',
+                    details: error.message
+                }, 'error');
+            }
+        }
+        
+        // Auto-check for refresh token in URL
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const refreshToken = urlParams.get('refresh_token');
+            
+            if (refreshToken) {
+                document.getElementById('tokenStep').style.display = 'block';
+                document.getElementById('refreshToken').textContent = refreshToken;
+                
+                showResult('authResult', {
+                    status: '🎉 Refresh Token détecté !',
+                    message: 'Copiez le token ci-dessous et configurez-le dans Vercel',
+                    token: refreshToken
+                }, 'success');
+            }
+        });
+    </script>
+</body>
+</html>

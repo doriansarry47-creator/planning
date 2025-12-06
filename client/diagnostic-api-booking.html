@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Diagnostic API Booking - Dorian Sarry</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .test-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        
+        .test-button {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px 10px 10px 0;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+        }
+        
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .result {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+            border: 2px solid #e9ecef;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            border-color: #4CAF50;
+            background: #f8fff9;
+        }
+        
+        .error {
+            border-color: #f44336;
+            background: #fff9f9;
+        }
+        
+        .info {
+            border-color: #2196F3;
+            background: #f8fbff;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-success {
+            background: #4CAF50;
+        }
+        
+        .status-error {
+            background: #f44336;
+        }
+        
+        .status-warning {
+            background: #ff9800;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .oauth-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .oauth-section h3 {
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .oauth-button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .oauth-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .warning-box {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Diagnostic API Booking</h1>
+            <p>Test et diagnostic du système de réservation OAuth2</p>
+        </div>
+        
+        <div class="content">
+            <div class="oauth-section">
+                <h3>🔑 Configuration OAuth2 Google Calendar</h3>
+                <p>Nécessaire pour accéder aux créneaux configurés dans Google Calendar</p>
+                <button class="oauth-button" onclick="initOAuth2()">Initialiser l'authentification OAuth2</button>
+                <button class="oauth-button" onclick="checkOAuthStatus()">Vérifier le statut OAuth2</button>
+                <div id="oauthResult" class="result" style="display:none;"></div>
+            </div>
+            
+            <div class="test-section">
+                <h3><span class="status-indicator status-warning"></span>Test API de Santé</h3>
+                <p>Vérification de l'état du service Google Calendar OAuth2</p>
+                <button class="test-button" onclick="testHealthAPI()">Tester l'API Health</button>
+                <div id="healthResult" class="result"></div>
+            </div>
+            
+            <div class="test-section">
+                <h3><span class="status-indicator status-warning"></span>Test API Créneaux Disponibles</h3>
+                <p>Test des créneaux pour les dates configurées (15, 16, 18, 19 novembre 2025)</p>
+                <button class="test-button" onclick="testAvailableSlots('2025-11-15')">Test 15 Nov (Lundi)</button>
+                <button class="test-button" onclick="testAvailableSlots('2025-11-16')">Test 16 Nov (Mardi)</button>
+                <button class="test-button" onclick="testAvailableSlots('2025-11-18')">Test 18 Nov (Jeudi)</button>
+                <button class="test-button" onclick="testAvailableSlots('2025-11-19')">Test 19 Nov (Vendredi)</button>
+                <div id="slotsResult" class="result"></div>
+            </div>
+            
+            <div class="test-section">
+                <h3><span class="status-indicator status-warning"></span>Test API Complète</h3>
+                <p>Test des endpoints TRPC du bookingRouter</p>
+                <button class="test-button" onclick="testTRPCApi()">Tester l'API TRPC Booking</button>
+                <div id="trpcResult" class="result"></div>
+            </div>
+            
+            <div class="info-box">
+                <h4>📋 Instructions de Diagnostic</h4>
+                <ol>
+                    <li><strong>OAuth2</strong> : Vérifiez d'abord l'authentification Google Calendar</li>
+                    <li><strong>Health API</strong> : Confirmez que le service est initialisé</li>
+                    <li><strong>Créneaux</strong> : Testez les dates spécifiques configurées</li>
+                    <li><strong>TRPC</strong> : Vérifiez que l'API de réservation fonctionne</li>
+                </ol>
+            </div>
+            
+            <div class="warning-box">
+                <h4>⚠️ Problèmes Courants</h4>
+                <ul>
+                    <li><strong>GOOGLE_REFRESH_TOKEN manquant</strong> : Nécessite la configuration OAuth2</li>
+                    <li><strong>Erreur 404 TRPC</strong> : Problème de routage ou de configuration</li>
+                    <li><strong>Service non initialisé</strong> : Vérifiez les variables d'environnement</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://planning-7qkb7uw7v-ikips-projects.vercel.app';
+        
+        function showResult(elementId, data, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = JSON.stringify(data, null, 2);
+            
+            // Update status indicator
+            const testSection = element.closest('.test-section');
+            const indicator = testSection.querySelector('.status-indicator');
+            
+            if (type === 'success') {
+                indicator.className = 'status-indicator status-success';
+            } else if (type === 'error') {
+                indicator.className = 'status-indicator status-error';
+            } else {
+                indicator.className = 'status-indicator status-warning';
+            }
+        }
+        
+        async function initOAuth2() {
+            try {
+                const response = await fetch(`${API_BASE}/api/oauth/init`);
+                const data = await response.json();
+                
+                if (data.authUrl) {
+                    showResult('oauthResult', {
+                        status: 'URL OAuth2 générée avec succès',
+                        instruction: 'Cliquez sur ce lien pour autoriser l\'accès Google Calendar',
+                        authUrl: data.authUrl,
+                        note: 'Après autorisation, copiez le refresh_token et configurez-le dans Vercel'
+                    }, 'success');
+                    
+                    // Open OAuth URL in new window
+                    window.open(data.authUrl, '_blank');
+                } else {
+                    showResult('oauthResult', data, 'error');
+                }
+            } catch (error) {
+                showResult('oauthResult', {
+                    error: 'Erreur lors de la génération URL OAuth2',
+                    details: error.message
+                }, 'error');
+            }
+        }
+        
+        async function checkOAuthStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                if (data.googleCalendar === 'initialized') {
+                    showResult('oauthResult', {
+                        status: '✅ Service Google Calendar initialisé',
+                        googleCalendar: data.googleCalendar,
+                        message: 'OAuth2 est correctement configuré'
+                    }, 'success');
+                } else {
+                    showResult('oauthResult', {
+                        status: '⚠️ Service Google Calendar non initialisé',
+                        googleCalendar: data.googleCalendar,
+                        message: 'GOOGLE_REFRESH_TOKEN peut être manquant',
+                        action: 'Exécutez "Initialiser l\'authentification OAuth2"'
+                    }, 'warning');
+                }
+            } catch (error) {
+                showResult('oauthResult', {
+                    error: 'Erreur lors de la vérification du statut',
+                    details: error.message
+                }, 'error');
+            }
+        }
+        
+        async function testHealthAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    showResult('healthResult', {
+                        status: '✅ Service opérationnel',
+                        details: data,
+                        message: 'L\'API est accessible et le service fonctionne'
+                    }, 'success');
+                } else {
+                    showResult('healthResult', data, 'error');
+                }
+            } catch (error) {
+                showResult('healthResult', {
+                    error: 'API Health inaccessible',
+                    details: error.message,
+                    url: `${API_BASE}/api/health`
+                }, 'error');
+            }
+        }
+        
+        async function testAvailableSlots(date) {
+            try {
+                const response = await fetch(`${API_BASE}/api/trpc/booking.getAvailableSlots`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        input: JSON.stringify({ date }),
+                        batch: '1',
+                        _type: 'query',
+                        _method: 'getAvailableSlots'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.result) {
+                    showResult('slotsResult', {
+                        date: date,
+                        status: '✅ API disponible',
+                        result: data.result
+                    }, 'success');
+                } else if (data.error) {
+                    showResult('slotsResult', {
+                        date: date,
+                        error: data.error.json.message,
+                        details: data.error,
+                        suggestion: 'Vérifiez la configuration OAuth2 et les variables d\'environnement'
+                    }, 'error');
+                } else {
+                    showResult('slotsResult', { date, data }, 'info');
+                }
+            } catch (error) {
+                showResult('slotsResult', {
+                    date: date,
+                    error: 'Erreur réseau ou API inaccessible',
+                    details: error.message
+                }, 'error');
+            }
+        }
+        
+        async function testTRPCApi() {
+            try {
+                // Test multiple endpoints
+                const endpoints = [
+                    'booking.getAvailableSlots',
+                    'booking.getAvailabilitiesByDate',
+                    'booking.checkAvailability'
+                ];
+                
+                const results = {};
+                
+                for (const endpoint of endpoints) {
+                    try {
+                        const method = endpoint.includes('checkAvailability') ? 'POST' : 'GET';
+                        const input = endpoint.includes('checkAvailability') ? 
+                            { date: '2025-11-15', startTime: '17:30' } :
+                            { date: '2025-11-15' };
+                        
+                        const response = await fetch(`${API_BASE}/api/trpc/${endpoint}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                input: JSON.stringify(input),
+                                batch: '1',
+                                _type: 'query'
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        results[endpoint] = {
+                            status: response.status,
+                            available: !data.error,
+                            data: data
+                        };
+                    } catch (err) {
+                        results[endpoint] = {
+                            status: 'ERROR',
+                            available: false,
+                            error: err.message
+                        };
+                    }
+                }
+                
+                showResult('trpcResult', {
+                    summary: 'Test complet des endpoints TRPC',
+                    results: results,
+                    recommendations: Object.keys(results).some(r => results[r].available) ?
+                        'Au moins un endpoint fonctionne' :
+                        'Aucun endpoint disponible - Problème de configuration'
+                }, 'info');
+                
+            } catch (error) {
+                showResult('trpcResult', {
+                    error: 'Erreur lors du test TRPC',
+                    details: error.message
+                }, 'error');
+            }
+        }
+        
+        // Auto-test on page load
+        window.addEventListener('load', function() {
+            setTimeout(testHealthAPI, 1000);
+        });
+    </script>
+</body>
+</html>
