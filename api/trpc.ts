@@ -349,7 +349,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let body: string | undefined;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       body = await getRequestBody(req);
-      console.log("[Vercel TRPC] Request body:", body?.substring(0, 200));
     }
     
     const headers = new Headers();
@@ -378,7 +377,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     
     const responseBody = await response.text();
-    console.log("[Vercel TRPC] Response:", responseBody?.substring(0, 200));
     res.send(responseBody);
   } catch (error: any) {
     console.error("[Vercel TRPC] Handler error:", error);
