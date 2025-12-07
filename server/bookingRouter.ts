@@ -24,8 +24,26 @@ class GoogleCalendarJWTClient {
     try {
       console.log("🔑 Initialisation Google Calendar avec Service Account JWT");
       
-      const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
+      let serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
       let serviceAccountPrivateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "";
+      
+      // Si les variables d'environnement ne sont pas définies, essayer de charger depuis le fichier JSON
+      if (!serviceAccountEmail || !serviceAccountPrivateKey) {
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          const configPath = path.join(__dirname, 'config', 'google-service-account.json');
+          
+          if (fs.existsSync(configPath)) {
+            console.log("📂 Chargement des credentials depuis google-service-account.json");
+            const serviceAccount = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            serviceAccountEmail = serviceAccount.client_email;
+            serviceAccountPrivateKey = serviceAccount.private_key;
+          }
+        } catch (fileError) {
+          console.warn("⚠️ Impossible de charger le fichier de configuration:", fileError);
+        }
+      }
       
       if (!serviceAccountEmail || !serviceAccountPrivateKey) {
         console.warn("⚠️ Credentials Service Account manquants");
@@ -36,7 +54,6 @@ class GoogleCalendarJWTClient {
       }
       
       // Traiter la clé privée pour gérer les différents formats
-      // Retirer les guillemets si présents au début/fin (parfois ajoutés lors du stockage en secret)
       serviceAccountPrivateKey = serviceAccountPrivateKey.trim();
       if (serviceAccountPrivateKey.startsWith('"')) {
         serviceAccountPrivateKey = serviceAccountPrivateKey.slice(1);
@@ -49,13 +66,8 @@ class GoogleCalendarJWTClient {
         .replace(/\\n/g, '\n')  // Remplacer \\n par newline
         .replace(/\\\\n/g, '\n'); // Remplacer \\\\n par newline
       
-      // Si la clé ne commence pas par "-----BEGIN", elle peut être encodée en base64
-      if (!serviceAccountPrivateKey.startsWith('-----BEGIN')) {
-        console.warn("⚠️ La clé privée semble mal formatée. Elle devrait commencer par '-----BEGIN PRIVATE KEY-----'");
-        console.log(`📍 Début de la clé: ${serviceAccountPrivateKey.substring(0, 50)}...`);
-      }
-      
       console.log(`📍 Private Key format: ${serviceAccountPrivateKey.startsWith('-----BEGIN') ? 'PEM valide' : 'Format inconnu'}`);
+      console.log(`📍 Service Account Email: ${serviceAccountEmail}`);
       
       // Créer l'authentification JWT avec Service Account
       this.auth = new google.auth.JWT({
@@ -122,8 +134,35 @@ class GoogleCalendarJWTClient {
       const events = response.data.items || [];
       console.log(`[JWT] ${events.length} événements trouvés`);
       
+      // Récupérer les rendez-vous confirmés depuis la base de données
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      const { appointments } = await import("../drizzle/schema");
+      const { gte, lt, inArray } = await import("drizzle-orm");
+      
+      const bookedAppointments = await db
+        .select({
+          startTime: appointments.startTime,
+          endTime: appointments.endTime,
+        })
+        .from(appointments)
+        .where(
+          inArray(appointments.status, ["confirmed", "pending"])
+        );
+
+      // Créer un ensemble des créneaux occupés depuis la BD
+      const bookedSlots = new Set<string>();
+      for (const apt of bookedAppointments) {
+        const aptStart = new Date(apt.startTime);
+        const dateStr = aptStart.toISOString().split('T')[0];
+        const timeStr = aptStart.toTimeString().slice(0, 5);
+        const slotKey = `${dateStr}|${timeStr}`;
+        bookedSlots.add(slotKey);
+      }
+      
       const slots: string[] = [];
       const now = new Date();
+      const currentDateStr = date.toISOString().split('T')[0];
 
       // Chercher les événements marqués comme "DISPONIBLE"
       for (const event of events) {
@@ -131,7 +170,8 @@ class GoogleCalendarJWTClient {
         const isAvailable = 
           title.includes('disponible') || 
           title.includes('available') || 
-          title.includes('dispo');
+          title.includes('dispo') ||
+          title.includes('🟢');
 
         if (isAvailable) {
           const eventStart = new Date(event.start.dateTime || event.start.date);
@@ -145,9 +185,14 @@ class GoogleCalendarJWTClient {
             // Filtrer les créneaux passés : ne garder que les créneaux futurs
             if (slotEnd <= eventEnd && currentTime > now) {
               const timeStr = currentTime.toTimeString().slice(0, 5);
-              if (!slots.includes(timeStr)) {
+              const slotKey = `${currentDateStr}|${timeStr}`;
+              
+              // Vérifier que le créneau n'est pas déjà réservé dans la BD
+              if (!bookedSlots.has(slotKey) && !slots.includes(timeStr)) {
                 slots.push(timeStr);
-                console.log(`[JWT] ✅ Créneau ajouté: ${timeStr} (${event.summary})`);
+                console.log(`[JWT] ✅ Créneau disponible: ${timeStr} (${event.summary})`);
+              } else if (bookedSlots.has(slotKey)) {
+                console.log(`[JWT] ⛔ Créneau déjà réservé en BD: ${timeStr}`);
               }
             }
             currentTime.setMinutes(currentTime.getMinutes() + 60);
@@ -156,7 +201,7 @@ class GoogleCalendarJWTClient {
       }
 
       slots.sort();
-      console.log(`[JWT] Total: ${slots.length} créneaux disponibles`);
+      console.log(`[JWT] Total: ${slots.length} créneaux disponibles (après filtrage BD)`);
       return slots;
     } catch (error) {
       console.error("⚠️ Erreur JWT:", error);
@@ -215,48 +260,107 @@ class GoogleCalendarJWTClient {
         throw new Error("Ce créneau n'est plus disponible");
       }
 
-      // Construire la description de l'événement
-      let description = `📅 Rendez-vous confirmé avec ${patientName}`;
-      if (reason) {
-        description += `\n\n📋 Motif: ${reason}`;
-      }
-      description += `\n\n📧 Email: ${patientEmail}`;
-      if (patientPhone) {
-        description += `\n📱 Téléphone: ${patientPhone}`;
-      }
-
-      // Créer l'événement avec le patient en participant
-      const event = {
-        summary: `🩺 Consultation - ${patientName}`,
-        description: description,
-        start: {
-          dateTime: startDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
-        },
-        end: {
-          dateTime: endDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
-        },
-        attendees: [
-          { email: patientEmail, displayName: patientName }
-        ],
-        reminders: {
-          useDefault: false,
-          overrides: [
-            { method: 'email', minutes: 1440 }, // 24h avant
-            { method: 'popup', minutes: 60 }, // 1h avant
-          ],
-        },
-        colorId: '2', // Vert pour les rendez-vous
-        transparency: 'opaque', // Bloquer le créneau
-      };
-
-      // Créer le rendez-vous et envoyer les invitations
-      const response = await this.calendar.events.insert({
+      // Chercher l'événement "DISPONIBLE" qui couvre ce créneau pour le modifier
+      const eventsInSlot = await this.calendar.events.list({
         calendarId: this.calendarId,
-        resource: event,
-        sendUpdates: 'all', // Notifier les participants par email
+        timeMin: startDateTime.toISOString(),
+        timeMax: endDateTime.toISOString(),
+        singleEvents: true,
       });
+
+      const availableEvent = eventsInSlot.data.items?.find((e: any) => {
+        const title = (e.summary || '').toLowerCase();
+        return title.includes('disponible') || title.includes('available') || title.includes('dispo') || title.includes('🟢');
+      });
+
+      let response;
+
+      if (availableEvent) {
+        // Modifier l'événement DISPONIBLE existant pour le transformer en rendez-vous
+        console.log(`[JWT] Modification de l'événement DISPONIBLE: ${availableEvent.id}`);
+        
+        // Construire la description de l'événement
+        let description = `📅 Rendez-vous confirmé avec ${patientName}`;
+        if (reason) {
+          description += `\n\n📋 Motif: ${reason}`;
+        }
+        description += `\n\n📧 Email: ${patientEmail}`;
+        if (patientPhone) {
+          description += `\n📱 Téléphone: ${patientPhone}`;
+        }
+
+        // Mettre à jour l'événement
+        response = await this.calendar.events.update({
+          calendarId: this.calendarId,
+          eventId: availableEvent.id,
+          resource: {
+            summary: `🔴 RÉSERVÉ - ${patientName}`,
+            description: description,
+            start: {
+              dateTime: startDateTime.toISOString(),
+              timeZone: 'Europe/Paris',
+            },
+            end: {
+              dateTime: endDateTime.toISOString(),
+              timeZone: 'Europe/Paris',
+            },
+            attendees: [
+              { email: patientEmail, displayName: patientName }
+            ],
+            reminders: {
+              useDefault: false,
+              overrides: [
+                { method: 'email', minutes: 1440 }, // 24h avant
+                { method: 'popup', minutes: 60 }, // 1h avant
+              ],
+            },
+            colorId: '11', // Rouge pour les rendez-vous réservés
+            transparency: 'opaque', // Bloquer le créneau
+          },
+          sendUpdates: 'all', // Notifier les participants par email
+        });
+      } else {
+        // Si aucun événement DISPONIBLE n'existe, créer un nouvel événement
+        console.log(`[JWT] Aucun événement DISPONIBLE trouvé, création d'un nouvel événement`);
+        
+        let description = `📅 Rendez-vous confirmé avec ${patientName}`;
+        if (reason) {
+          description += `\n\n📋 Motif: ${reason}`;
+        }
+        description += `\n\n📧 Email: ${patientEmail}`;
+        if (patientPhone) {
+          description += `\n📱 Téléphone: ${patientPhone}`;
+        }
+
+        response = await this.calendar.events.insert({
+          calendarId: this.calendarId,
+          resource: {
+            summary: `🔴 RÉSERVÉ - ${patientName}`,
+            description: description,
+            start: {
+              dateTime: startDateTime.toISOString(),
+              timeZone: 'Europe/Paris',
+            },
+            end: {
+              dateTime: endDateTime.toISOString(),
+              timeZone: 'Europe/Paris',
+            },
+            attendees: [
+              { email: patientEmail, displayName: patientName }
+            ],
+            reminders: {
+              useDefault: false,
+              overrides: [
+                { method: 'email', minutes: 1440 }, // 24h avant
+                { method: 'popup', minutes: 60 }, // 1h avant
+              ],
+            },
+            colorId: '11', // Rouge pour les rendez-vous réservés
+            transparency: 'opaque', // Bloquer le créneau
+          },
+          sendUpdates: 'all', // Notifier les participants par email
+        });
+      }
 
       console.log('✅ Rendez-vous créé:', response.data.id);
       return response.data.id;
