@@ -6,13 +6,10 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 class GoogleCalendarService {
-  private calendar: any;
   private auth: any;
   public isInitialized = false;
-  private calendarId: string;
 
   constructor() {
-    this.calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
     this.initializeCalendar();
   }
 
@@ -40,7 +37,6 @@ class GoogleCalendarService {
       });
 
       await this.auth.authorize();
-      this.calendar = google.calendar({ version: 'v3', auth: this.auth });
       this.isInitialized = true;
       console.log("[Vercel API] Google Calendar initialise");
     } catch (error) {

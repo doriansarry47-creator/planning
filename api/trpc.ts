@@ -1,15 +1,10 @@
 import "dotenv/config";
+import { VercelRequest, VercelResponse } from "@vercel/node";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { google } from "googleapis";
-import { Resend } from "resend";
 import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { eq } from "drizzle-orm";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const t = initTRPC.context<any>().create({
   transformer: superjson,
@@ -18,89 +13,42 @@ const t = initTRPC.context<any>().create({
 const router = t.router;
 const publicProcedure = t.procedure;
 
-class GoogleCalendarJWTClient {
-  private calendar: any;
-  private auth: any;
-  public isInitialized = false;
-  private calendarId: string;
+function getDefaultSlots(date: Date): Array<{date: string, startTime: string, endTime: string, duration: number, title: string}> {
+  const dayOfWeek = date.getDay();
+  if (dayOfWeek === 0 || dayOfWeek === 6) return [];
 
-  constructor() {
-    this.calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
-    this.initializeCalendar();
-  }
+  const dateStr = date.toISOString().split('T')[0];
+  const slots = [
+    { startTime: '09:00', endTime: '10:00' },
+    { startTime: '10:00', endTime: '11:00' },
+    { startTime: '11:00', endTime: '12:00' },
+    { startTime: '14:00', endTime: '15:00' },
+    { startTime: '15:00', endTime: '16:00' },
+    { startTime: '16:00', endTime: '17:00' },
+    { startTime: '17:00', endTime: '18:00' },
+  ];
 
-  private async initializeCalendar() {
-    try {
-      const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
-      let serviceAccountPrivateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "";
-
-      if (!serviceAccountEmail || !serviceAccountPrivateKey) {
-        console.warn("[Vercel] Google Calendar credentials manquants");
-        this.isInitialized = false;
-        return;
-      }
-
-      serviceAccountPrivateKey = serviceAccountPrivateKey
-        .trim()
-        .replace(/^"|"$/g, '')
-        .replace(/\\n/g, '\n')
-        .replace(/\\\\n/g, '\n');
-
-      this.auth = new google.auth.JWT({
-        email: serviceAccountEmail,
-        key: serviceAccountPrivateKey,
-        scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events'],
-      });
-
-      await this.auth.authorize();
-      this.calendar = google.calendar({ version: 'v3', auth: this.auth });
-      this.isInitialized = true;
-      console.log("[Vercel] Google Calendar initialisé");
-    } catch (error) {
-      console.error("[Vercel] Erreur Google Calendar:", error);
-      this.isInitialized = false;
-    }
-  }
-
-  getDefaultSlots(date: Date): Array<{date: string, startTime: string, endTime: string, duration: number, title: string}> {
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) return [];
-
-    const dateStr = date.toISOString().split('T')[0];
-    const slots = [
-      { startTime: '09:00', endTime: '10:00' },
-      { startTime: '10:00', endTime: '11:00' },
-      { startTime: '11:00', endTime: '12:00' },
-      { startTime: '14:00', endTime: '15:00' },
-      { startTime: '15:00', endTime: '16:00' },
-      { startTime: '16:00', endTime: '17:00' },
-      { startTime: '17:00', endTime: '18:00' },
-    ];
-
-    return slots.map(slot => ({
-      date: dateStr,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      duration: 60,
-      title: "Disponible (60 min)"
-    }));
-  }
-
-  async getAvailableSlots(startDate: Date, endDate: Date): Promise<Array<{date: string, startTime: string, endTime: string, duration: number, title: string}>> {
-    const allSlots: Array<{date: string, startTime: string, endTime: string, duration: number, title: string}> = [];
-    const currentDate = new Date(startDate);
-
-    while (currentDate <= endDate) {
-      const slots = this.getDefaultSlots(new Date(currentDate));
-      allSlots.push(...slots);
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return allSlots;
-  }
+  return slots.map(slot => ({
+    date: dateStr,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    duration: 60,
+    title: "Disponible (60 min)"
+  }));
 }
 
-const googleCalendarClient = new GoogleCalendarJWTClient();
+async function getAvailableSlots(startDate: Date, endDate: Date): Promise<Array<{date: string, startTime: string, endTime: string, duration: number, title: string}>> {
+  const allSlots: Array<{date: string, startTime: string, endTime: string, duration: number, title: string}> = [];
+  const currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    const slots = getDefaultSlots(new Date(currentDate));
+    allSlots.push(...slots);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return allSlots;
+}
 
 const appRouter = router({
   booking: router({
@@ -115,7 +63,7 @@ const appRouter = router({
           const start = input.startDate ? new Date(input.startDate) : new Date();
           const end = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-          const slots = await googleCalendarClient.getAvailableSlots(start, end);
+          const slots = await getAvailableSlots(start, end);
 
           const slotsByDate: Record<string, typeof slots> = {};
           for (const slot of slots) {
@@ -134,7 +82,7 @@ const appRouter = router({
         } catch (error: any) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Impossible de récupérer les disponibilités: " + error.message
+            message: "Impossible de recuperer les disponibilites: " + error.message
           });
         }
       }),
@@ -165,46 +113,13 @@ const appRouter = router({
 
           if (process.env.DATABASE_URL) {
             const sql = neon(process.env.DATABASE_URL);
-            const db = drizzle(sql);
 
-            await db.execute(`
+            await sql`
               INSERT INTO appointments 
               ("practitionerId", "serviceId", "startTime", "endTime", status, "customerName", "customerEmail", "customerPhone", notes, "cancellationHash", "createdAt", "updatedAt")
               VALUES 
-              (1, 1, $1, $2, 'confirmed', $3, $4, $5, $6, $7, NOW(), NOW())
-            `, [
-              appointmentDate.toISOString(),
-              endDate.toISOString(),
-              `${input.patientInfo.firstName} ${input.patientInfo.lastName}`,
-              input.patientInfo.email,
-              input.patientInfo.phone,
-              input.patientInfo.reason || null,
-              cancellationHash
-            ]);
-          }
-
-          if (process.env.RESEND_API_KEY) {
-            try {
-              await resend.emails.send({
-                from: 'Dorian Sarry <noreply@dorian-sarry.com>',
-                to: input.patientInfo.email,
-                subject: 'Confirmation de votre rendez-vous',
-                html: `
-                  <h2>Confirmation de rendez-vous</h2>
-                  <p>Bonjour ${input.patientInfo.firstName},</p>
-                  <p>Votre rendez-vous a bien ete confirme.</p>
-                  <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <p><strong>Date:</strong> ${appointmentDate.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    <p><strong>Heure:</strong> ${input.startTime} - ${endTime}</p>
-                    <p><strong>Duree:</strong> ${input.duration} minutes</p>
-                    <p><strong>Praticien:</strong> Dorian Sarry</p>
-                  </div>
-                  <p>Cordialement,<br>Dorian Sarry</p>
-                `
-              });
-            } catch (emailError) {
-              console.error("[Vercel] Erreur envoi email:", emailError);
-            }
+              (1, 1, ${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, NOW(), NOW())
+            `;
           }
 
           return {
@@ -221,7 +136,7 @@ const appRouter = router({
             }
           };
         } catch (error: any) {
-          console.error("[Vercel] Erreur booking:", error);
+          console.error("[Vercel TRPC] Erreur booking:", error);
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: "Erreur lors de la reservation: " + error.message
@@ -232,8 +147,7 @@ const appRouter = router({
     healthCheck: publicProcedure.query(() => ({
       status: "ok",
       timestamp: new Date().toISOString(),
-      platform: "vercel",
-      calendarInitialized: googleCalendarClient.isInitialized
+      platform: "vercel"
     }))
   }),
 
@@ -308,15 +222,27 @@ const appRouter = router({
 
 export type AppRouter = typeof appRouter;
 
-export default async function handler(request: Request) {
-  return fetchRequestHandler({
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  
+  const request = new Request(url.toString(), {
+    method: req.method,
+    headers: req.headers as any,
+    body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
+  });
+
+  const response = await fetchRequestHandler({
     endpoint: "/api/trpc",
     req: request,
     router: appRouter,
     createContext: () => ({}),
   });
-}
 
-export const config = {
-  runtime: "edge",
-};
+  res.status(response.status);
+  response.headers.forEach((value, key) => {
+    res.setHeader(key, value);
+  });
+
+  const body = await response.text();
+  res.send(body);
+}
