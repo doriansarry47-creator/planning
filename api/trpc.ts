@@ -14,6 +14,25 @@ const t = initTRPC.context<any>().create({
 const router = t.router;
 const publicProcedure = t.procedure;
 
+function cleanDatabaseUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  
+  let cleanUrl = url.trim();
+  
+  if (cleanUrl.startsWith("psql ")) {
+    cleanUrl = cleanUrl.replace(/^psql\s+/, '');
+  }
+  
+  cleanUrl = cleanUrl.replace(/^['"]/, '').replace(/['"]$/, '');
+  
+  if (!cleanUrl.startsWith('postgresql://') && !cleanUrl.startsWith('postgres://')) {
+    console.error('[Vercel TRPC] DATABASE_URL invalide:', cleanUrl.substring(0, 30) + '...');
+    return undefined;
+  }
+  
+  return cleanUrl;
+}
+
 interface AvailableSlot {
   date: string;
   startTime: string;
@@ -96,12 +115,13 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date): Prom
 async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<string>> {
   const bookedSlots = new Set<string>();
   
-  if (!databaseUrl) {
+  const cleanUrl = cleanDatabaseUrl(databaseUrl);
+  if (!cleanUrl) {
     return bookedSlots;
   }
 
   try {
-    const sql = neon(databaseUrl);
+    const sql = neon(cleanUrl);
     const result = await sql`
       SELECT "startTime", "endTime" 
       FROM appointments 
@@ -294,8 +314,9 @@ const appRouter = router({
             reason: input.patientInfo.reason,
           });
           
-          if (process.env.DATABASE_URL) {
-            const sql = neon(process.env.DATABASE_URL);
+          const dbUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
+          if (dbUrl) {
+            const sql = neon(dbUrl);
             
             await sql`
               INSERT INTO appointments 
@@ -333,11 +354,12 @@ const appRouter = router({
       .input(z.object({ email: z.string().email() }))
       .query(async ({ input }) => {
         try {
-          if (!process.env.DATABASE_URL) {
+          const dbUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
+          if (!dbUrl) {
             return { success: false, appointments: [], total: 0, error: "Database not configured" };
           }
           
-          const sql = neon(process.env.DATABASE_URL);
+          const sql = neon(dbUrl);
           const result = await sql`
             SELECT * FROM appointments 
             WHERE "customerEmail" = ${input.email}
@@ -369,11 +391,12 @@ const appRouter = router({
       .input(z.object({ hash: z.string() }))
       .mutation(async ({ input }) => {
         try {
-          if (!process.env.DATABASE_URL) {
+          const dbUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
+          if (!dbUrl) {
             throw new Error("Database not configured");
           }
           
-          const sql = neon(process.env.DATABASE_URL);
+          const sql = neon(dbUrl);
           await sql`
             UPDATE appointments 
             SET status = 'cancelled', "updatedAt" = NOW()
