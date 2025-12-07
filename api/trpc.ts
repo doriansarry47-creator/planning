@@ -4,6 +4,8 @@ import superjson from "superjson";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { neon } from "@neondatabase/serverless";
+import ical from 'node-ical';
+import { google } from 'googleapis';
 
 const t = initTRPC.context<any>().create({
   transformer: superjson,
@@ -12,53 +14,83 @@ const t = initTRPC.context<any>().create({
 const router = t.router;
 const publicProcedure = t.procedure;
 
-const DEFAULT_AVAILABILITY_CONFIG = {
-  workDays: [1, 2, 3, 4, 5],
-  morningStart: "09:00",
-  morningEnd: "12:00",
-  afternoonStart: "14:00",
-  afternoonEnd: "18:00",
-  slotDuration: 60,
-};
+interface AvailableSlot {
+  date: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  title: string;
+}
 
-function generateDefaultSlotsForDate(date: Date): string[] {
-  const dayOfWeek = date.getDay();
-  const slots: string[] = [];
-  const now = new Date();
+async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date): Promise<AvailableSlot[]> {
+  const icalUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
   
-  if (!DEFAULT_AVAILABILITY_CONFIG.workDays.includes(dayOfWeek)) {
+  if (!icalUrl) {
+    console.warn('[Vercel TRPC] GOOGLE_CALENDAR_ICAL_URL non configure');
     return [];
   }
-  
-  const dateStr = date.toISOString().split('T')[0];
-  
-  let [hours, minutes] = DEFAULT_AVAILABILITY_CONFIG.morningStart.split(':').map(Number);
-  const [endMorningHours] = DEFAULT_AVAILABILITY_CONFIG.morningEnd.split(':').map(Number);
-  
-  while (hours < endMorningHours) {
-    const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    const slotDateTime = new Date(`${dateStr}T${slotTime}:00`);
+
+  try {
+    console.log('[Vercel TRPC] Recuperation des disponibilites depuis iCal URL...');
     
-    if (slotDateTime > now) {
-      slots.push(slotTime);
-    }
-    hours += 1;
-  }
-  
-  [hours, minutes] = DEFAULT_AVAILABILITY_CONFIG.afternoonStart.split(':').map(Number);
-  const [endAfternoonHours] = DEFAULT_AVAILABILITY_CONFIG.afternoonEnd.split(':').map(Number);
-  
-  while (hours < endAfternoonHours) {
-    const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    const slotDateTime = new Date(`${dateStr}T${slotTime}:00`);
+    const now = new Date();
+    const filterStartDate = startDate || now;
+    const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    const slots: AvailableSlot[] = [];
+
+    const events = await ical.async.fromURL(icalUrl);
+    console.log('[Vercel TRPC] Evenements total dans iCal:', Object.keys(events).length);
     
-    if (slotDateTime > now) {
-      slots.push(slotTime);
-    }
-    hours += 1;
+    Object.values(events).forEach((event: any) => {
+      if (event.type !== 'VEVENT') return;
+
+      const title = event.summary?.toLowerCase() || '';
+      
+      const isAvailable = 
+        title.includes('disponible') || 
+        title.includes('available') || 
+        title.includes('dispo') ||
+        title.includes('libre') ||
+        title.includes('free');
+
+      if (!isAvailable) return;
+
+      const eventStart = new Date(event.start);
+      const eventEnd = new Date(event.end);
+
+      if (eventStart < filterStartDate || eventStart > filterEndDate) return;
+      if (eventStart < now) return;
+
+      const duration = Math.round((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60));
+
+      const dateStr = eventStart.toISOString().split('T')[0];
+      const startTime = eventStart.toTimeString().slice(0, 5);
+      const endTime = eventEnd.toTimeString().slice(0, 5);
+
+      console.log('[Vercel TRPC] Creneau disponible ajoute:', dateStr, startTime, '-', endTime);
+      slots.push({
+        date: dateStr,
+        startTime,
+        endTime,
+        duration,
+        title: event.summary || 'Disponible',
+      });
+    });
+
+    console.log(`[Vercel TRPC] ${slots.length} creneaux disponibles trouves`);
+    
+    slots.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.startTime.localeCompare(b.startTime);
+    });
+
+    return slots;
+  } catch (error) {
+    console.error('[Vercel TRPC] Erreur lors de la recuperation des disponibilites:', error);
+    return [];
   }
-  
-  return slots;
 }
 
 async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<string>> {
@@ -89,6 +121,79 @@ async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<stri
   return bookedSlots;
 }
 
+async function createGoogleCalendarEvent(appointmentData: {
+  patientName: string;
+  patientEmail: string;
+  patientPhone?: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  reason?: string;
+}): Promise<string | null> {
+  const privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
+  const serviceAccountEmail = process.env.GOOGLE_CALENDAR_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const targetCalendarId = process.env.GOOGLE_CALENDAR_ID;
+
+  if (!privateKey || !serviceAccountEmail) {
+    console.warn('[Vercel TRPC] Configuration Google Calendar incomplete pour creation evenement');
+    return null;
+  }
+
+  try {
+    const auth = new google.auth.JWT({
+      email: serviceAccountEmail,
+      key: privateKey.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/calendar'],
+    });
+
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    const startDateTime = new Date(appointmentData.date);
+    const [startHours, startMinutes] = appointmentData.startTime.split(':').map(Number);
+    startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+    const endDateTime = new Date(appointmentData.date);
+    const [endHours, endMinutes] = appointmentData.endTime.split(':').map(Number);
+    endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+    const event = {
+      summary: `RDV - ${appointmentData.patientName}`,
+      description: `Patient: ${appointmentData.patientName}\nEmail: ${appointmentData.patientEmail}\nTelephone: ${appointmentData.patientPhone || 'Non renseigne'}\nMotif: ${appointmentData.reason || 'Non precise'}`,
+      start: {
+        dateTime: startDateTime.toISOString(),
+        timeZone: 'Europe/Paris',
+      },
+      end: {
+        dateTime: endDateTime.toISOString(),
+        timeZone: 'Europe/Paris',
+      },
+      colorId: '9',
+      attendees: [
+        { email: appointmentData.patientEmail }
+      ],
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'email', minutes: 24 * 60 },
+          { method: 'popup', minutes: 60 },
+        ],
+      },
+    };
+
+    const response = await calendar.events.insert({
+      calendarId: targetCalendarId || serviceAccountEmail,
+      resource: event,
+      sendUpdates: 'all',
+    });
+
+    console.log('[Vercel TRPC] Evenement Google Calendar cree:', response.data.id);
+    return response.data.id || null;
+  } catch (error) {
+    console.error('[Vercel TRPC] Erreur creation evenement Google Calendar:', error);
+    return null;
+  }
+}
+
 const appRouter = router({
   booking: router({
     getAvailabilitiesByDate: publicProcedure
@@ -98,50 +203,33 @@ const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         try {
-          console.log("[Vercel TRPC] getAvailabilitiesByDate appelé avec:", input);
+          console.log("[Vercel TRPC] getAvailabilitiesByDate appele avec:", input);
           
           const startDate = input.startDate ? new Date(input.startDate) : new Date();
-          const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
           
           const bookedSlots = await getBookedSlots(process.env.DATABASE_URL);
+          const icalSlots = await getAvailableSlotsFromIcal(startDate, endDate);
           
           const slotsByDate: Record<string, any[]> = {};
-          const currentDate = new Date(startDate);
           
-          while (currentDate <= endDate) {
-            const daySlots = generateDefaultSlotsForDate(new Date(currentDate));
+          for (const slot of icalSlots) {
+            const slotKey = `${slot.date}|${slot.startTime}`;
             
-            if (daySlots.length > 0) {
-              const dateStr = currentDate.toISOString().split('T')[0];
-              slotsByDate[dateStr] = [];
-              
-              for (const slotTime of daySlots) {
-                const slotKey = `${dateStr}|${slotTime}`;
-                
-                if (!bookedSlots.has(slotKey)) {
-                  const endHour = parseInt(slotTime.split(':')[0]) + 1;
-                  slotsByDate[dateStr].push({
-                    date: dateStr,
-                    startTime: slotTime,
-                    endTime: `${endHour.toString().padStart(2, '0')}:00`,
-                    duration: 60,
-                    title: "Disponible (60 min)",
-                  });
-                }
+            if (!bookedSlots.has(slotKey)) {
+              if (!slotsByDate[slot.date]) {
+                slotsByDate[slot.date] = [];
               }
-              
-              if (slotsByDate[dateStr].length === 0) {
-                delete slotsByDate[dateStr];
-              } else {
-                slotsByDate[dateStr].sort((a, b) => a.startTime.localeCompare(b.startTime));
-              }
+              slotsByDate[slot.date].push(slot);
             }
-            
-            currentDate.setDate(currentDate.getDate() + 1);
+          }
+          
+          for (const date of Object.keys(slotsByDate)) {
+            slotsByDate[date].sort((a, b) => a.startTime.localeCompare(b.startTime));
           }
           
           const availableDates = Object.keys(slotsByDate).sort();
-          console.log(`[Vercel TRPC] ${availableDates.length} dates disponibles`);
+          console.log(`[Vercel TRPC] ${availableDates.length} dates disponibles depuis iCal`);
           
           return {
             success: true,
@@ -166,26 +254,7 @@ const appRouter = router({
         const startDate = input.startDate ? new Date(input.startDate) : new Date();
         const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
         
-        const slots: any[] = [];
-        const currentDate = new Date(startDate);
-        
-        while (currentDate <= endDate) {
-          const daySlots = generateDefaultSlotsForDate(new Date(currentDate));
-          const dateStr = currentDate.toISOString().split('T')[0];
-          
-          for (const slotTime of daySlots) {
-            const endHour = parseInt(slotTime.split(':')[0]) + 1;
-            slots.push({
-              date: dateStr,
-              startTime: slotTime,
-              endTime: `${endHour.toString().padStart(2, '0')}:00`,
-              duration: 60,
-              title: "Disponible (60 min)",
-            });
-          }
-          
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
+        const slots = await getAvailableSlotsFromIcal(startDate, endDate);
         
         return { success: true, slots };
       }),
@@ -215,20 +284,31 @@ const appRouter = router({
           
           const cancellationHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
           
+          const googleEventId = await createGoogleCalendarEvent({
+            patientName: `${input.patientInfo.firstName} ${input.patientInfo.lastName}`,
+            patientEmail: input.patientInfo.email,
+            patientPhone: input.patientInfo.phone,
+            date: appointmentDate,
+            startTime: input.time,
+            endTime: endTime,
+            reason: input.patientInfo.reason,
+          });
+          
           if (process.env.DATABASE_URL) {
             const sql = neon(process.env.DATABASE_URL);
             
             await sql`
               INSERT INTO appointments 
-              ("practitionerId", "serviceId", "startTime", "endTime", status, "customerName", "customerEmail", "customerPhone", notes, "cancellationHash", "createdAt", "updatedAt")
+              ("practitionerId", "serviceId", "startTime", "endTime", status, "customerName", "customerEmail", "customerPhone", notes, "cancellationHash", "googleEventId", "createdAt", "updatedAt")
               VALUES 
-              (1, 1, ${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, NOW(), NOW())
+              (1, 1, ${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, ${googleEventId || null}, NOW(), NOW())
             `;
           }
           
           return {
             success: true,
             appointmentHash: cancellationHash,
+            googleEventId,
             message: "Rendez-vous confirme avec succes",
             confirmation: {
               date: input.date,
