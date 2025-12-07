@@ -5,12 +5,16 @@
   "installCommand": "npm install",
   "framework": null,
   "functions": {
-    "api/index.ts": {
+    "api/**/*.ts": {
       "memory": 1024,
-      "maxDuration": 10
+      "maxDuration": 30
     }
   },
   "routes": [
+    {
+      "src": "/api/trpc/(.*)",
+      "dest": "/api/trpc.ts"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/index.ts"
@@ -22,5 +26,8 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
