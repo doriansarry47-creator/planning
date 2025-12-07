@@ -320,9 +320,9 @@ const appRouter = router({
             
             await sql`
               INSERT INTO appointments 
-              ("practitionerId", "serviceId", "startTime", "endTime", status, "customerName", "customerEmail", "customerPhone", notes, "cancellationHash", "googleEventId", "createdAt", "updatedAt")
+              ("startTime", "endTime", status, "customerName", "customerEmail", "customerPhone", notes, "cancellationHash", "googleEventId", "createdAt", "updatedAt")
               VALUES 
-              (1, 1, ${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, ${googleEventId || null}, NOW(), NOW())
+              (${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, ${googleEventId || null}, NOW(), NOW())
             `;
           }
           
