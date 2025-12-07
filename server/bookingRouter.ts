@@ -5,12 +5,12 @@ import { getGoogleCalendarIcalService } from "./services/googleCalendarIcal";
 import { appointments } from "../drizzle/schema";
 
 /**
- * Service Google Calendar utilisant OAuth2 avec Refresh Token
- * Accès au calendrier personnel via les credentials OAuth de l'utilisateur
+ * Service Google Calendar utilisant Service Account JWT
+ * Accès au calendrier via les credentials du Service Account
  */
-class GoogleCalendarOAuthClient {
+class GoogleCalendarJWTClient {
   private calendar: any;
-  private oauth2Client: any;
+  private auth: any;
   public isInitialized = false;
   private calendarId: string;
   private initPromise: Promise<void>;
@@ -22,61 +22,71 @@ class GoogleCalendarOAuthClient {
 
   private async initializeCalendar() {
     try {
-      console.log("🔑 Initialisation Google Calendar avec OAuth2 Refresh Token");
+      console.log("🔑 Initialisation Google Calendar avec Service Account JWT");
       
-      const clientId = process.env.GOOGLE_CLIENT_ID || "";
-      const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
-      const refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN || "";
+      const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
+      let serviceAccountPrivateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "";
       
-      if (!clientId || !clientSecret || !refreshToken) {
-        console.warn("⚠️ Credentials OAuth2 manquants (client_id, client_secret ou refresh_token)");
-        console.log(`📍 Client ID: ${clientId ? clientId.substring(0, 20) + '...' : 'MANQUANT'}`);
-        console.log(`📍 Client Secret: ${clientSecret ? 'PRÉSENT' : 'MANQUANT'}`);
-        console.log(`📍 Refresh Token: ${refreshToken ? refreshToken.substring(0, 20) + '...' : 'MANQUANT'}`);
+      if (!serviceAccountEmail || !serviceAccountPrivateKey) {
+        console.warn("⚠️ Credentials Service Account manquants");
+        console.log(`📍 Service Account Email: ${serviceAccountEmail ? serviceAccountEmail : 'MANQUANT'}`);
+        console.log(`📍 Private Key: ${serviceAccountPrivateKey ? 'PRÉSENT' : 'MANQUANT'}`);
         this.isInitialized = false;
         return;
       }
       
-      // Créer le client OAuth2
-      this.oauth2Client = new google.auth.OAuth2(
-        clientId,
-        clientSecret,
-        'http://localhost'
-      );
+      // Traiter la clé privée pour gérer les différents formats
+      // Retirer les guillemets si présents au début/fin (parfois ajoutés lors du stockage en secret)
+      serviceAccountPrivateKey = serviceAccountPrivateKey.trim();
+      if (serviceAccountPrivateKey.startsWith('"')) {
+        serviceAccountPrivateKey = serviceAccountPrivateKey.slice(1);
+      }
+      if (serviceAccountPrivateKey.endsWith('"')) {
+        serviceAccountPrivateKey = serviceAccountPrivateKey.slice(0, -1);
+      }
+      // La clé peut contenir des \n littéraux ou des \\n échappés
+      serviceAccountPrivateKey = serviceAccountPrivateKey
+        .replace(/\\n/g, '\n')  // Remplacer \\n par newline
+        .replace(/\\\\n/g, '\n'); // Remplacer \\\\n par newline
       
-      // Configurer le refresh token
-      this.oauth2Client.setCredentials({
-        refresh_token: refreshToken
+      // Si la clé ne commence pas par "-----BEGIN", elle peut être encodée en base64
+      if (!serviceAccountPrivateKey.startsWith('-----BEGIN')) {
+        console.warn("⚠️ La clé privée semble mal formatée. Elle devrait commencer par '-----BEGIN PRIVATE KEY-----'");
+        console.log(`📍 Début de la clé: ${serviceAccountPrivateKey.substring(0, 50)}...`);
+      }
+      
+      console.log(`📍 Private Key format: ${serviceAccountPrivateKey.startsWith('-----BEGIN') ? 'PEM valide' : 'Format inconnu'}`);
+      
+      // Créer l'authentification JWT avec Service Account
+      this.auth = new google.auth.JWT({
+        email: serviceAccountEmail,
+        key: serviceAccountPrivateKey,
+        scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events'],
       });
       
-      // Tester l'accès en récupérant un access token
+      // Tester l'accès en authorisant le client
       try {
-        const { token } = await this.oauth2Client.getAccessToken();
-        if (!token) {
-          throw new Error("Impossible d'obtenir un access token");
-        }
-        console.log(`✅ Access token obtenu (${token.substring(0, 20)}...)`);
-      } catch (tokenError: any) {
-        console.error("❌ Erreur lors de l'obtention du token:", tokenError.message);
-        if (tokenError.message?.includes('invalid_grant')) {
-          console.error("⚠️ Le refresh token a expiré ou est invalide. Veuillez regénérer les credentials OAuth.");
-        }
+        await this.auth.authorize();
+        console.log(`✅ Service Account JWT autorisé`);
+      } catch (authError: any) {
+        console.error("❌ Erreur lors de l'autorisation JWT:", authError.message);
         this.isInitialized = false;
         return;
       }
       
-      // Configurer l'API Calendar avec OAuth2
+      // Configurer l'API Calendar avec JWT
       this.calendar = google.calendar({
         version: 'v3',
-        auth: this.oauth2Client
+        auth: this.auth
       });
       
       this.isInitialized = true;
-      console.log("✅ Google Calendar OAuth2 initialisé avec succès");
+      console.log("✅ Google Calendar Service Account JWT initialisé avec succès");
       console.log(`📍 Calendrier: ${this.calendarId}`);
+      console.log(`📍 Service Account: ${serviceAccountEmail}`);
       
     } catch (error) {
-      console.error("❌ Erreur initialisation Google Calendar OAuth2:", error);
+      console.error("❌ Erreur initialisation Google Calendar JWT:", error);
       this.isInitialized = false;
     }
   }
@@ -87,12 +97,12 @@ class GoogleCalendarOAuthClient {
 
   async getAvailableSlots(date: Date, durationMinutes: number = 60): Promise<string[]> {
     if (!this.isInitialized) {
-      console.warn("⚠️ Google Calendar OAuth2 non initialisé");
+      console.warn("⚠️ Google Calendar JWT non initialisé");
       return [];
     }
 
     try {
-      console.log(`[OAuth2] Recherche des créneaux disponibles pour ${date.toISOString().split('T')[0]}`);
+      console.log(`[JWT] Recherche des créneaux disponibles pour ${date.toISOString().split('T')[0]}`);
       
       // Définir la plage horaire (7h-22h pour inclure les créneaux du soir)
       const dayStart = new Date(date);
@@ -110,7 +120,7 @@ class GoogleCalendarOAuthClient {
       });
 
       const events = response.data.items || [];
-      console.log(`[OAuth2] ${events.length} événements trouvés`);
+      console.log(`[JWT] ${events.length} événements trouvés`);
       
       const slots: string[] = [];
       const now = new Date();
@@ -137,7 +147,7 @@ class GoogleCalendarOAuthClient {
               const timeStr = currentTime.toTimeString().slice(0, 5);
               if (!slots.includes(timeStr)) {
                 slots.push(timeStr);
-                console.log(`[OAuth2] ✅ Créneau ajouté: ${timeStr} (${event.summary})`);
+                console.log(`[JWT] ✅ Créneau ajouté: ${timeStr} (${event.summary})`);
               }
             }
             currentTime.setMinutes(currentTime.getMinutes() + 60);
@@ -146,10 +156,10 @@ class GoogleCalendarOAuthClient {
       }
 
       slots.sort();
-      console.log(`[OAuth2] Total: ${slots.length} créneaux disponibles`);
+      console.log(`[JWT] Total: ${slots.length} créneaux disponibles`);
       return slots;
     } catch (error) {
-      console.error("⚠️ Erreur OAuth2:", error);
+      console.error("⚠️ Erreur JWT:", error);
       return [];
     }
   }
@@ -258,12 +268,12 @@ class GoogleCalendarOAuthClient {
   }
 }
 
-// Instance singleton du service OAuth2
-let googleCalendarServiceInstance: GoogleCalendarOAuthClient | null = null;
+// Instance singleton du service JWT
+let googleCalendarServiceInstance: GoogleCalendarJWTClient | null = null;
 
-export function getGoogleCalendarService(): GoogleCalendarOAuthClient | null {
+export function getGoogleCalendarService(): GoogleCalendarJWTClient | null {
   if (!googleCalendarServiceInstance) {
-    googleCalendarServiceInstance = new GoogleCalendarOAuthClient();
+    googleCalendarServiceInstance = new GoogleCalendarJWTClient();
   }
   return googleCalendarServiceInstance;
 }
@@ -278,7 +288,7 @@ export async function initializeGoogleCalendarService(): Promise<void> {
 
 /**
  * Router pour la réservation de rendez-vous patient
- * Utilise Google Calendar OAuth2 pour lire les disponibilités
+ * Utilise Google Calendar Service Account JWT pour lire les disponibilités
  * et créer les rendez-vous avec une durée fixe de 60 minutes
  */
 
