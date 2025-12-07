@@ -318,11 +318,39 @@ const appRouter = router({
           if (dbUrl) {
             const sql = neon(dbUrl);
             
+            const existingPractitioner = await sql`SELECT id FROM practitioners LIMIT 1`;
+            let practitionerId: number;
+            
+            if (existingPractitioner.length === 0) {
+              const newPractitioner = await sql`
+                INSERT INTO practitioners ("name", "email", "phone", "specialty", "bio", "isActive", "createdAt", "updatedAt")
+                VALUES ('Dorian Sarry', 'doriansarry47@gmail.com', '', 'Therapie Sensori-Motrice', 'Praticien certifie', true, NOW(), NOW())
+                RETURNING id
+              `;
+              practitionerId = newPractitioner[0].id;
+            } else {
+              practitionerId = existingPractitioner[0].id;
+            }
+            
+            const existingService = await sql`SELECT id FROM services LIMIT 1`;
+            let serviceId: number;
+            
+            if (existingService.length === 0) {
+              const newService = await sql`
+                INSERT INTO services ("name", "description", "duration", "price", "isActive", "createdAt", "updatedAt")
+                VALUES ('Consultation', 'Seance de therapie sensori-motrice', 60, 0, true, NOW(), NOW())
+                RETURNING id
+              `;
+              serviceId = newService[0].id;
+            } else {
+              serviceId = existingService[0].id;
+            }
+            
             await sql`
               INSERT INTO appointments 
-              ("startTime", "endTime", status, "customerName", "customerEmail", "customerPhone", notes, "cancellationHash", "googleEventId", "createdAt", "updatedAt")
+              ("practitionerId", "serviceId", "startTime", "endTime", status, "customerName", "customerEmail", "customerPhone", notes, "cancellationHash", "googleEventId", "createdAt", "updatedAt")
               VALUES 
-              (${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, ${googleEventId || null}, NOW(), NOW())
+              (${practitionerId}, ${serviceId}, ${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, ${googleEventId || null}, NOW(), NOW())
             `;
           }
           
