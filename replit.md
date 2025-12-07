@@ -211,5 +211,11 @@ RESEND_API_KEY
 
 ---
 
-**Last Updated**: November 23, 2025
+**Last Updated**: December 07, 2025
 **Status**: 🟢 Production Ready (Core Features)
+
+## Recent Changes (December 07, 2025)
+- Fixed Vercel TRPC handler body parsing - now correctly reads raw request body
+- Removed security vulnerability (sensitive data logging)
+- Cleaned up obsolete test scripts from /scripts folder
+- 22 available appointment slots displaying correctly (using default schedule)
