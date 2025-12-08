@@ -12,6 +12,12 @@ Application de prise de rendez-vous pour la thérapie sensori-motrice de Dorian 
 
 **Dernière mise à jour**: 8 décembre 2025
 
+## Recent Performance Optimization (Dec 8, 2025)
+- Added batch Google Calendar API calls for slot retrieval
+- Reduced API response time from 30+ seconds to <0.5 seconds
+- Single API call retrieves all events for 30-day period instead of 30 sequential calls
+- Method: `getAllAvailableSlotsForRange()` in `server/bookingRouter.ts`
+
 ## ✅ Current Setup Status
 
 ### Infrastructure

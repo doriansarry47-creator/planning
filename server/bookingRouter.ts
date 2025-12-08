@@ -109,36 +109,50 @@ class GoogleCalendarJWTClient {
 
   async getAvailableSlots(date: Date, durationMinutes: number = 60): Promise<string[]> {
     if (!this.isInitialized) {
-      console.warn("⚠️ Google Calendar JWT non initialisé");
+      console.warn("[JWT] Google Calendar non initialisé");
       return [];
     }
 
     try {
-      console.log(`[JWT] Recherche des créneaux disponibles pour ${date.toISOString().split('T')[0]}`);
+      const targetDateStr = date.toISOString().split('T')[0];
+      console.log(`[JWT] Recherche des créneaux pour ${targetDateStr}`);
       
-      // Définir la plage horaire (7h-22h pour inclure les créneaux du soir)
+      // Définir la plage horaire pour la journée entière (minuit à minuit)
       const dayStart = new Date(date);
-      dayStart.setHours(7, 0, 0, 0);
+      dayStart.setHours(0, 0, 0, 0);
       
       const dayEnd = new Date(date);
-      dayEnd.setHours(22, 0, 0, 0);
+      dayEnd.setHours(23, 59, 59, 999);
 
-      // Récupérer TOUS les événements du calendrier (disponibles ET réservés)
+      // Récupérer TOUS les événements du calendrier pour cette journée
       const response = await this.calendar.events.list({
         calendarId: this.calendarId,
         timeMin: dayStart.toISOString(),
         timeMax: dayEnd.toISOString(),
         singleEvents: true,
+        orderBy: 'startTime',
       });
 
       const events = response.data.items || [];
-      console.log(`[JWT] ${events.length} événements trouvés sur Google Calendar`);
+      console.log(`[JWT] ${events.length} événements trouvés pour ${targetDateStr}`);
       
       // Séparer les événements "DISPONIBLE" des événements bloquants
+      // et FILTRER uniquement ceux qui sont vraiment pour cette date
       const availableEvents: any[] = [];
       const blockingEvents: any[] = [];
       
       for (const event of events) {
+        const eventStartDate = event.start?.dateTime || event.start?.date;
+        if (!eventStartDate) continue;
+        
+        const eventDate = new Date(eventStartDate);
+        const eventDateStr = eventDate.toISOString().split('T')[0];
+        
+        // Ignorer les événements qui ne sont pas pour la date cible
+        if (eventDateStr !== targetDateStr) {
+          continue;
+        }
+        
         const title = event.summary?.toLowerCase() || '';
         const isAvailable = 
           title.includes('disponible') || 
@@ -148,18 +162,27 @@ class GoogleCalendarJWTClient {
         
         if (isAvailable) {
           availableEvents.push(event);
-          console.log(`[JWT] 🟢 Événement disponible: ${event.summary} (${event.start.dateTime})`);
+          const startTime = eventDate.toTimeString().slice(0, 5);
+          const endTime = new Date(event.end?.dateTime || event.end?.date).toTimeString().slice(0, 5);
+          console.log(`[JWT] 🟢 Disponible: ${startTime}-${endTime}`);
         } else {
           blockingEvents.push(event);
-          console.log(`[JWT] 🔴 Événement bloquant: ${event.summary} (${event.start.dateTime})`);
+          const startTime = eventDate.toTimeString().slice(0, 5);
+          console.log(`[JWT] 🔴 Bloqué: ${event.summary} (${startTime})`);
         }
       }
       
-      // Récupérer les rendez-vous confirmés depuis la base de données
+      // Si aucun événement DISPONIBLE pour cette date, retourner vide
+      if (availableEvents.length === 0) {
+        console.log(`[JWT] Aucune disponibilité pour ${targetDateStr}`);
+        return [];
+      }
+      
+      // Récupérer les rendez-vous confirmés depuis la base de données pour cette date
       const { getDb } = await import("./db");
       const db = await getDb();
       const { appointments } = await import("../drizzle/schema");
-      const { inArray } = await import("drizzle-orm");
+      const { and, gte, lt, inArray } = await import("drizzle-orm");
       
       const bookedAppointments = await db
         .select({
@@ -168,18 +191,19 @@ class GoogleCalendarJWTClient {
         })
         .from(appointments)
         .where(
-          inArray(appointments.status, ["confirmed", "pending"])
+          and(
+            inArray(appointments.status, ["confirmed", "pending"]),
+            gte(appointments.startTime, dayStart),
+            lt(appointments.startTime, dayEnd)
+          )
         );
 
       // Créer un ensemble des créneaux occupés depuis la BD
       const bookedSlots = new Set<string>();
       for (const apt of bookedAppointments) {
         const aptStart = new Date(apt.startTime);
-        const dateStr = aptStart.toISOString().split('T')[0];
         const timeStr = aptStart.toTimeString().slice(0, 5);
-        const slotKey = `${dateStr}|${timeStr}`;
-        bookedSlots.add(slotKey);
-        console.log(`[JWT] 🗄️ Créneau réservé en BD: ${slotKey}`);
+        bookedSlots.add(timeStr);
       }
       
       // Fonction pour vérifier si un créneau chevauche un événement bloquant
@@ -188,11 +212,7 @@ class GoogleCalendarJWTClient {
           const eventStart = new Date(blockingEvent.start.dateTime || blockingEvent.start.date);
           const eventEnd = new Date(blockingEvent.end.dateTime || blockingEvent.end.date);
           
-          // Vérifier le chevauchement : un créneau est bloqué si :
-          // - il commence avant la fin de l'événement bloquant ET
-          // - il finit après le début de l'événement bloquant
           if (slotStart < eventEnd && slotEnd > eventStart) {
-            console.log(`[JWT] ⛔ Créneau ${slotStart.toTimeString().slice(0, 5)} bloqué par: ${blockingEvent.summary}`);
             return true;
           }
         }
@@ -201,7 +221,6 @@ class GoogleCalendarJWTClient {
       
       const slots: string[] = [];
       const now = new Date();
-      const currentDateStr = date.toISOString().split('T')[0];
 
       // Générer les créneaux depuis les événements "DISPONIBLE"
       for (const event of availableEvents) {
@@ -216,34 +235,172 @@ class GoogleCalendarJWTClient {
           // Vérifier que le créneau est dans les limites et dans le futur
           if (slotEnd <= eventEnd && currentTime > now) {
             const timeStr = currentTime.toTimeString().slice(0, 5);
-            const slotKey = `${currentDateStr}|${timeStr}`;
             
             // Vérifier que le créneau n'est pas déjà dans la liste
             if (!slots.includes(timeStr)) {
               // Vérifier qu'il n'est pas réservé en BD
-              if (!bookedSlots.has(slotKey)) {
+              if (!bookedSlots.has(timeStr)) {
                 // Vérifier qu'il ne chevauche pas un événement bloquant sur Google Calendar
                 if (!isSlotBlocked(currentTime, slotEnd)) {
                   slots.push(timeStr);
-                  console.log(`[JWT] ✅ Créneau disponible: ${timeStr}`);
+                  console.log(`[JWT] ✅ Créneau: ${timeStr}`);
+                } else {
+                  console.log(`[JWT] ⛔ Créneau bloqué: ${timeStr}`);
                 }
               } else {
-                console.log(`[JWT] ⛔ Créneau déjà réservé en BD: ${timeStr}`);
+                console.log(`[JWT] ⛔ Créneau réservé BD: ${timeStr}`);
               }
             }
           }
           
-          // Avancer avec la durée spécifiée (pas codé en dur à 60)
           currentTime = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
         }
       }
 
       slots.sort();
-      console.log(`[JWT] Total: ${slots.length} créneaux disponibles (après filtrage BD + Google Calendar)`);
+      console.log(`[JWT] Total: ${slots.length} créneaux pour ${targetDateStr}`);
       return slots;
     } catch (error) {
-      console.error("⚠️ Erreur JWT:", error);
+      console.error("[JWT] Erreur:", error);
       return [];
+    }
+  }
+
+  async getAllAvailableSlotsForRange(startDate: Date, endDate: Date, durationMinutes: number = 60): Promise<Record<string, string[]>> {
+    if (!this.isInitialized) {
+      console.warn("[JWT BATCH] Google Calendar non initialisé");
+      return {};
+    }
+
+    try {
+      console.log(`[JWT BATCH] Récupération des créneaux du ${startDate.toISOString().split('T')[0]} au ${endDate.toISOString().split('T')[0]}`);
+      
+      const rangeStart = new Date(startDate);
+      rangeStart.setHours(0, 0, 0, 0);
+      
+      const rangeEnd = new Date(endDate);
+      rangeEnd.setHours(23, 59, 59, 999);
+
+      const response = await this.calendar.events.list({
+        calendarId: this.calendarId,
+        timeMin: rangeStart.toISOString(),
+        timeMax: rangeEnd.toISOString(),
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 500,
+      });
+
+      const events = response.data.items || [];
+      console.log(`[JWT BATCH] ${events.length} événements trouvés pour la période`);
+      
+      const eventsByDate: Record<string, { available: any[], blocking: any[] }> = {};
+      
+      for (const event of events) {
+        const eventStartDate = event.start?.dateTime || event.start?.date;
+        if (!eventStartDate) continue;
+        
+        const eventDate = new Date(eventStartDate);
+        const eventDateStr = eventDate.toISOString().split('T')[0];
+        
+        if (!eventsByDate[eventDateStr]) {
+          eventsByDate[eventDateStr] = { available: [], blocking: [] };
+        }
+        
+        const title = event.summary?.toLowerCase() || '';
+        const isAvailable = 
+          title.includes('disponible') || 
+          title.includes('available') || 
+          title.includes('dispo') ||
+          title.includes('🟢');
+        
+        if (isAvailable) {
+          eventsByDate[eventDateStr].available.push(event);
+        } else {
+          eventsByDate[eventDateStr].blocking.push(event);
+        }
+      }
+
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      const { appointments } = await import("../drizzle/schema");
+      const { and, gte, lt, inArray } = await import("drizzle-orm");
+      
+      const bookedAppointments = await db
+        .select({
+          startTime: appointments.startTime,
+          endTime: appointments.endTime,
+        })
+        .from(appointments)
+        .where(
+          and(
+            inArray(appointments.status, ["confirmed", "pending"]),
+            gte(appointments.startTime, rangeStart),
+            lt(appointments.startTime, rangeEnd)
+          )
+        );
+
+      const bookedSlotsByDate: Record<string, Set<string>> = {};
+      for (const apt of bookedAppointments) {
+        const aptStart = new Date(apt.startTime);
+        const dateStr = aptStart.toISOString().split('T')[0];
+        const timeStr = aptStart.toTimeString().slice(0, 5);
+        if (!bookedSlotsByDate[dateStr]) {
+          bookedSlotsByDate[dateStr] = new Set();
+        }
+        bookedSlotsByDate[dateStr].add(timeStr);
+      }
+
+      const slotsByDate: Record<string, string[]> = {};
+      const now = new Date();
+
+      for (const [dateStr, { available, blocking }] of Object.entries(eventsByDate)) {
+        if (available.length === 0) continue;
+        
+        const bookedSlots = bookedSlotsByDate[dateStr] || new Set();
+        const slots: string[] = [];
+        
+        const isSlotBlocked = (slotStart: Date, slotEnd: Date): boolean => {
+          for (const blockingEvent of blocking) {
+            const eventStart = new Date(blockingEvent.start.dateTime || blockingEvent.start.date);
+            const eventEnd = new Date(blockingEvent.end.dateTime || blockingEvent.end.date);
+            if (slotStart < eventEnd && slotEnd > eventStart) {
+              return true;
+            }
+          }
+          return false;
+        };
+
+        for (const event of available) {
+          const eventStart = new Date(event.start.dateTime || event.start.date);
+          const eventEnd = new Date(event.end.dateTime || event.end.date);
+          
+          let currentTime = new Date(eventStart);
+          while (currentTime < eventEnd) {
+            const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
+            
+            if (slotEnd <= eventEnd && currentTime > now) {
+              const timeStr = currentTime.toTimeString().slice(0, 5);
+              
+              if (!slots.includes(timeStr) && !bookedSlots.has(timeStr) && !isSlotBlocked(currentTime, slotEnd)) {
+                slots.push(timeStr);
+              }
+            }
+            
+            currentTime = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
+          }
+        }
+        
+        if (slots.length > 0) {
+          slots.sort();
+          slotsByDate[dateStr] = slots;
+        }
+      }
+
+      console.log(`[JWT BATCH] ${Object.keys(slotsByDate).length} dates avec disponibilités`);
+      return slotsByDate;
+    } catch (error) {
+      console.error("[JWT BATCH] Erreur:", error);
+      return {};
     }
   }
 
@@ -609,13 +766,13 @@ export const bookingRouter = router({
     }),
 
   /**
-   * Récupérer les disponibilités groupées par date
+   * Récupérer les disponibilités groupées par date (OPTIMISE avec batch)
    * Filtre les créneaux déjà réservés par d'autres patients
    */
   getAvailabilitiesByDate: publicProcedure
     .input(getAvailabilitiesSchema)
     .mutation(async ({ input }) => {
-      console.log("[BookingRouter] Récupération des disponibilités groupées par date");
+      console.log("[BookingRouter BATCH] Récupération des disponibilités groupées par date");
       const service = getGoogleCalendarService();
       const useGoogleCalendar = service && service.isInitialized;
       
@@ -627,78 +784,41 @@ export const bookingRouter = router({
         const startDate = input.startDate ? new Date(input.startDate) : new Date();
         const endDate = input.endDate ? new Date(input.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-        // Récupérer les rendez-vous confirmés et en attente de la BD
-        const { getDb } = await import("./db");
-        const db = await getDb();
-        const { appointments } = await import("../drizzle/schema");
-        const { gte, lt, inArray } = await import("drizzle-orm");
-        
-        console.log("[BookingRouter] Récupération des rendez-vous réservés...");
-        const bookedAppointments = await db
-          .select({
-            startTime: appointments.startTime,
-            endTime: appointments.endTime,
-          })
-          .from(appointments)
-          .where(
-            inArray(appointments.status, ["confirmed", "pending"])
-          );
-
-        // Créer un ensemble des créneaux occupés
-        const bookedSlots = new Set<string>();
-        for (const apt of bookedAppointments) {
-          const aptStart = new Date(apt.startTime);
-          const dateStr = aptStart.toISOString().split('T')[0];
-          const timeStr = aptStart.toTimeString().slice(0, 5);
-          const slotKey = `${dateStr}|${timeStr}`;
-          bookedSlots.add(slotKey);
-          console.log(`[BookingRouter] ⛔ Créneau réservé: ${slotKey}`);
-        }
-
         const slotsByDate: Record<string, any[]> = {};
         
-        // Parcourir chaque jour de la période
-        const currentDate = new Date(startDate);
-        while (currentDate <= endDate) {
-          let daySlots: string[];
+        if (useGoogleCalendar) {
+          const rawSlotsByDate = await service.getAllAvailableSlotsForRange(startDate, endDate, 60);
           
-          if (useGoogleCalendar) {
-            daySlots = await service.getAvailableSlots(new Date(currentDate), 60);
-          } else {
-            daySlots = generateDefaultSlotsForDate(new Date(currentDate));
+          for (const [dateStr, slots] of Object.entries(rawSlotsByDate)) {
+            slotsByDate[dateStr] = slots.map(slotTime => ({
+              date: dateStr,
+              startTime: slotTime,
+              endTime: `${(parseInt(slotTime.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+              duration: 60,
+              title: "Disponible (60 min)",
+            }));
           }
-          
-          if (daySlots.length > 0) {
-            const dateStr = currentDate.toISOString().split('T')[0];
-            slotsByDate[dateStr] = [];
+        } else {
+          const currentDate = new Date(startDate);
+          while (currentDate <= endDate) {
+            const daySlots = generateDefaultSlotsForDate(new Date(currentDate));
             
-            for (const slotTime of daySlots) {
-              const slotKey = `${dateStr}|${slotTime}`;
-              
-              // Vérifier si ce créneau n'est pas réservé
-              if (!bookedSlots.has(slotKey)) {
-                slotsByDate[dateStr].push({
-                  date: dateStr,
-                  startTime: slotTime,
-                  endTime: `${(parseInt(slotTime.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
-                  duration: 60,
-                  title: "Disponible (60 min)",
-                });
-              }
+            if (daySlots.length > 0) {
+              const dateStr = currentDate.toISOString().split('T')[0];
+              slotsByDate[dateStr] = daySlots.map(slotTime => ({
+                date: dateStr,
+                startTime: slotTime,
+                endTime: `${(parseInt(slotTime.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+                duration: 60,
+                title: "Disponible (60 min)",
+              }));
             }
             
-            // Supprimer la date si tous les créneaux sont réservés
-            if (slotsByDate[dateStr].length === 0) {
-              delete slotsByDate[dateStr];
-            } else {
-              slotsByDate[dateStr].sort((a, b) => a.startTime.localeCompare(b.startTime));
-            }
+            currentDate.setDate(currentDate.getDate() + 1);
           }
-          
-          currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        console.log(`[BookingRouter] ✅ ${Object.keys(slotsByDate).length} dates disponibles après filtrage`);
+        console.log(`[BookingRouter BATCH] ✅ ${Object.keys(slotsByDate).length} dates disponibles`);
 
         return {
           success: true,
