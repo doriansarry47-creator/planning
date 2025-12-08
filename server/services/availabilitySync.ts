@@ -1,4 +1,6 @@
 import { google } from 'googleapis';
+import { sendAppointmentConfirmationEmail, sendAppointmentNotificationToPractitioner } from './emailService';
+import { nanoid } from 'nanoid';
 
 /**
  * Service de synchronisation des disponibilités avec Google Calendar
@@ -8,6 +10,7 @@ import { google } from 'googleapis';
  * - Masque automatiquement les créneaux déjà pris
  * - Ne retourne que les créneaux disponibles aux utilisateurs
  * - Marque les créneaux réservés comme "busy" dans Google Calendar
+ * - Envoie des emails de confirmation automatiques
  */
 
 interface SyncConfig {
@@ -70,19 +73,31 @@ export class AvailabilitySyncService {
 
       // Séparer les créneaux de disponibilité des rendez-vous
       const availabilityEvents = events.filter((event: any) => {
+        // Un créneau de disponibilité doit avoir la propriété isAvailabilitySlot = true
+        // OU contenir des mots-clés dans le titre ET être transparent
         const isSlot = event.extendedProperties?.private?.isAvailabilitySlot === 'true';
         const summary = event.summary?.toLowerCase() || '';
-        return isSlot || summary.includes('disponible') || summary.includes('🟢');
+        const isTransparent = event.transparency === 'transparent';
+        const hasAvailabilityKeyword = summary.includes('disponible') || summary.includes('🟢') || summary.includes('free') || summary.includes('available');
+        
+        return isSlot || (isTransparent && hasAvailabilityKeyword);
       });
 
       const bookedEvents = events.filter((event: any) => {
-        const isBooked = event.extendedProperties?.private?.isAvailabilitySlot !== 'true';
+        // Un rendez-vous est tout événement qui N'EST PAS un créneau de disponibilité
+        // ET qui bloque le calendrier (opaque)
+        const isSlot = event.extendedProperties?.private?.isAvailabilitySlot === 'true';
+        const isAppointment = event.extendedProperties?.private?.isAppointment === 'true';
         const summary = event.summary?.toLowerCase() || '';
-        const isAppointment = summary.includes('rdv') || 
-                             summary.includes('rendez-vous') || 
-                             summary.includes('consultation') ||
-                             summary.includes('🏥');
-        return isBooked && (event.transparency !== 'transparent' || isAppointment);
+        const isOpaque = event.transparency !== 'transparent';
+        const hasAppointmentKeyword = summary.includes('rdv') || 
+                                      summary.includes('rendez-vous') || 
+                                      summary.includes('consultation') ||
+                                      summary.includes('🏥') ||
+                                      summary.includes('appointment');
+        
+        // Retourner vrai si c'est clairement un rendez-vous ou si c'est opaque et pas un slot
+        return !isSlot && (isAppointment || isOpaque || hasAppointmentKeyword);
       });
 
       console.log(`[AvailabilitySync] ${availabilityEvents.length} créneaux de disponibilité`);
@@ -207,11 +222,13 @@ export class AvailabilitySyncService {
     }
   ): Promise<string | null> {
     try {
+      console.log('[AvailabilitySync] Tentative de réservation:', { date, startTime, endTime, patientInfo });
+      
       // D'abord, vérifier qu'il n'y a pas de conflit
       const isAvailable = await this.checkAvailability(date, startTime, endTime);
       
       if (!isAvailable) {
-        console.log('[AvailabilitySync] Créneau déjà pris');
+        console.log('[AvailabilitySync] ❌ Créneau déjà pris');
         return null;
       }
 
@@ -223,6 +240,9 @@ export class AvailabilitySyncService {
       const [endHours, endMinutes] = endTime.split(':').map(Number);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
+      // Générer un hash unique pour l'annulation
+      const appointmentHash = nanoid();
+
       let description = `📋 Rendez-vous avec ${patientInfo.name}\n`;
       description += `📧 Email: ${patientInfo.email}\n`;
       if (patientInfo.phone) {
@@ -231,7 +251,12 @@ export class AvailabilitySyncService {
       if (patientInfo.reason) {
         description += `\n💬 Motif: ${patientInfo.reason}`;
       }
+      description += `\n\n🔑 Code d'annulation: ${appointmentHash}`;
 
+      // Préparer l'événement Google Calendar
+      // Note: Service accounts ne peuvent pas inviter des participants (attendees)
+      // sans Domain-Wide Delegation. Les informations du patient sont dans la description
+      // et les propriétés étendues.
       const event = {
         summary: `🏥 RDV - ${patientInfo.name}`,
         description: description,
@@ -245,15 +270,19 @@ export class AvailabilitySyncService {
         },
         transparency: 'opaque', // Bloque le calendrier (créneau pris)
         colorId: '2', // Bleu pour les RDV
-        attendees: [
-          { email: patientInfo.email, displayName: patientInfo.name },
-        ],
+        // Les attendees sont désactivés car le service account nécessiterait
+        // la Domain-Wide Delegation pour les inviter
+        // attendees: [
+        //   { 
+        //     email: patientInfo.email, 
+        //     displayName: patientInfo.name,
+        //   },
+        // ],
         reminders: {
           useDefault: false,
           overrides: [
-            { method: 'email', minutes: 24 * 60 }, // 24h avant
-            { method: 'email', minutes: 60 },      // 1h avant
-            { method: 'popup', minutes: 30 },      // 30min avant
+            { method: 'email', minutes: 24 * 60 }, // 24h avant (pour le praticien)
+            { method: 'popup', minutes: 30 },      // 30min avant (pour le praticien)
           ],
         },
         extendedProperties: {
@@ -262,21 +291,86 @@ export class AvailabilitySyncService {
             isAppointment: 'true',
             patientName: patientInfo.name,
             patientEmail: patientInfo.email,
+            patientPhone: patientInfo.phone || '',
+            appointmentHash: appointmentHash,
             bookedBy: 'availabilitySync',
+            bookedAt: new Date().toISOString(),
           },
         },
       };
 
+      console.log('[AvailabilitySync] 📤 Envoi du rendez-vous vers Google Calendar...');
+      
+      // Créer l'événement dans Google Calendar
+      // sendUpdates: 'none' car on gère les notifications par email nous-mêmes
       const response = await this.calendar.events.insert({
         calendarId: this.config.calendarId,
         resource: event,
-        sendUpdates: 'all', // Envoyer des notifications
+        sendUpdates: 'none', // Pas de notifications Google (on envoie nos propres emails)
       });
 
-      console.log('[AvailabilitySync] Rendez-vous créé:', response.data.id);
-      return response.data.id;
-    } catch (error) {
-      console.error('[AvailabilitySync] Erreur lors de la réservation:', error);
+      const eventId = response.data.id;
+      console.log('[AvailabilitySync] ✅ Rendez-vous créé dans Google Calendar:', eventId);
+
+      // Envoyer l'email de confirmation au patient
+      try {
+        console.log('[AvailabilitySync] 📧 Envoi de l\'email de confirmation au patient...');
+        const emailResult = await sendAppointmentConfirmationEmail({
+          patientName: patientInfo.name,
+          patientEmail: patientInfo.email,
+          practitionerName: 'Dorian Sarry',
+          date: date,
+          startTime: startTime,
+          endTime: endTime,
+          reason: patientInfo.reason || 'Consultation',
+          location: '20 rue des Jacobins, 24000 Périgueux',
+          appointmentHash: appointmentHash,
+        });
+
+        if (emailResult.success) {
+          console.log('[AvailabilitySync] ✅ Email de confirmation envoyé au patient:', emailResult.messageId);
+        } else {
+          console.error('[AvailabilitySync] ⚠️ Échec d\'envoi de l\'email au patient:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.error('[AvailabilitySync] ⚠️ Erreur lors de l\'envoi de l\'email au patient:', emailError);
+        // Ne pas faire échouer la réservation si l'email échoue
+      }
+
+      // Envoyer une notification au praticien
+      try {
+        console.log('[AvailabilitySync] 📧 Envoi de notification au praticien...');
+        const notifResult = await sendAppointmentNotificationToPractitioner(
+          {
+            patientName: patientInfo.name,
+            patientEmail: patientInfo.email,
+            practitionerName: 'Dorian Sarry',
+            date: date,
+            startTime: startTime,
+            endTime: endTime,
+            reason: patientInfo.reason || 'Consultation',
+            location: '20 rue des Jacobins, 24000 Périgueux',
+            appointmentHash: appointmentHash,
+          },
+          'doriansarry47@gmail.com'
+        );
+
+        if (notifResult.success) {
+          console.log('[AvailabilitySync] ✅ Notification envoyée au praticien:', notifResult.messageId);
+        } else {
+          console.error('[AvailabilitySync] ⚠️ Échec d\'envoi de la notification au praticien:', notifResult.error);
+        }
+      } catch (emailError) {
+        console.error('[AvailabilitySync] ⚠️ Erreur lors de l\'envoi de la notification au praticien:', emailError);
+      }
+
+      console.log('[AvailabilitySync] 🎉 Réservation complète avec succès!');
+      return eventId;
+    } catch (error: any) {
+      console.error('[AvailabilitySync] ❌ Erreur lors de la réservation:', error.message || error);
+      if (error.response?.data) {
+        console.error('[AvailabilitySync] Détails de l\'erreur API:', error.response.data);
+      }
       return null;
     }
   }
