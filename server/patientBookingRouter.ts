@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import { publicProcedure, router } from './_core/trpc';
-import { getGoogleCalendarIcalService } from './services/googleCalendarIcal';
+import { getGoogleCalendarService } from './bookingRouter';
 
 /**
  * Router TRPC pour la réservation de rendez-vous par les patients
- * Utilise uniquement le flux iCal pour lire les disponibilités depuis Google Calendar
+ * Utilise le service Google Calendar JWT pour lire les disponibilités
  * et créer les rendez-vous directement dans le calendrier
  */
 export const patientBookingRouter = router({
   /**
-   * Récupérer les créneaux disponibles depuis Google Calendar (lecture iCal)
+   * Récupérer les créneaux disponibles depuis Google Calendar (JWT)
    * PUBLIC - Accessible aux patients
    */
   getAvailableSlots: publicProcedure
@@ -20,28 +20,39 @@ export const patientBookingRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const service = getGoogleCalendarIcalService();
+      const service = getGoogleCalendarService();
       
-      if (!service) {
+      if (!service || !service.isInitialized) {
         throw new Error('Service Google Calendar non configuré. Vérifiez vos variables d\'environnement.');
       }
 
       try {
-        const startDate = input.startDate ? new Date(input.startDate) : undefined;
-        const endDate = input.endDate ? new Date(input.endDate) : undefined;
+        const startDate = input.startDate ? new Date(input.startDate) : new Date();
+        const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        // Récupérer les créneaux disponibles depuis le calendrier iCal
-        const slots = await service.getAvailableSlots(startDate, endDate);
+        // Récupérer les créneaux disponibles depuis le calendrier
+        const slotsByDate = await service.getAllAvailableSlotsForRange(startDate, endDate, 60);
 
-        // Grouper les créneaux par date pour faciliter l'affichage
-        const slotsByDate = await service.getAvailableSlotsByDate(startDate, endDate);
+        // Aplatir la liste des créneaux
+        const allSlots: any[] = [];
+        for (const [dateStr, slots] of Object.entries(slotsByDate)) {
+          for (const slotTime of slots) {
+            allSlots.push({
+              date: dateStr,
+              startTime: slotTime,
+              endTime: `${(parseInt(slotTime.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+              duration: 60,
+              title: "Disponible (60 min)",
+            });
+          }
+        }
 
         return {
           success: true,
-          slots,
+          slots: allSlots,
           slotsByDate,
-          totalSlots: slots.length,
-          message: `${slots.length} créneaux disponibles trouvés`,
+          totalSlots: allSlots.length,
+          message: `${allSlots.length} créneaux disponibles trouvés`,
         };
       } catch (error: any) {
         console.error('[PatientBooking] Erreur lors de la récupération des créneaux:', error);
@@ -64,22 +75,18 @@ export const patientBookingRouter = router({
       z.object({
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Format YYYY-MM-DD
         startTime: z.string().regex(/^\d{2}:\d{2}$/), // Format HH:mm
-        endTime: z.string().regex(/^\d{2}:\d{2}$/), // Format HH:mm
       })
     )
     .query(async ({ input }) => {
-      const service = getGoogleCalendarIcalService();
+      const service = getGoogleCalendarService();
       
-      if (!service) {
+      if (!service || !service.isInitialized) {
         throw new Error('Service Google Calendar non configuré');
       }
 
       try {
-        const isAvailable = await service.isSlotAvailable(
-          input.date,
-          input.startTime,
-          input.endTime
-        );
+        const slots = await service.getAvailableSlots(new Date(input.date), 60);
+        const isAvailable = slots.includes(input.startTime);
 
         return {
           success: true,
@@ -87,7 +94,6 @@ export const patientBookingRouter = router({
           slot: {
             date: input.date,
             startTime: input.startTime,
-            endTime: input.endTime,
           },
         };
       } catch (error: any) {
@@ -112,24 +118,20 @@ export const patientBookingRouter = router({
         patientPhone: z.string().optional(),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Format YYYY-MM-DD
         startTime: z.string().regex(/^\d{2}:\d{2}$/), // Format HH:mm
-        endTime: z.string().regex(/^\d{2}:\d{2}$/), // Format HH:mm
         reason: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const service = getGoogleCalendarIcalService();
+      const service = getGoogleCalendarService();
       
-      if (!service) {
+      if (!service || !service.isInitialized) {
         throw new Error('Service Google Calendar non configuré');
       }
 
       try {
         // Vérifier d'abord que le créneau est toujours disponible
-        const isAvailable = await service.isSlotAvailable(
-          input.date,
-          input.startTime,
-          input.endTime
-        );
+        const availableSlots = await service.getAvailableSlots(new Date(input.date), 60);
+        const isAvailable = availableSlots.includes(input.startTime);
 
         if (!isAvailable) {
           return {
@@ -145,7 +147,7 @@ export const patientBookingRouter = router({
           patientPhone: input.patientPhone,
           date: new Date(input.date),
           startTime: input.startTime,
-          endTime: input.endTime,
+          duration: 60,
           reason: input.reason,
         });
 
@@ -164,13 +166,11 @@ export const patientBookingRouter = router({
           
           const appointmentDate = new Date(input.date);
           const [startHours, startMinutes] = input.startTime.split(':').map(Number);
-          const [endHours, endMinutes] = input.endTime.split(':').map(Number);
           
           const startDateTime = new Date(appointmentDate);
           startDateTime.setHours(startHours, startMinutes, 0, 0);
           
-          const endDateTime = new Date(appointmentDate);
-          endDateTime.setHours(endHours, endMinutes, 0, 0);
+          const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
           
           await db
             .insert(appointments)
@@ -190,7 +190,6 @@ export const patientBookingRouter = router({
           console.log(`[PatientBooking] ✅ Rendez-vous sauvegardé en BD: ${startDateTime.toISOString()}`);
         } catch (dbError: any) {
           console.error("[PatientBooking] ❌ Erreur sauvegarde BD:", dbError);
-          // Ne pas bloquer la réservation si la sauvegarde en BD échoue
         }
 
         // Envoyer un email de confirmation au patient
@@ -203,10 +202,10 @@ export const patientBookingRouter = router({
             practitionerName: 'Dr. Dorian Sarry', // Nom par défaut
             date: new Date(input.date),
             startTime: input.startTime,
-            endTime: input.endTime,
+            endTime: new Date(new Date(`${input.date}T${input.startTime}:00`).getTime() + 60 * 60 * 1000).toTimeString().slice(0, 5),
             reason: input.reason || 'Consultation',
             location: '20 rue des Jacobins, 24000 Périgueux',
-            appointmentHash: eventId, // Utiliser l'ID Google Calendar comme hash
+            appointmentHash: eventId,
           };
 
           const emailResult = await sendAppointmentConfirmationEmail(emailData);
@@ -218,7 +217,6 @@ export const patientBookingRouter = router({
           }
         } catch (emailError: any) {
           console.error('[PatientBooking] ❌ Erreur lors de l\'envoi de l\'email:', emailError);
-          // Ne pas bloquer la réservation si l'email échoue
         }
 
         return {
@@ -230,7 +228,6 @@ export const patientBookingRouter = router({
             patientEmail: input.patientEmail,
             date: input.date,
             startTime: input.startTime,
-            endTime: input.endTime,
             reason: input.reason,
           },
         };
@@ -239,47 +236,6 @@ export const patientBookingRouter = router({
         return {
           success: false,
           error: error.message || 'Erreur lors de la réservation. Veuillez réessayer.',
-        };
-      }
-    }),
-
-  /**
-   * Annuler un rendez-vous
-   * PUBLIC - Accessible aux patients avec l'ID de l'événement
-   */
-  cancelAppointment: publicProcedure
-    .input(
-      z.object({
-        eventId: z.string(),
-        patientEmail: z.string().email(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const service = getGoogleCalendarIcalService();
-      
-      if (!service) {
-        throw new Error('Service Google Calendar non configuré');
-      }
-
-      try {
-        const success = await service.cancelAppointment(input.eventId);
-
-        if (!success) {
-          return {
-            success: false,
-            error: 'Impossible d\'annuler le rendez-vous. Veuillez contacter le cabinet.',
-          };
-        }
-
-        return {
-          success: true,
-          message: 'Rendez-vous annulé avec succès. Un email de confirmation a été envoyé.',
-        };
-      } catch (error: any) {
-        console.error('[PatientBooking] Erreur lors de l\'annulation:', error);
-        return {
-          success: false,
-          error: error.message || 'Erreur lors de l\'annulation. Veuillez réessayer.',
         };
       }
     }),
@@ -296,20 +252,18 @@ export const patientBookingRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const service = getGoogleCalendarIcalService();
+      const service = getGoogleCalendarService();
       
-      if (!service) {
+      if (!service || !service.isInitialized) {
         throw new Error('Service Google Calendar non configuré');
       }
 
       try {
-        // Calculer le premier et dernier jour du mois
         const startDate = new Date(input.year, input.month - 1, 1);
         const endDate = new Date(input.year, input.month, 0, 23, 59, 59);
 
-        const slotsByDate = await service.getAvailableSlotsByDate(startDate, endDate);
+        const slotsByDate = await service.getAllAvailableSlotsForRange(startDate, endDate, 60);
 
-        // Créer un résumé par jour
         const summary: Record<string, { hasSlots: boolean; slotsCount: number }> = {};
         
         Object.entries(slotsByDate).forEach(([date, slots]) => {
