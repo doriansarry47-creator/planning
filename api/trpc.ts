@@ -285,6 +285,39 @@ async function createGoogleCalendarEvent(appointmentData: {
   }
 }
 
+async function deleteGoogleCalendarEvent(eventId: string): Promise<boolean> {
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
+  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CALENDAR_EMAIL;
+  const targetCalendarId = process.env.GOOGLE_CALENDAR_ID;
+
+  if (!privateKey || !serviceAccountEmail) {
+    console.warn('[Vercel TRPC] Configuration Google Calendar incomplete pour suppression evenement');
+    return false;
+  }
+
+  try {
+    const auth = new google.auth.JWT({
+      email: serviceAccountEmail,
+      key: privateKey.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/calendar'],
+    });
+
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    await calendar.events.delete({
+      calendarId: targetCalendarId || serviceAccountEmail,
+      eventId: eventId,
+      sendUpdates: 'all',
+    });
+
+    console.log('[Vercel TRPC] Evenement Google Calendar supprime:', eventId);
+    return true;
+  } catch (error) {
+    console.error('[Vercel TRPC] Erreur suppression evenement Google Calendar:', error);
+    return false;
+  }
+}
+
 const appRouter = router({
   booking: router({
     getAvailabilitiesByDate: publicProcedure
@@ -493,6 +526,18 @@ const appRouter = router({
           }
           
           const sql = neon(dbUrl);
+          
+          // Récupérer l'événement Google Calendar ID avant annulation
+          const appointment = await sql`
+            SELECT "googleEventId" FROM appointments 
+            WHERE "cancellationHash" = ${input.hash}
+          `;
+          
+          // Supprimer l'événement Google Calendar si présent
+          if (appointment.length > 0 && appointment[0].googleEventId) {
+            await deleteGoogleCalendarEvent(appointment[0].googleEventId);
+          }
+          
           await sql`
             UPDATE appointments 
             SET status = 'cancelled', "updatedAt" = NOW()
