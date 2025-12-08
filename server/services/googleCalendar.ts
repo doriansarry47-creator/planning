@@ -94,7 +94,7 @@ export class GoogleCalendarService {
 
       // Créer l'événement
       const event = {
-        summary: `Consultation - ${appointment.patientName}`,
+        summary: `🏥 RDV - ${appointment.patientName}`,
         description: description,
         start: {
           dateTime: startDateTime.toISOString(),
@@ -110,11 +110,21 @@ export class GoogleCalendarService {
         reminders: {
           useDefault: false,
           overrides: [
-            { method: 'email', minutes: 30 }, // Rappel 30 minutes avant (comme demandé)
+            { method: 'email', minutes: 1440 }, // Rappel 24h avant
+            { method: 'email', minutes: 60 }, // Rappel 1h avant
             { method: 'popup', minutes: 30 }, // Popup 30 minutes avant
           ],
         },
-        colorId: '10', // Vert (pour les rendez-vous médicaux)
+        colorId: '11', // Rouge (pour les rendez-vous réservés)
+        transparency: 'opaque', // Bloquer le créneau
+        extendedProperties: {
+          private: {
+            isAppointment: 'true',
+            patientName: appointment.patientName,
+            patientEmail: appointment.patientEmail,
+            source: 'webapp',
+          },
+        },
       };
 
       const response = await this.calendar.events.insert({

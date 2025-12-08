@@ -156,6 +156,43 @@ export const patientBookingRouter = router({
           };
         }
 
+        // ✅ SAUVEGARDER LE RENDEZ-VOUS EN BASE DE DONNÉES
+        try {
+          const { getDb } = await import("./db");
+          const db = await getDb();
+          const { appointments } = await import("../drizzle/schema");
+          
+          const appointmentDate = new Date(input.date);
+          const [startHours, startMinutes] = input.startTime.split(':').map(Number);
+          const [endHours, endMinutes] = input.endTime.split(':').map(Number);
+          
+          const startDateTime = new Date(appointmentDate);
+          startDateTime.setHours(startHours, startMinutes, 0, 0);
+          
+          const endDateTime = new Date(appointmentDate);
+          endDateTime.setHours(endHours, endMinutes, 0, 0);
+          
+          await db
+            .insert(appointments)
+            .values({
+              practitionerId: 1, // Default practitioner
+              serviceId: 1, // Default service
+              startTime: startDateTime,
+              endTime: endDateTime,
+              status: "confirmed",
+              customerName: input.patientName,
+              customerEmail: input.patientEmail,
+              customerPhone: input.patientPhone || '',
+              notes: input.reason || "",
+              googleEventId: eventId,
+            });
+          
+          console.log(`[PatientBooking] ✅ Rendez-vous sauvegardé en BD: ${startDateTime.toISOString()}`);
+        } catch (dbError: any) {
+          console.error("[PatientBooking] ❌ Erreur sauvegarde BD:", dbError);
+          // Ne pas bloquer la réservation si la sauvegarde en BD échoue
+        }
+
         // Envoyer un email de confirmation au patient
         try {
           const { sendAppointmentConfirmationEmail } = await import('./services/emailService');
