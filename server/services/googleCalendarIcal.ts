@@ -115,7 +115,7 @@ export class GoogleCalendarIcalService {
             .from(appointments)
             .where(
               and(
-                inArray(appointments.status, ['confirmed', 'pending']),
+                inArray(appointments.status, ['confirmed', 'pending', 'scheduled']),
                 gte(appointments.startTime, filterStartDate),
                 lte(appointments.endTime, filterEndDate)
               )

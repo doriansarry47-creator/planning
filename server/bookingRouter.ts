@@ -192,7 +192,7 @@ class GoogleCalendarJWTClient {
         .from(appointments)
         .where(
           and(
-            inArray(appointments.status, ["confirmed", "pending"]),
+            inArray(appointments.status, ["confirmed", "pending", "scheduled"]),
             gte(appointments.startTime, dayStart),
             lt(appointments.startTime, dayEnd)
           )
@@ -204,6 +204,7 @@ class GoogleCalendarJWTClient {
         const aptStart = new Date(apt.startTime);
         const timeStr = aptStart.toTimeString().slice(0, 5);
         bookedSlots.add(timeStr);
+        console.log(`[JWT] ⛔ Créneau réservé en BD: ${timeStr}`);
       }
       
       // Fonction pour vérifier si un créneau chevauche un événement bloquant
@@ -333,7 +334,7 @@ class GoogleCalendarJWTClient {
         .from(appointments)
         .where(
           and(
-            inArray(appointments.status, ["confirmed", "pending"]),
+            inArray(appointments.status, ["confirmed", "pending", "scheduled"]),
             gte(appointments.startTime, rangeStart),
             lt(appointments.startTime, rangeEnd)
           )
@@ -348,6 +349,7 @@ class GoogleCalendarJWTClient {
           bookedSlotsByDate[dateStr] = new Set();
         }
         bookedSlotsByDate[dateStr].add(timeStr);
+        console.log(`[JWT BATCH] ⛔ Créneau réservé en BD: ${dateStr} ${timeStr}`);
       }
 
       const slotsByDate: Record<string, string[]> = {};
@@ -420,144 +422,57 @@ class GoogleCalendarJWTClient {
       // Calculer l'heure de fin
       const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 1000);
 
-      // Vérifier que le créneau est dans un événement "DISPONIBLE" et qu'il n'y a pas d'autre événement
-      const events = await this.calendar.events.list({
+      // ✅ TOUJOURS créer un NOUVEL événement dans Google Calendar
+      // Ne pas modifier les événements DISPONIBLE existants
+      console.log(`[JWT] Création d'un nouvel événement de rendez-vous dans Google Calendar`);
+      
+      let description = `📅 Rendez-vous confirmé avec ${patientName}`;
+      if (reason) {
+        description += `\n\n📋 Motif: ${reason}`;
+      }
+      description += `\n\n📧 Email: ${patientEmail}`;
+      if (patientPhone) {
+        description += `\n📱 Téléphone: ${patientPhone}`;
+      }
+
+      const response = await this.calendar.events.insert({
         calendarId: this.calendarId,
-        timeMin: startDateTime.toISOString(),
-        timeMax: endDateTime.toISOString(),
-        singleEvents: true,
-      });
-
-      // Vérifier s'il y a un événement "DISPONIBLE" qui couvre ce créneau
-      const availableEvents = events.data.items?.filter((e: any) => {
-        const title = (e.summary || '').toLowerCase();
-        const isAvailable = title.includes('disponible') || title.includes('available') || title.includes('dispo');
-        if (!isAvailable) return false;
-        
-        // Vérifier que l'événement DISPONIBLE couvre bien tout le créneau
-        const eventStart = new Date(e.start.dateTime || e.start.date);
-        const eventEnd = new Date(e.end.dateTime || e.end.date);
-        return eventStart <= startDateTime && eventEnd >= endDateTime;
-      });
-
-      // Vérifier s'il y a des événements de rendez-vous (pas "DISPONIBLE") qui bloquent le créneau
-      const blockedEvents = events.data.items?.filter((e: any) => {
-        const title = (e.summary || '').toLowerCase();
-        const isAvailable = title.includes('disponible') || title.includes('available') || title.includes('dispo');
-        return !isAvailable;
-      });
-
-      if (!availableEvents || availableEvents.length === 0) {
-        throw new Error("Ce créneau n'est plus disponible");
-      }
-
-      if (blockedEvents && blockedEvents.length > 0) {
-        throw new Error("Ce créneau n'est plus disponible");
-      }
-
-      // Chercher l'événement "DISPONIBLE" qui couvre ce créneau pour le modifier
-      const eventsInSlot = await this.calendar.events.list({
-        calendarId: this.calendarId,
-        timeMin: startDateTime.toISOString(),
-        timeMax: endDateTime.toISOString(),
-        singleEvents: true,
-      });
-
-      const availableEvent = eventsInSlot.data.items?.find((e: any) => {
-        const title = (e.summary || '').toLowerCase();
-        return title.includes('disponible') || title.includes('available') || title.includes('dispo') || title.includes('🟢');
-      });
-
-      let response;
-
-      if (availableEvent) {
-        // Modifier l'événement DISPONIBLE existant pour le transformer en rendez-vous
-        console.log(`[JWT] Modification de l'événement DISPONIBLE: ${availableEvent.id}`);
-        
-        // Construire la description de l'événement
-        let description = `📅 Rendez-vous confirmé avec ${patientName}`;
-        if (reason) {
-          description += `\n\n📋 Motif: ${reason}`;
-        }
-        description += `\n\n📧 Email: ${patientEmail}`;
-        if (patientPhone) {
-          description += `\n📱 Téléphone: ${patientPhone}`;
-        }
-
-        // Mettre à jour l'événement
-        response = await this.calendar.events.update({
-          calendarId: this.calendarId,
-          eventId: availableEvent.id,
-          resource: {
-            summary: `🔴 RÉSERVÉ - ${patientName}`,
-            description: description,
-            start: {
-              dateTime: startDateTime.toISOString(),
-              timeZone: 'Europe/Paris',
-            },
-            end: {
-              dateTime: endDateTime.toISOString(),
-              timeZone: 'Europe/Paris',
-            },
-            attendees: [
-              { email: patientEmail, displayName: patientName }
-            ],
-            reminders: {
-              useDefault: false,
-              overrides: [
-                { method: 'email', minutes: 1440 }, // 24h avant
-                { method: 'popup', minutes: 60 }, // 1h avant
-              ],
-            },
-            colorId: '11', // Rouge pour les rendez-vous réservés
-            transparency: 'opaque', // Bloquer le créneau
+        resource: {
+          summary: `🏥 RDV - ${patientName}`,
+          description: description,
+          start: {
+            dateTime: startDateTime.toISOString(),
+            timeZone: 'Europe/Paris',
           },
-          sendUpdates: 'all', // Notifier les participants par email
-        });
-      } else {
-        // Si aucun événement DISPONIBLE n'existe, créer un nouvel événement
-        console.log(`[JWT] Aucun événement DISPONIBLE trouvé, création d'un nouvel événement`);
-        
-        let description = `📅 Rendez-vous confirmé avec ${patientName}`;
-        if (reason) {
-          description += `\n\n📋 Motif: ${reason}`;
-        }
-        description += `\n\n📧 Email: ${patientEmail}`;
-        if (patientPhone) {
-          description += `\n📱 Téléphone: ${patientPhone}`;
-        }
-
-        response = await this.calendar.events.insert({
-          calendarId: this.calendarId,
-          resource: {
-            summary: `🔴 RÉSERVÉ - ${patientName}`,
-            description: description,
-            start: {
-              dateTime: startDateTime.toISOString(),
-              timeZone: 'Europe/Paris',
-            },
-            end: {
-              dateTime: endDateTime.toISOString(),
-              timeZone: 'Europe/Paris',
-            },
-            attendees: [
-              { email: patientEmail, displayName: patientName }
-            ],
-            reminders: {
-              useDefault: false,
-              overrides: [
-                { method: 'email', minutes: 1440 }, // 24h avant
-                { method: 'popup', minutes: 60 }, // 1h avant
-              ],
-            },
-            colorId: '11', // Rouge pour les rendez-vous réservés
-            transparency: 'opaque', // Bloquer le créneau
+          end: {
+            dateTime: endDateTime.toISOString(),
+            timeZone: 'Europe/Paris',
           },
-          sendUpdates: 'all', // Notifier les participants par email
-        });
-      }
+          attendees: [
+            { email: patientEmail, displayName: patientName }
+          ],
+          reminders: {
+            useDefault: false,
+            overrides: [
+              { method: 'email', minutes: 1440 }, // 24h avant
+              { method: 'popup', minutes: 60 }, // 1h avant
+            ],
+          },
+          colorId: '11', // Rouge pour les rendez-vous réservés
+          transparency: 'opaque', // Bloquer le créneau
+          extendedProperties: {
+            private: {
+              isAppointment: 'true',
+              patientName: patientName,
+              patientEmail: patientEmail,
+              source: 'webapp',
+            },
+          },
+        },
+        sendUpdates: 'all', // Notifier les participants par email
+      });
 
-      console.log('✅ Rendez-vous créé:', response.data.id);
+      console.log('✅ Rendez-vous créé dans Google Calendar:', response.data.id);
       return response.data.id;
       
     } catch (error) {
