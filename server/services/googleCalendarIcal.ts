@@ -51,6 +51,7 @@ export class GoogleCalendarIcalService {
 
   /**
    * Récupérer les disponibilités depuis l'iCal public
+   * Filtre automatiquement les créneaux déjà réservés (dans iCal ET dans la base de données)
    */
   async getAvailableSlots(startDate?: Date, endDate?: Date): Promise<AvailableSlot[]> {
     try {
@@ -59,21 +60,88 @@ export class GoogleCalendarIcalService {
       
       const now = new Date();
       const filterStartDate = startDate || now;
-      const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 jours par défaut
+      const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
       const slots: AvailableSlot[] = [];
+      const bookedSlots: Set<string> = new Set();
 
       // Parser l'URL iCal
       const events = await ical.async.fromURL(this.icalUrl);
       console.log('[GoogleCalendarIcal] Événements total dans iCal:', Object.keys(events).length);
       
+      // Première passe: collecter les créneaux réservés (rendez-vous)
       Object.values(events).forEach((event: any) => {
-        // Filtrer uniquement les événements de type VEVENT
         if (event.type !== 'VEVENT') return;
 
         const title = event.summary?.toLowerCase() || '';
-        console.log('[GoogleCalendarIcal] Événement trouvé:', event.summary, '| Disponible?', 
-          title.includes('disponible') || title.includes('available') || title.includes('dispo'));
+        
+        // Identifier les rendez-vous réservés
+        const isBooked = 
+          title.includes('réservé') || 
+          title.includes('reserve') ||
+          title.includes('consultation') ||
+          title.includes('rdv') ||
+          title.includes('rendez-vous') ||
+          title.includes('🔴') ||
+          title.includes('🩺');
+
+        if (isBooked) {
+          const eventStart = new Date(event.start);
+          const eventEnd = new Date(event.end);
+          const dateStr = eventStart.toISOString().split('T')[0];
+          const startTime = eventStart.toTimeString().slice(0, 5);
+          const endTime = eventEnd.toTimeString().slice(0, 5);
+          
+          const slotKey = `${dateStr}|${startTime}|${endTime}`;
+          bookedSlots.add(slotKey);
+          console.log('[GoogleCalendarIcal] 🔴 Créneau réservé (iCal):', slotKey);
+        }
+      });
+
+      // Récupérer aussi les rendez-vous confirmés depuis la base de données
+      try {
+        const { getDb } = await import('../db');
+        const db = await getDb();
+        if (db) {
+          const { appointments } = await import('../../drizzle/schema');
+          const { inArray, gte, lte, and } = await import('drizzle-orm');
+          
+          const dbAppointments = await db
+            .select({
+              startTime: appointments.startTime,
+              endTime: appointments.endTime,
+              status: appointments.status,
+            })
+            .from(appointments)
+            .where(
+              and(
+                inArray(appointments.status, ['confirmed', 'pending']),
+                gte(appointments.startTime, filterStartDate),
+                lte(appointments.endTime, filterEndDate)
+              )
+            );
+
+          for (const apt of dbAppointments) {
+            const aptStart = new Date(apt.startTime);
+            const aptEnd = new Date(apt.endTime);
+            const dateStr = aptStart.toISOString().split('T')[0];
+            const startTime = aptStart.toTimeString().slice(0, 5);
+            const endTime = aptEnd.toTimeString().slice(0, 5);
+            
+            const slotKey = `${dateStr}|${startTime}|${endTime}`;
+            bookedSlots.add(slotKey);
+            console.log('[GoogleCalendarIcal] 🗄️ Créneau réservé (BD):', slotKey);
+          }
+        }
+      } catch (dbError) {
+        console.warn('[GoogleCalendarIcal] Impossible de vérifier les rdv en BD:', dbError);
+      }
+
+      // Deuxième passe: collecter les créneaux disponibles et filtrer les réservés
+      Object.values(events).forEach((event: any) => {
+        if (event.type !== 'VEVENT') return;
+
+        const title = event.summary?.toLowerCase() || '';
         
         // Filtrer les événements qui marquent les disponibilités
         const isAvailable = 
@@ -100,8 +168,36 @@ export class GoogleCalendarIcalService {
 
         // Extraire la date et les heures
         const dateStr = eventStart.toISOString().split('T')[0];
-        const startTime = eventStart.toTimeString().slice(0, 5); // HH:mm
-        const endTime = eventEnd.toTimeString().slice(0, 5); // HH:mm
+        const startTime = eventStart.toTimeString().slice(0, 5);
+        const endTime = eventEnd.toTimeString().slice(0, 5);
+
+        // Vérifier que ce créneau n'est pas déjà réservé
+        const slotKey = `${dateStr}|${startTime}|${endTime}`;
+        if (bookedSlots.has(slotKey)) {
+          console.log('[GoogleCalendarIcal] ⛔ Créneau filtré (déjà réservé):', slotKey);
+          return;
+        }
+
+        // Vérifier également le chevauchement avec les créneaux réservés
+        let isOverlapping = false;
+        for (const bookedKey of bookedSlots) {
+          const [bookedDate, bookedStart, bookedEnd] = bookedKey.split('|');
+          if (bookedDate === dateStr) {
+            const slotStartMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+            const slotEndMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+            const bookedStartMinutes = parseInt(bookedStart.split(':')[0]) * 60 + parseInt(bookedStart.split(':')[1]);
+            const bookedEndMinutes = parseInt(bookedEnd.split(':')[0]) * 60 + parseInt(bookedEnd.split(':')[1]);
+            
+            // Vérifier le chevauchement
+            if (slotStartMinutes < bookedEndMinutes && slotEndMinutes > bookedStartMinutes) {
+              isOverlapping = true;
+              console.log('[GoogleCalendarIcal] ⛔ Créneau filtré (chevauchement):', slotKey, 'avec', bookedKey);
+              break;
+            }
+          }
+        }
+
+        if (isOverlapping) return;
 
         console.log('[GoogleCalendarIcal] ✅ Créneau disponible ajouté:', dateStr, startTime, '-', endTime);
         slots.push({
@@ -113,7 +209,7 @@ export class GoogleCalendarIcalService {
         });
       });
 
-      console.log(`[GoogleCalendarIcal] ✅ ${slots.length} créneaux disponibles trouvés`);
+      console.log(`[GoogleCalendarIcal] ✅ ${slots.length} créneaux disponibles trouvés (après filtrage)`);
       
       // Trier par date et heure
       slots.sort((a, b) => {
@@ -368,15 +464,15 @@ export class GoogleCalendarIcalService {
  */
 export function createGoogleCalendarIcalService(): GoogleCalendarIcalService | null {
   const icalUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
-  const privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
-  const serviceAccountEmail = process.env.GOOGLE_CALENDAR_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const targetCalendarId = process.env.GOOGLE_CALENDAR_ID; // Calendrier personnel de l'utilisateur
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
+  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CALENDAR_EMAIL;
+  const targetCalendarId = process.env.GOOGLE_CALENDAR_ID;
 
   if (!icalUrl || !privateKey || !serviceAccountEmail) {
     console.warn('[GoogleCalendarIcal] Configuration incomplète. Variables requises:');
-    console.warn('  - GOOGLE_CALENDAR_ICAL_URL');
-    console.warn('  - GOOGLE_CALENDAR_PRIVATE_KEY');
-    console.warn('  - GOOGLE_CALENDAR_EMAIL ou GOOGLE_SERVICE_ACCOUNT_EMAIL');
+    console.warn('  - GOOGLE_CALENDAR_ICAL_URL:', icalUrl ? 'OK' : 'MANQUANT');
+    console.warn('  - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:', privateKey ? 'OK' : 'MANQUANT');
+    console.warn('  - GOOGLE_SERVICE_ACCOUNT_EMAIL:', serviceAccountEmail ? 'OK' : 'MANQUANT');
     return null;
   }
 

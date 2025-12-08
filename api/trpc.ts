@@ -41,7 +41,7 @@ interface AvailableSlot {
   title: string;
 }
 
-async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date): Promise<AvailableSlot[]> {
+async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, databaseUrl?: string): Promise<AvailableSlot[]> {
   const icalUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
   
   if (!icalUrl) {
@@ -57,10 +57,44 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date): Prom
     const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
     const slots: AvailableSlot[] = [];
+    const bookedSlotsFromIcal: Set<string> = new Set();
 
     const events = await ical.async.fromURL(icalUrl);
     console.log('[Vercel TRPC] Evenements total dans iCal:', Object.keys(events).length);
     
+    // Premiere passe: collecter les creneaux reserves (rendez-vous) depuis iCal
+    Object.values(events).forEach((event: any) => {
+      if (event.type !== 'VEVENT') return;
+
+      const title = event.summary?.toLowerCase() || '';
+      
+      // Identifier les rendez-vous reserves
+      const isBooked = 
+        title.includes('réservé') || 
+        title.includes('reserve') ||
+        title.includes('consultation') ||
+        title.includes('rdv') ||
+        title.includes('rendez-vous') ||
+        title.includes('🔴') ||
+        title.includes('🩺');
+
+      if (isBooked) {
+        const eventStart = new Date(event.start);
+        const eventEnd = new Date(event.end);
+        const dateStr = eventStart.toISOString().split('T')[0];
+        const startTime = eventStart.toTimeString().slice(0, 5);
+        const endTime = eventEnd.toTimeString().slice(0, 5);
+        
+        const slotKey = `${dateStr}|${startTime}|${endTime}`;
+        bookedSlotsFromIcal.add(slotKey);
+        console.log('[Vercel TRPC] Creneau reserve (iCal):', slotKey);
+      }
+    });
+
+    // Recuperer aussi les rendez-vous confirmes depuis la base de donnees
+    const bookedFromDb = await getBookedSlots(databaseUrl);
+    
+    // Deuxieme passe: collecter les creneaux disponibles
     Object.values(events).forEach((event: any) => {
       if (event.type !== 'VEVENT') return;
 
@@ -71,7 +105,8 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date): Prom
         title.includes('available') || 
         title.includes('dispo') ||
         title.includes('libre') ||
-        title.includes('free');
+        title.includes('free') ||
+        title.includes('🟢');
 
       if (!isAvailable) return;
 
@@ -87,6 +122,40 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date): Prom
       const startTime = eventStart.toTimeString().slice(0, 5);
       const endTime = eventEnd.toTimeString().slice(0, 5);
 
+      // Verifier que ce creneau n'est pas deja reserve
+      const slotKey = `${dateStr}|${startTime}|${endTime}`;
+      const slotKeySimple = `${dateStr}|${startTime}`;
+      
+      if (bookedSlotsFromIcal.has(slotKey)) {
+        console.log('[Vercel TRPC] Creneau filtre (reserve dans iCal):', slotKey);
+        return;
+      }
+      
+      if (bookedFromDb.has(slotKeySimple)) {
+        console.log('[Vercel TRPC] Creneau filtre (reserve dans BD):', slotKeySimple);
+        return;
+      }
+
+      // Verifier le chevauchement avec les creneaux reserves
+      let isOverlapping = false;
+      for (const bookedKey of bookedSlotsFromIcal) {
+        const [bookedDate, bookedStart, bookedEnd] = bookedKey.split('|');
+        if (bookedDate === dateStr) {
+          const slotStartMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+          const slotEndMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+          const bookedStartMinutes = parseInt(bookedStart.split(':')[0]) * 60 + parseInt(bookedStart.split(':')[1]);
+          const bookedEndMinutes = parseInt(bookedEnd.split(':')[0]) * 60 + parseInt(bookedEnd.split(':')[1]);
+          
+          if (slotStartMinutes < bookedEndMinutes && slotEndMinutes > bookedStartMinutes) {
+            isOverlapping = true;
+            console.log('[Vercel TRPC] Creneau filtre (chevauchement):', slotKey, 'avec', bookedKey);
+            break;
+          }
+        }
+      }
+
+      if (isOverlapping) return;
+
       console.log('[Vercel TRPC] Creneau disponible ajoute:', dateStr, startTime, '-', endTime);
       slots.push({
         date: dateStr,
@@ -97,7 +166,7 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date): Prom
       });
     });
 
-    console.log(`[Vercel TRPC] ${slots.length} creneaux disponibles trouves`);
+    console.log(`[Vercel TRPC] ${slots.length} creneaux disponibles trouves (apres filtrage)`);
     
     slots.sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
@@ -150,12 +219,14 @@ async function createGoogleCalendarEvent(appointmentData: {
   endTime: string;
   reason?: string;
 }): Promise<string | null> {
-  const privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
-  const serviceAccountEmail = process.env.GOOGLE_CALENDAR_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
+  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CALENDAR_EMAIL;
   const targetCalendarId = process.env.GOOGLE_CALENDAR_ID;
 
   if (!privateKey || !serviceAccountEmail) {
     console.warn('[Vercel TRPC] Configuration Google Calendar incomplete pour creation evenement');
+    console.warn('  - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:', privateKey ? 'OK' : 'MANQUANT');
+    console.warn('  - GOOGLE_SERVICE_ACCOUNT_EMAIL:', serviceAccountEmail ? 'OK' : 'MANQUANT');
     return null;
   }
 
@@ -228,20 +299,16 @@ const appRouter = router({
           const startDate = input.startDate ? new Date(input.startDate) : new Date();
           const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
           
-          const bookedSlots = await getBookedSlots(process.env.DATABASE_URL);
-          const icalSlots = await getAvailableSlotsFromIcal(startDate, endDate);
+          // La fonction getAvailableSlotsFromIcal filtre deja les creneaux reserves (iCal + BD)
+          const icalSlots = await getAvailableSlotsFromIcal(startDate, endDate, process.env.DATABASE_URL);
           
           const slotsByDate: Record<string, any[]> = {};
           
           for (const slot of icalSlots) {
-            const slotKey = `${slot.date}|${slot.startTime}`;
-            
-            if (!bookedSlots.has(slotKey)) {
-              if (!slotsByDate[slot.date]) {
-                slotsByDate[slot.date] = [];
-              }
-              slotsByDate[slot.date].push(slot);
+            if (!slotsByDate[slot.date]) {
+              slotsByDate[slot.date] = [];
             }
+            slotsByDate[slot.date].push(slot);
           }
           
           for (const date of Object.keys(slotsByDate)) {
@@ -249,7 +316,7 @@ const appRouter = router({
           }
           
           const availableDates = Object.keys(slotsByDate).sort();
-          console.log(`[Vercel TRPC] ${availableDates.length} dates disponibles depuis iCal`);
+          console.log(`[Vercel TRPC] ${availableDates.length} dates disponibles depuis iCal (apres filtrage)`);
           
           return {
             success: true,
@@ -274,7 +341,8 @@ const appRouter = router({
         const startDate = input.startDate ? new Date(input.startDate) : new Date();
         const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
         
-        const slots = await getAvailableSlotsFromIcal(startDate, endDate);
+        // La fonction filtre deja les creneaux reserves
+        const slots = await getAvailableSlotsFromIcal(startDate, endDate, process.env.DATABASE_URL);
         
         return { success: true, slots };
       }),

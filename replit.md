@@ -1,25 +1,28 @@
-# Planning & Scheduling App - Replit Setup
+# Planning & Scheduling App - Dorian Sarry
 
 ## 🚀 Project Overview
 
-This is a full-stack appointment booking system built with:
+Application de prise de rendez-vous pour la thérapie sensori-motrice de Dorian Sarry, avec synchronisation bidirectionnelle avec Google Calendar.
+
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: Express.js + tRPC (TypeScript RPC framework)
 - **Database**: PostgreSQL (Neon-backed on Replit)
 - **Calendar Integration**: Google Calendar (Service Account JWT)
 - **Email**: Resend API
 
+**Dernière mise à jour**: 8 décembre 2025
+
 ## ✅ Current Setup Status
 
 ### Infrastructure
 - ✅ **Frontend Server**: Running on port 5000 with Vite HMR
 - ✅ **Backend Server**: Express.js with tRPC API
-- ✅ **Database**: PostgreSQL with Drizzle ORM
+- ✅ **Database**: PostgreSQL with Drizzle ORM (toutes les tables créées)
 - ✅ **Google Calendar**: Service Account JWT integration (fully working)
 
 ### 🎨 Patient Booking Interface - COMPLETED ✅
 - ✅ **Beautiful 3-Step Booking Flow** (`/book-appointment`)
-  - **Step 1**: Date Selection (38 available dates across Nov/Dec/Jan)
+  - **Step 1**: Date Selection (18 available dates across Dec/Jan)
   - **Step 2**: Time Slot Selection (17:30, 18:30 for each date)
   - **Step 3**: Patient Information (name, email, phone, reason)
   - **Step 4**: Confirmation with email notification
@@ -31,10 +34,10 @@ This is a full-stack appointment booking system built with:
   - Cancel button removes from system + Google Calendar
   - Automatic sync with booking records
 
-### Available Dates (From Google Calendar)
-- **Monday, Nov 24**: 17:30, 18:30
-- **Tuesday, Nov 25**: 17:30, 18:30
-- **Thursday, Nov 27**: 17:30, 18:30
+### Available Dates (From Google Calendar - Dec 2025)
+- Créneaux disponibles détectés automatiquement depuis Google Calendar
+- **18 dates disponibles** sur les 30 prochains jours
+- Filtrage automatique des rendez-vous existants (ex: "Laporte sandy", "Pascale barrière")
 
 ### Google Calendar Integration ✅
 - **Service Account**: planningadmin@apaddicto.iam.gserviceaccount.com
