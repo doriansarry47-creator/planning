@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { publicProcedure, router } from './_core/trpc';
 import { getGoogleCalendarService } from './services/googleCalendar';
+import { getAvailabilitySyncService } from './services/availabilitySync';
 
 /**
  * Router TRPC pour la gestion des disponibilités via Google Calendar
@@ -133,6 +134,7 @@ export const availabilityRouter = router({
   /**
    * Récupérer les créneaux de disponibilité (PUBLIC)
    * Accessible aux patients pour voir les créneaux disponibles
+   * LES CRÉNEAUX PRIS SONT AUTOMATIQUEMENT MASQUÉS
    */
   getAvailableSlots: publicProcedure
     .input(
@@ -143,12 +145,53 @@ export const availabilityRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const service = getGoogleCalendarService();
-      if (!service) {
-        throw new Error('Service Google Calendar non configuré');
+      // Utiliser le nouveau service de synchronisation
+      const syncService = getAvailabilitySyncService();
+      
+      // Fallback sur l'ancien service si le nouveau n'est pas disponible
+      if (!syncService) {
+        const service = getGoogleCalendarService();
+        if (!service) {
+          throw new Error('Service Google Calendar non configuré');
+        }
+
+        const slots = await service.getAvailabilitySlots(
+          new Date(input.startDate),
+          new Date(input.endDate),
+          input.slotDuration
+        );
+
+        // Grouper les créneaux par date (MASQUER LES CRÉNEAUX PRIS)
+        const slotsByDate: Record<string, any[]> = {};
+        slots.forEach(slot => {
+          const dateKey = slot.date.toISOString().split('T')[0];
+          if (!slotsByDate[dateKey]) {
+            slotsByDate[dateKey] = [];
+          }
+          // NE RETOURNER QUE LES CRÉNEAUX DISPONIBLES
+          if (slot.isAvailable) {
+            slotsByDate[dateKey].push({
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              isAvailable: true,
+            });
+          }
+        });
+
+        return {
+          success: true,
+          slots: slotsByDate,
+          totalSlots: slots.filter(s => s.isAvailable).length, // Compter uniquement les disponibles
+          availableSlots: slots.filter(s => s.isAvailable).length,
+          period: {
+            start: input.startDate,
+            end: input.endDate,
+          },
+        };
       }
 
-      const slots = await service.getAvailabilitySlots(
+      // Utiliser le nouveau service (retourne uniquement les créneaux disponibles)
+      const availableSlots = await syncService.getAvailableSlots(
         new Date(input.startDate),
         new Date(input.endDate),
         input.slotDuration
@@ -156,25 +199,25 @@ export const availabilityRouter = router({
 
       // Grouper les créneaux par date
       const slotsByDate: Record<string, any[]> = {};
-      slots.forEach(slot => {
+      availableSlots.forEach(slot => {
         const dateKey = slot.date.toISOString().split('T')[0];
         if (!slotsByDate[dateKey]) {
           slotsByDate[dateKey] = [];
         }
-        if (slot.isAvailable) {
-          slotsByDate[dateKey].push({
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            isAvailable: slot.isAvailable,
-          });
-        }
+        slotsByDate[dateKey].push({
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          isAvailable: true, // Toujours true car on ne retourne que les disponibles
+        });
       });
+
+      console.log(`[AvailabilityRouter] ${availableSlots.length} créneaux disponibles retournés (créneaux pris masqués)`);
 
       return {
         success: true,
         slots: slotsByDate,
-        totalSlots: slots.length,
-        availableSlots: slots.filter(s => s.isAvailable).length,
+        totalSlots: availableSlots.length,
+        availableSlots: availableSlots.length,
         period: {
           start: input.startDate,
           end: input.endDate,
@@ -184,6 +227,7 @@ export const availabilityRouter = router({
 
   /**
    * Réserver un créneau (créer un rendez-vous)
+   * Le créneau sera automatiquement marqué comme pris et masqué
    */
   bookSlot: publicProcedure
     .input(
@@ -199,6 +243,40 @@ export const availabilityRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      // Utiliser le nouveau service de synchronisation
+      const syncService = getAvailabilitySyncService();
+      
+      if (syncService) {
+        // Utiliser le nouveau service qui gère mieux les rendez-vous
+        const eventId = await syncService.bookSlot(
+          new Date(input.date),
+          input.startTime,
+          input.endTime,
+          {
+            name: input.patientName,
+            email: input.patientEmail,
+            phone: input.patientPhone,
+            reason: input.reason,
+          }
+        );
+
+        if (!eventId) {
+          return {
+            success: false,
+            error: 'Ce créneau n\'est plus disponible ou une erreur est survenue',
+          };
+        }
+
+        console.log(`[AvailabilityRouter] Rendez-vous créé: ${eventId} - Le créneau sera masqué`);
+
+        return {
+          success: true,
+          eventId,
+          message: 'Rendez-vous réservé avec succès. Le créneau ne sera plus visible pour les autres utilisateurs.',
+        };
+      }
+
+      // Fallback sur l'ancien service
       const service = getGoogleCalendarService();
       if (!service) {
         throw new Error('Service Google Calendar non configuré');
