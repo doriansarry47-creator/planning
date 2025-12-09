@@ -327,7 +327,7 @@ class GoogleCalendarJWTClient {
           description += `\n📱 Téléphone: ${patientPhone}`;
         }
 
-        // Mettre à jour l'événement
+        // Mettre à jour l'événement (SANS attendees car Service Account ne le supporte pas)
         response = await this.calendar.events.update({
           calendarId: this.calendarId,
           eventId: availableEvent.id,
@@ -342,20 +342,18 @@ class GoogleCalendarJWTClient {
               dateTime: endDateTime.toISOString(),
               timeZone: 'Europe/Paris',
             },
-            attendees: [
-              { email: patientEmail, displayName: patientName }
-            ],
+            // PAS d'attendees avec Service Account (nécessiterait Domain-Wide Delegation)
             reminders: {
               useDefault: false,
               overrides: [
-                { method: 'email', minutes: 1440 }, // 24h avant
+                { method: 'popup', minutes: 1440 }, // 24h avant
                 { method: 'popup', minutes: 60 }, // 1h avant
               ],
             },
             colorId: '11', // Rouge pour les rendez-vous réservés
             transparency: 'opaque', // Bloquer le créneau
           },
-          sendUpdates: 'all', // Notifier les participants par email
+          // PAS de sendUpdates avec Service Account
         });
       } else {
         // Si aucun événement DISPONIBLE n'existe, créer un nouvel événement
@@ -383,20 +381,18 @@ class GoogleCalendarJWTClient {
               dateTime: endDateTime.toISOString(),
               timeZone: 'Europe/Paris',
             },
-            attendees: [
-              { email: patientEmail, displayName: patientName }
-            ],
+            // PAS d'attendees avec Service Account (nécessiterait Domain-Wide Delegation)
             reminders: {
               useDefault: false,
               overrides: [
-                { method: 'email', minutes: 1440 }, // 24h avant
+                { method: 'popup', minutes: 1440 }, // 24h avant
                 { method: 'popup', minutes: 60 }, // 1h avant
               ],
             },
             colorId: '11', // Rouge pour les rendez-vous réservés
             transparency: 'opaque', // Bloquer le créneau
           },
-          sendUpdates: 'all', // Notifier les participants par email
+          // PAS de sendUpdates avec Service Account
         });
       }
 
