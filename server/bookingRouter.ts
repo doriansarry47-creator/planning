@@ -136,7 +136,7 @@ class GoogleCalendarJWTClient {
       const events = response.data.items || [];
       console.log(`[JWT] ${events.length} événements trouvés pour ${targetDateStr}`);
       
-      // Séparer les événements "DISPONIBLE" des événements bloquants
+      // Séparer les événements "DISPONIBLE" des événements bloquants (RDV, événements opaques)
       // et FILTRER uniquement ceux qui sont vraiment pour cette date
       const availableEvents: any[] = [];
       const blockingEvents: any[] = [];
@@ -154,21 +154,47 @@ class GoogleCalendarJWTClient {
         }
         
         const title = event.summary?.toLowerCase() || '';
+        const transparency = event.transparency || 'opaque'; // Par défaut opaque si non spécifié
+        const isAppointment = event.extendedProperties?.private?.isAppointment === 'true';
+        
+        // Un créneau est DISPONIBLE si:
+        // 1. Le titre contient des mots-clés de disponibilité
+        // 2. ET il est transparent (n'affecte pas la disponibilité)
+        // 3. ET il n'est PAS marqué comme rendez-vous
         const isAvailable = 
-          title.includes('disponible') || 
-          title.includes('available') || 
-          title.includes('dispo') ||
-          title.includes('🟢');
+          (title.includes('disponible') || 
+           title.includes('available') || 
+           title.includes('dispo') ||
+           title.includes('🟢')) &&
+          transparency === 'transparent' &&
+          !isAppointment;
+        
+        // Un événement est BLOQUANT si:
+        // 1. Il contient des mots-clés de RDV (rdv, rendez-vous, consultation, 🏥)
+        // 2. OU il est marqué comme rendez-vous dans les propriétés
+        // 3. OU il est opaque (bloque le calendrier)
+        // 4. OU il n'est simplement pas un créneau de disponibilité
+        const isBlocking = 
+          !isAvailable && (
+            title.includes('rdv') ||
+            title.includes('rendez-vous') ||
+            title.includes('consultation') ||
+            title.includes('🏥') ||
+            title.includes('appointment') ||
+            isAppointment ||
+            transparency === 'opaque'
+          );
         
         if (isAvailable) {
           availableEvents.push(event);
           const startTime = eventDate.toTimeString().slice(0, 5);
           const endTime = new Date(event.end?.dateTime || event.end?.date).toTimeString().slice(0, 5);
           console.log(`[JWT] 🟢 Disponible: ${startTime}-${endTime}`);
-        } else {
+        } else if (isBlocking) {
           blockingEvents.push(event);
           const startTime = eventDate.toTimeString().slice(0, 5);
-          console.log(`[JWT] 🔴 Bloqué: ${event.summary} (${startTime})`);
+          const endTime = new Date(event.end?.dateTime || event.end?.date).toTimeString().slice(0, 5);
+          console.log(`[JWT] 🔴 Bloqué (RDV): ${event.summary} (${startTime}-${endTime})`);
         }
       }
       
@@ -308,15 +334,36 @@ class GoogleCalendarJWTClient {
         }
         
         const title = event.summary?.toLowerCase() || '';
+        const transparency = event.transparency || 'opaque';
+        const isAppointment = event.extendedProperties?.private?.isAppointment === 'true';
+        
+        // Un créneau est DISPONIBLE si:
+        // - Le titre contient des mots-clés de disponibilité
+        // - ET il est transparent
+        // - ET il n'est PAS un rendez-vous
         const isAvailable = 
-          title.includes('disponible') || 
-          title.includes('available') || 
-          title.includes('dispo') ||
-          title.includes('🟢');
+          (title.includes('disponible') || 
+           title.includes('available') || 
+           title.includes('dispo') ||
+           title.includes('🟢')) &&
+          transparency === 'transparent' &&
+          !isAppointment;
+        
+        // Un événement est BLOQUANT (RDV, consultation, etc.)
+        const isBlocking = 
+          !isAvailable && (
+            title.includes('rdv') ||
+            title.includes('rendez-vous') ||
+            title.includes('consultation') ||
+            title.includes('🏥') ||
+            title.includes('appointment') ||
+            isAppointment ||
+            transparency === 'opaque'
+          );
         
         if (isAvailable) {
           eventsByDate[eventDateStr].available.push(event);
-        } else {
+        } else if (isBlocking) {
           eventsByDate[eventDateStr].blocking.push(event);
         }
       }
