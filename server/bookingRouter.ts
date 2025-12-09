@@ -192,7 +192,7 @@ class GoogleCalendarJWTClient {
         .from(appointments)
         .where(
           and(
-            inArray(appointments.status, ["confirmed", "pending", "scheduled"]),
+            inArray(appointments.status, ["confirmed", "pending"]),
             gte(appointments.startTime, dayStart),
             lt(appointments.startTime, dayEnd)
           )
@@ -334,7 +334,7 @@ class GoogleCalendarJWTClient {
         .from(appointments)
         .where(
           and(
-            inArray(appointments.status, ["confirmed", "pending", "scheduled"]),
+            inArray(appointments.status, ["confirmed", "pending"]),
             gte(appointments.startTime, rangeStart),
             lt(appointments.startTime, rangeEnd)
           )
@@ -448,13 +448,10 @@ class GoogleCalendarJWTClient {
             dateTime: endDateTime.toISOString(),
             timeZone: 'Europe/Paris',
           },
-          attendees: [
-            { email: patientEmail, displayName: patientName }
-          ],
+          // SANS attendees pour éviter l'erreur Domain-Wide Delegation
           reminders: {
             useDefault: false,
             overrides: [
-              { method: 'email', minutes: 1440 }, // 24h avant
               { method: 'popup', minutes: 60 }, // 1h avant
             ],
           },
@@ -469,7 +466,7 @@ class GoogleCalendarJWTClient {
             },
           },
         },
-        sendUpdates: 'all', // Notifier les participants par email
+        sendUpdates: 'none', // Pas de notification automatique via Google
       });
 
       console.log('✅ Rendez-vous créé dans Google Calendar:', response.data.id);

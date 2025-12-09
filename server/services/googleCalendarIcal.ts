@@ -115,7 +115,7 @@ export class GoogleCalendarIcalService {
             .from(appointments)
             .where(
               and(
-                inArray(appointments.status, ['confirmed', 'pending', 'scheduled']),
+                inArray(appointments.status, ['confirmed', 'pending']),
                 gte(appointments.startTime, filterStartDate),
                 lte(appointments.endTime, filterEndDate)
               )
@@ -308,13 +308,10 @@ export class GoogleCalendarIcalService {
           dateTime: endDateTime.toISOString(),
           timeZone: 'Europe/Paris',
         },
-        attendees: [
-          { email: appointment.patientEmail, displayName: appointment.patientName },
-        ],
+        // SANS attendees pour éviter l'erreur Domain-Wide Delegation
         reminders: {
           useDefault: false,
           overrides: [
-            { method: 'email', minutes: 1440 }, // 24h avant
             { method: 'popup', minutes: 60 }, // 1h avant
           ],
         },
@@ -326,7 +323,7 @@ export class GoogleCalendarIcalService {
       const response = await this.calendar.events.insert({
         calendarId: this.targetCalendarId,
         resource: event,
-        sendUpdates: 'all', // Envoyer des notifications aux participants
+        sendUpdates: 'none', // Pas de notification automatique via Google
       });
 
       console.log('[GoogleCalendarIcal] Rendez-vous créé avec succès:', response.data.id);
