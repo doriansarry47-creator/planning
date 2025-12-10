@@ -11,11 +11,7 @@ export const ENV = {
   appUrl: process.env.APP_URL ?? "http://localhost:5173",
   
   // Google Calendar Configuration
-  googleCalendarIcalUrl: process.env.GOOGLE_CALENDAR_ICAL_URL ?? "",
-  googleCalendarPrivateKey: process.env.GOOGLE_CALENDAR_PRIVATE_KEY ?? "",
-  googleCalendarEmail: process.env.GOOGLE_CALENDAR_EMAIL ?? process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "",
-  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-  googleRefreshToken: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN ?? "",
+  // Configuration Google Calendar (Service Account)
   googleCalendarId: process.env.GOOGLE_CALENDAR_ID ?? "primary",
+  googleServiceAccountJsonPath: process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH ?? "./server/google-service-account.json",
 };

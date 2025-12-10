@@ -247,19 +247,4 @@ export const webhooks = pgTable("webhooks", {
 export type Webhook = typeof webhooks.$inferSelect;
 export type InsertWebhook = typeof webhooks.$inferInsert;
 
-// Table de synchronisation Google Calendar
-export const googleCalendarSync = pgTable("googleCalendarSync", {
-  id: serial("id").primaryKey(),
-  practitionerId: integer("practitionerId").notNull().unique().references(() => practitioners.id),
-  calendarId: varchar("calendarId", { length: 255 }).notNull(),
-  accessToken: text("accessToken").notNull(),
-  refreshToken: text("refreshToken").notNull(),
-  tokenExpiry: timestamp("tokenExpiry").notNull(),
-  syncEnabled: boolean("syncEnabled").default(true).notNull(),
-  lastSyncAt: timestamp("lastSyncAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-});
 
-export type GoogleCalendarSync = typeof googleCalendarSync.$inferSelect;
-export type InsertGoogleCalendarSync = typeof googleCalendarSync.$inferInsert;

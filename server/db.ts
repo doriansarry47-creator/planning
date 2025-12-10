@@ -12,8 +12,7 @@ import {
   workingPlans, InsertWorkingPlan,
   blockedPeriods, InsertBlockedPeriod,
   settings, InsertSetting,
-  webhooks, InsertWebhook,
-  googleCalendarSync, InsertGoogleCalendarSync
+  webhooks, InsertWebhook
 } from "../drizzle/schema.postgres";
 import { ENV } from './_core/env';
 import { nanoid } from 'nanoid';
@@ -862,8 +861,8 @@ export async function getAvailableSlots(practitionerId?: number, startDate?: Dat
 export {
   users, practitioners, availabilitySlots, appointments, timeOff, 
   adminLogs, specialties, services, serviceCategories, 
-  practitionerServices, workingPlans, blockedPeriods, settings, 
-  webhooks, googleCalendarSync
+  practitionerServices, workingPlans, blockedPeriods, settings,
+  webhooks
 };
 
 export type {
@@ -871,5 +870,5 @@ export type {
   InsertAppointment, InsertTimeOff, InsertAdminLog, InsertSpecialty,
   InsertService, InsertServiceCategory, InsertPractitionerService,
   InsertWorkingPlan, InsertBlockedPeriod, InsertSetting,
-  InsertWebhook, InsertGoogleCalendarSync
+  InsertWebhook
 };
