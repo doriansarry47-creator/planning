@@ -12,6 +12,6 @@ export const ENV = {
   
   // Google Calendar Configuration
   // Configuration Google Calendar (Service Account)
-  googleCalendarId: process.env.GOOGLE_CALENDAR_ID ?? "primary",
+  googleCalendarId: process.env.GOOGLE_CALENDAR_ID ?? "doriansarry47@gmail.com",
   googleServiceAccountJsonPath: process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH ?? "./server/google-service-account.json",
 };

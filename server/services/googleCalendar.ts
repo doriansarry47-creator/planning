@@ -494,7 +494,7 @@ export function createGoogleCalendarService(): GoogleCalendarService | null {
   const config = {
     serviceAccountEmail: serviceAccountConfig.client_email || '',
     serviceAccountPrivateKey: serviceAccountConfig.private_key || '',
-    calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+    calendarId: process.env.GOOGLE_CALENDAR_ID || 'doriansarry47@gmail.com',
   };
 
   // Vérifier que toutes les variables sont définies
