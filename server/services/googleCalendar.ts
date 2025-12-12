@@ -377,6 +377,7 @@ export class GoogleCalendarService {
 
   /**
    * Récupérer les créneaux de disponibilité
+   * Récupère les créneaux marqués comme "Disponibilité" et filtre ceux qui sont déjà réservés
    */
   async getAvailabilitySlots(
     startDate: Date,
@@ -384,6 +385,8 @@ export class GoogleCalendarService {
     slotDuration: number = 30
   ): Promise<Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }>> {
     try {
+      console.log(`[GoogleCalendar] Récupération des créneaux entre ${startDate.toISOString()} et ${endDate.toISOString()}`);
+      
       // Récupérer tous les événements (disponibilités + rendez-vous)
       const response = await this.calendar.events.list({
         calendarId: this.config.calendarId,
@@ -394,6 +397,8 @@ export class GoogleCalendarService {
       });
 
       const events = response.data.items || [];
+      console.log(`[GoogleCalendar] ${events.length} événements trouvés au total`);
+      
       const slots: Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }> = [];
 
       // Séparer les créneaux de disponibilité des rendez-vous
@@ -401,8 +406,11 @@ export class GoogleCalendarService {
         (event: any) => event.extendedProperties?.private?.isAvailabilitySlot === 'true'
       );
       const appointments = events.filter(
-        (event: any) => event.extendedProperties?.private?.isAvailabilitySlot !== 'true'
+        (event: any) => event.extendedProperties?.private?.isAppointment === 'true' || 
+                       event.transparency === 'opaque' // Événements opaques = créneaux réservés
       );
+
+      console.log(`[GoogleCalendar] ${availabilityEvents.length} créneaux de disponibilité, ${appointments.length} rendez-vous`);
 
       // Pour chaque créneau de disponibilité, découper en petits slots
       for (const availEvent of availabilityEvents) {
@@ -420,11 +428,12 @@ export class GoogleCalendarService {
           const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
           const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
 
-          // Vérifier si ce créneau est libre (pas de rendez-vous)
+          // Vérifier si ce créneau est libre (pas de rendez-vous qui chevauche)
           const isBooked = appointments.some((appt: any) => {
             if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
             const apptStart = new Date(appt.start.dateTime);
             const apptEnd = new Date(appt.end.dateTime);
+            // Il y a chevauchement si le début du slot est avant la fin du RDV ET la fin du slot est après le début du RDV
             return currentTime < apptEnd && nextTime > apptStart;
           });
 
@@ -439,9 +448,12 @@ export class GoogleCalendarService {
         }
       }
 
+      const availableCount = slots.filter(s => s.isAvailable).length;
+      console.log(`[GoogleCalendar] ${slots.length} créneaux générés, ${availableCount} disponibles`);
+
       return slots;
-    } catch (error) {
-      console.error('[GoogleCalendar] Erreur lors de la récupération des créneaux:', error);
+    } catch (error: any) {
+      console.error('[GoogleCalendar] ❌ Erreur lors de la récupération des créneaux:', error.message);
       return [];
     }
   }
@@ -473,11 +485,17 @@ export class GoogleCalendarService {
 
 /**
  * Fonction factory pour créer une instance du service Google Calendar
- * Utilise les variables d'environnement pour la configuration avec Service Account
+ * Supporte deux méthodes de configuration:
+ * 1. Variables d'environnement (recommandé pour Vercel/production)
+ * 2. Fichier JSON du Service Account (pour développement local)
  * 
- * Variables d'environnement requises:
- * - GOOGLE_SERVICE_ACCOUNT_JSON_PATH: Chemin vers le fichier JSON du Service Account (ex: ./google-service-account.json)
+ * Variables d'environnement:
+ * - GOOGLE_SERVICE_ACCOUNT_EMAIL: Email du Service Account
+ * - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: Clé privée du Service Account
  * - GOOGLE_CALENDAR_ID: ID du calendrier (ex: 'primary' ou l'email du calendrier)
+ * 
+ * OU fichier JSON:
+ * - server/google-service-account.json
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -485,31 +503,59 @@ import * as path from 'path';
 const SERVICE_ACCOUNT_JSON_PATH = path.join(process.cwd(), 'server', 'google-service-account.json');
 
 export function createGoogleCalendarService(): GoogleCalendarService | null {
-  let serviceAccountConfig: any;
-  try {
-    const jsonContent = fs.readFileSync(SERVICE_ACCOUNT_JSON_PATH, 'utf-8');
-    serviceAccountConfig = JSON.parse(jsonContent);
-  } catch (error) {
-    console.warn(`[GoogleCalendar] Fichier Service Account non trouvé ou invalide à ${SERVICE_ACCOUNT_JSON_PATH}. Synchronisation Google Calendar désactivée.`);
-    return null;
-  }
+  let config: GoogleCalendarConfig;
+  
+  // Méthode 1: Essayer d'abord les variables d'environnement (prioritaire pour Vercel)
+  const envEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const envPrivateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const calendarId = process.env.GOOGLE_CALENDAR_ID || 'doriansarry47@gmail.com';
 
-  const config = {
-    serviceAccountEmail: serviceAccountConfig.client_email || '',
-    serviceAccountPrivateKey: serviceAccountConfig.private_key || '',
-    calendarId: process.env.GOOGLE_CALENDAR_ID || 'doriansarry47@gmail.com',
-  };
+  if (envEmail && envPrivateKey) {
+    console.log('[GoogleCalendar] Utilisation des variables d\'environnement pour la configuration');
+    
+    // Nettoyer la clé privée des guillemets et convertir les \n
+    let cleanedPrivateKey = envPrivateKey
+      .replace(/^["']|["']$/g, '') // Enlever les guillemets
+      .replace(/\\n/g, '\n');       // Convertir les \n littéraux
+
+    config = {
+      serviceAccountEmail: envEmail,
+      serviceAccountPrivateKey: cleanedPrivateKey,
+      calendarId: calendarId,
+    };
+  } else {
+    // Méthode 2: Essayer de lire le fichier JSON local
+    console.log('[GoogleCalendar] Variables d\'environnement non trouvées, tentative de lecture du fichier JSON');
+    
+    try {
+      const jsonContent = fs.readFileSync(SERVICE_ACCOUNT_JSON_PATH, 'utf-8');
+      const serviceAccountConfig = JSON.parse(jsonContent);
+      
+      config = {
+        serviceAccountEmail: serviceAccountConfig.client_email || '',
+        serviceAccountPrivateKey: serviceAccountConfig.private_key || '',
+        calendarId: calendarId,
+      };
+      
+      console.log('[GoogleCalendar] Configuration chargée depuis le fichier JSON');
+    } catch (error) {
+      console.warn('[GoogleCalendar] ⚠️ Aucune configuration trouvée (ni variables d\'environnement, ni fichier JSON). Synchronisation Google Calendar désactivée.');
+      return null;
+    }
+  }
 
   // Vérifier que toutes les variables sont définies
   if (!config.serviceAccountEmail || !config.serviceAccountPrivateKey) {
-    console.warn('[GoogleCalendar] Configuration incomplète dans le fichier JSON. Synchronisation Google Calendar désactivée.');
+    console.warn('[GoogleCalendar] ⚠️ Configuration incomplète. Synchronisation Google Calendar désactivée.');
     return null;
   }
 
   try {
-    return new GoogleCalendarService(config);
-  } catch (error) {
-    console.error('[GoogleCalendar] Erreur lors de l\'initialisation du service:', error);
+    const service = new GoogleCalendarService(config);
+    console.log('[GoogleCalendar] ✅ Service Google Calendar initialisé avec succès');
+    return service;
+  } catch (error: any) {
+    console.error('[GoogleCalendar] ❌ Erreur lors de l\'initialisation du service:', error.message);
     return null;
   }
 }
