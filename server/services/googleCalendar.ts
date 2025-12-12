@@ -133,8 +133,11 @@ export class GoogleCalendarService {
 
       console.log('[GoogleCalendar] Événement créé:', response.data.id);
       return response.data.id;
-    } catch (error) {
-      console.error('[GoogleCalendar] Erreur lors de la création de l\'événement:', error);
+    } catch (error: any) {
+      console.error('[GoogleCalendar] Erreur lors de la création de l\'événement:', error.message);
+      if (error.response?.data?.error) {
+        console.error('[GoogleCalendar] Détails de l\'erreur Google:', error.response.data.error);
+      }
       return null;
     }
   }
