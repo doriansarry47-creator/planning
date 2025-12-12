@@ -331,6 +331,7 @@ export class AvailabilitySyncService {
           console.log('[AvailabilitySync] ✅ Email de confirmation envoyé au patient:', emailResult.messageId);
         } else {
           console.error('[AvailabilitySync] ⚠️ Échec d\'envoi de l\'email au patient:', emailResult.error);
+          console.log('[AvailabilitySync] ℹ️ Note: This is expected behavior when using a Resend trial account.');
         }
       } catch (emailError) {
         console.error('[AvailabilitySync] ⚠️ Erreur lors de l\'envoi de l\'email au patient:', emailError);
