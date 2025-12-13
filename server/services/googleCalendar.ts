@@ -513,10 +513,9 @@ export function createGoogleCalendarService(): GoogleCalendarService | null {
   if (envEmail && envPrivateKey) {
     console.log('[GoogleCalendar] Utilisation des variables d\'environnement pour la configuration');
     
-    // Nettoyer la clé privée des guillemets et convertir les \n
+    // Nettoyer la clé privée des guillemets (le replace des \n est fait dans le constructeur)
     let cleanedPrivateKey = envPrivateKey
-      .replace(/^["']|["']$/g, '') // Enlever les guillemets
-      .replace(/\\n/g, '\n');       // Convertir les \n littéraux
+      .replace(/^["']|["']$/g, ''); // Enlever les guillemets
 
     config = {
       serviceAccountEmail: envEmail,
