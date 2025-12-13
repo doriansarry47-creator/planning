@@ -101,9 +101,9 @@ class GoogleCalendarService {
       }
       description += `\nEmail: ${eventData.patientEmail}`;
 
-      // Créer l'événement
+      // Créer l'événement (sans attendees car les comptes de service ne peuvent pas les gérer sans Domain-Wide Delegation)
       const event = {
-        summary: `🏥 RDV - ${eventData.patientName}`,
+        summary: `RDV - ${eventData.patientName}`,
         description: description,
         start: {
           dateTime: startDateTime.toISOString(),
@@ -113,14 +113,11 @@ class GoogleCalendarService {
           dateTime: endDateTime.toISOString(),
           timeZone: 'Europe/Paris',
         },
-        attendees: [
-          { email: eventData.patientEmail },
-        ],
         reminders: {
           useDefault: false,
           overrides: [
             { method: 'email', minutes: 1440 }, // 24h avant
-            { method: 'email', minutes: 60 },   // 1h avant
+            { method: 'popup', minutes: 60 },   // 1h avant
           ],
         },
         colorId: '11', // Rouge pour les rendez-vous réservés

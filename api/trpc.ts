@@ -259,9 +259,7 @@ async function createGoogleCalendarEvent(appointmentData: {
         timeZone: 'Europe/Paris',
       },
       colorId: '9',
-      attendees: [
-        { email: appointmentData.patientEmail }
-      ],
+      transparency: 'opaque',
       reminders: {
         useDefault: false,
         overrides: [
