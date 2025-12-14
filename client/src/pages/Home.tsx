@@ -64,11 +64,11 @@ export default function Home() {
             par l'approche sensori-motrice
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center animate-fade-in-up animation-delay-600">
+          <div className="flex flex-col gap-6 justify-center items-center animate-fade-in-up animation-delay-600">
             <Link href="/book-appointment">
               <Button 
                 size="lg" 
-                className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-10 py-7 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 min-w-[240px]"
+                className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-10 py-7 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 min-w-[280px]"
               >
                 <Calendar className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
                 Prendre rendez-vous
@@ -80,10 +80,10 @@ export default function Home() {
                 <Button 
                   size="lg" 
                   variant="outline" 
-                  className="group px-10 py-7 text-lg bg-white/80 backdrop-blur-sm hover:bg-white border-2 border-blue-600 text-blue-600 hover:text-blue-700 hover:border-indigo-600 font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 min-w-[240px]"
+                  className="group px-8 py-7 text-lg bg-white/80 backdrop-blur-sm hover:bg-white border-2 border-blue-600 text-blue-600 hover:text-blue-700 hover:border-indigo-600 font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 min-w-[280px]"
                 >
                   <Info className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-                  En savoir plus
+                  Savoir plus sur le sensori-moteur
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-white">
@@ -263,7 +263,7 @@ export default function Home() {
                   </div>
                   <h3 className="font-bold text-xl mb-3 text-gray-900">Adresse</h3>
                   <p className="text-gray-700 text-lg leading-relaxed">
-                    20 rue des Jacobins<br />
+                    20 bis rue des Jacobins<br />
                     24000 Périgueux
                   </p>
                 </CardContent>

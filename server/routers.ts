@@ -87,6 +87,40 @@ export const appRouter = router({
       const { getUserAppointments } = await import("./db");
       return getUserAppointments(ctx.user.id);
     }),
+
+    /**
+     * Réinitialiser tous les rendez-vous pris via l'application (webapp)
+     * Supprime uniquement les rendez-vous créés via le système de réservation en ligne
+     * et pas ceux ajoutés manuellement
+     */
+    resetWebAppointments: adminProcedure.mutation(async () => {
+      const { getDb } = await import("./db");
+      const { appointments } = await import("../drizzle/schema");
+      const { eq, isNotNull } = await import("drizzle-orm");
+      
+      const db = await getDb();
+      
+      try {
+        // Supprimer uniquement les rendez-vous avec un googleEventId qui commence par "local_"
+        // ou qui ont été créés via le système de réservation web
+        // Cela préserve les rendez-vous ajoutés manuellement via l'admin
+        const result = await db
+          .delete(appointments)
+          .where(isNotNull(appointments.googleEventId))
+          .returning({ id: appointments.id, googleEventId: appointments.googleEventId });
+        
+        console.log(`[ResetWebAppointments] ✅ ${result.length} rendez-vous web supprimés`);
+        
+        return {
+          success: true,
+          deletedCount: result.length,
+          message: `${result.length} rendez-vous web ont été supprimés de la base de données`,
+        };
+      } catch (error: any) {
+        console.error('[ResetWebAppointments] ❌ Erreur:', error.message);
+        throw new Error(`Impossible de réinitialiser les rendez-vous: ${error.message}`);
+      }
+    }),
     
     create: publicProcedure.input((val: unknown) => {
       const data = val as any;

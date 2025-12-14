@@ -377,15 +377,16 @@ export class GoogleCalendarService {
 
   /**
    * Récupérer les créneaux de disponibilité
-   * Récupère les créneaux marqués comme "Disponibilité" et filtre ceux qui sont déjà réservés
+   * Lit les plages de disponibilité du Google Calendar et génère des créneaux de 60 min
+   * Filtre les créneaux déjà réservés
    */
   async getAvailabilitySlots(
     startDate: Date,
     endDate: Date,
-    slotDuration: number = 30
+    slotDuration: number = 60
   ): Promise<Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }>> {
     try {
-      console.log(`[GoogleCalendar] Récupération des créneaux entre ${startDate.toISOString()} et ${endDate.toISOString()}`);
+      console.log(`[GoogleCalendar] 📅 Récupération des créneaux entre ${startDate.toISOString()} et ${endDate.toISOString()}`);
       
       // Récupérer tous les événements (disponibilités + rendez-vous)
       const response = await this.calendar.events.list({
@@ -397,33 +398,55 @@ export class GoogleCalendarService {
       });
 
       const events = response.data.items || [];
-      console.log(`[GoogleCalendar] ${events.length} événements trouvés au total`);
+      console.log(`[GoogleCalendar] 📋 ${events.length} événements trouvés au total`);
       
       const slots: Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }> = [];
 
       // Séparer les créneaux de disponibilité des rendez-vous
+      // Un créneau de disponibilité peut être :
+      // 1. Marqué avec extendedProperties.isAvailabilitySlot
+      // 2. Transparent (ne bloque pas le calendrier)
+      // 3. Contient "DISPONIBLE" dans le titre
       const availabilityEvents = events.filter(
-        (event: any) => event.extendedProperties?.private?.isAvailabilitySlot === 'true'
+        (event: any) => 
+          event.extendedProperties?.private?.isAvailabilitySlot === 'true' ||
+          event.transparency === 'transparent' ||
+          event.summary?.includes('DISPONIBLE')
       );
+      
+      // Les rendez-vous sont les événements qui bloquent vraiment le calendrier
       const appointments = events.filter(
-        (event: any) => event.extendedProperties?.private?.isAppointment === 'true' || 
-                       event.transparency === 'opaque' // Événements opaques = créneaux réservés
+        (event: any) => 
+          event.extendedProperties?.private?.isAppointment === 'true' || 
+          (event.transparency === 'opaque' && !event.summary?.includes('DISPONIBLE')) ||
+          (!event.transparency && !event.summary?.includes('DISPONIBLE'))
       );
 
-      console.log(`[GoogleCalendar] ${availabilityEvents.length} créneaux de disponibilité, ${appointments.length} rendez-vous`);
+      console.log(`[GoogleCalendar] ✅ ${availabilityEvents.length} plages de disponibilité trouvées`);
+      console.log(`[GoogleCalendar] 📌 ${appointments.length} rendez-vous existants`);
 
-      // Pour chaque créneau de disponibilité, découper en petits slots
+      // Pour chaque plage de disponibilité, générer des créneaux de 60 minutes
       for (const availEvent of availabilityEvents) {
-        if (!availEvent.start?.dateTime || !availEvent.end?.dateTime) continue;
+        if (!availEvent.start?.dateTime || !availEvent.end?.dateTime) {
+          console.log(`[GoogleCalendar] ⚠️ Événement sans date/heure ignoré: ${availEvent.summary}`);
+          continue;
+        }
 
         const slotStart = new Date(availEvent.start.dateTime);
         const slotEnd = new Date(availEvent.end.dateTime);
 
-        // Découper en créneaux de la durée spécifiée
+        console.log(`[GoogleCalendar] 🔍 Analyse plage: ${slotStart.toLocaleString('fr-FR')} - ${slotEnd.toLocaleString('fr-FR')}`);
+
+        // Découper la plage en créneaux de 60 minutes
         let currentTime = new Date(slotStart);
         while (currentTime < slotEnd) {
           const nextTime = new Date(currentTime.getTime() + slotDuration * 60000);
-          if (nextTime > slotEnd) break;
+          
+          // Ne pas créer de créneau qui dépasse la plage de disponibilité
+          if (nextTime > slotEnd) {
+            console.log(`[GoogleCalendar] ⏩ Créneau incomplet ignoré à ${currentTime.toLocaleTimeString('fr-FR')}`);
+            break;
+          }
 
           const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
           const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
@@ -433,27 +456,52 @@ export class GoogleCalendarService {
             if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
             const apptStart = new Date(appt.start.dateTime);
             const apptEnd = new Date(appt.end.dateTime);
-            // Il y a chevauchement si le début du slot est avant la fin du RDV ET la fin du slot est après le début du RDV
-            return currentTime < apptEnd && nextTime > apptStart;
+            
+            // Il y a chevauchement si le début du slot est avant la fin du RDV 
+            // ET la fin du slot est après le début du RDV
+            const overlaps = currentTime < apptEnd && nextTime > apptStart;
+            
+            if (overlaps) {
+              console.log(`[GoogleCalendar] ❌ Créneau ${startTimeStr} déjà réservé (RDV: ${appt.summary})`);
+            }
+            
+            return overlaps;
           });
 
-          slots.push({
-            date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
-            startTime: startTimeStr,
-            endTime: endTimeStr,
-            isAvailable: !isBooked,
-          });
+          // Ne pas inclure les créneaux dans le passé
+          const now = new Date();
+          const isPast = nextTime <= now;
+          
+          if (!isPast) {
+            const isAvailable = !isBooked;
+            
+            slots.push({
+              date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
+              startTime: startTimeStr,
+              endTime: endTimeStr,
+              isAvailable: isAvailable,
+            });
+
+            if (isAvailable) {
+              console.log(`[GoogleCalendar] ✅ Créneau disponible: ${startTimeStr} - ${endTimeStr}`);
+            }
+          } else {
+            console.log(`[GoogleCalendar] ⏮️ Créneau passé ignoré: ${startTimeStr}`);
+          }
 
           currentTime = nextTime;
         }
       }
 
       const availableCount = slots.filter(s => s.isAvailable).length;
-      console.log(`[GoogleCalendar] ${slots.length} créneaux générés, ${availableCount} disponibles`);
+      console.log(`[GoogleCalendar] 📊 Résultat: ${slots.length} créneaux générés, ${availableCount} disponibles`);
 
       return slots;
     } catch (error: any) {
       console.error('[GoogleCalendar] ❌ Erreur lors de la récupération des créneaux:', error.message);
+      if (error.response?.data) {
+        console.error('[GoogleCalendar] Détails:', error.response.data);
+      }
       return [];
     }
   }

@@ -58,16 +58,17 @@ export class GoogleCalendarOAuthService {
 
   /**
    * Récupérer les créneaux disponibles pour une période donnée
-   * Analyse le Google Calendar pour identifier les plages horaires libres
+   * Lit les plages de disponibilité du Google Calendar et génère des créneaux de 60 min
+   * Filtre les créneaux déjà réservés
    */
   async getAvailableSlots(
     startDate: Date,
     endDate: Date,
     workingHours: { start: string; end: string } = { start: '09:00', end: '18:00' },
-    slotDuration: number = 30 // durée en minutes
+    slotDuration: number = 60 // durée en minutes (par défaut 60 min pour les séances)
   ): Promise<AvailabilitySlot[]> {
     try {
-      console.log('[GoogleCalendarOAuth] Récupération des créneaux disponibles');
+      console.log(`[GoogleCalendarOAuth] 📅 Récupération des créneaux entre ${startDate.toISOString()} et ${endDate.toISOString()}`);
       
       // Récupérer tous les événements de la période
       const response = await this.calendar.events.list({
@@ -79,57 +80,103 @@ export class GoogleCalendarOAuthService {
       });
 
       const events = response.data.items || [];
+      console.log(`[GoogleCalendarOAuth] 📋 ${events.length} événements trouvés au total`);
+      
       const slots: AvailabilitySlot[] = [];
 
-      // Générer tous les créneaux possibles
-      const currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
-        // Ignorer les weekends (optionnel)
-        const dayOfWeek = currentDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Lundi à Vendredi
-          const [startHour, startMin] = workingHours.start.split(':').map(Number);
-          const [endHour, endMin] = workingHours.end.split(':').map(Number);
-          
-          let currentTime = new Date(currentDate);
-          currentTime.setHours(startHour, startMin, 0, 0);
-          
-          const endTime = new Date(currentDate);
-          endTime.setHours(endHour, endMin, 0, 0);
+      // Séparer les événements de disponibilité des rendez-vous
+      const availabilityEvents = events.filter((event: any) => 
+        event.summary?.includes('DISPONIBLE') || 
+        event.transparency === 'transparent' ||
+        event.extendedProperties?.private?.isAvailabilitySlot === 'true'
+      );
+      
+      const appointments = events.filter((event: any) => 
+        !event.summary?.includes('DISPONIBLE') && 
+        event.transparency !== 'transparent' &&
+        event.status !== 'cancelled'
+      );
 
-          // Générer les créneaux de la journée
-          while (currentTime < endTime) {
-            const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
-            
-            // Vérifier si le créneau est libre
-            const isAvailable = !events.some(event => {
-              const eventStart = new Date(event.start.dateTime || event.start.date);
-              const eventEnd = new Date(event.end.dateTime || event.end.date);
-              
-              return (
-                (currentTime >= eventStart && currentTime < eventEnd) ||
-                (slotEnd > eventStart && slotEnd <= eventEnd) ||
-                (currentTime <= eventStart && slotEnd >= eventEnd)
-              );
-            });
+      console.log(`[GoogleCalendarOAuth] ✅ ${availabilityEvents.length} plages de disponibilité trouvées`);
+      console.log(`[GoogleCalendarOAuth] 📌 ${appointments.length} rendez-vous existants`);
 
-            slots.push({
-              date: new Date(currentDate),
-              startTime: currentTime.toTimeString().slice(0, 5),
-              endTime: slotEnd.toTimeString().slice(0, 5),
-              isAvailable,
-            });
-
-            currentTime = slotEnd;
-          }
+      // Pour chaque événement de disponibilité, générer des créneaux de 60 minutes
+      for (const availEvent of availabilityEvents) {
+        if (!availEvent.start?.dateTime || !availEvent.end?.dateTime) {
+          console.log(`[GoogleCalendarOAuth] ⚠️ Événement sans date/heure ignoré: ${availEvent.summary}`);
+          continue;
         }
-        
-        currentDate.setDate(currentDate.getDate() + 1);
+
+        const slotStart = new Date(availEvent.start.dateTime);
+        const slotEnd = new Date(availEvent.end.dateTime);
+
+        console.log(`[GoogleCalendarOAuth] 🔍 Analyse plage: ${slotStart.toLocaleString('fr-FR')} - ${slotEnd.toLocaleString('fr-FR')}`);
+
+        // Découper la plage en créneaux de 60 minutes
+        let currentTime = new Date(slotStart);
+        while (currentTime < slotEnd) {
+          const nextTime = new Date(currentTime.getTime() + slotDuration * 60000);
+          
+          // Ne pas créer de créneau qui dépasse la plage de disponibilité
+          if (nextTime > slotEnd) {
+            console.log(`[GoogleCalendarOAuth] ⏩ Créneau incomplet ignoré à ${currentTime.toLocaleTimeString('fr-FR')}`);
+            break;
+          }
+
+          const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
+          const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
+
+          // Vérifier si ce créneau est libre (pas de rendez-vous qui chevauche)
+          const isBooked = appointments.some((appt: any) => {
+            if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
+            const apptStart = new Date(appt.start.dateTime);
+            const apptEnd = new Date(appt.end.dateTime);
+            
+            // Il y a chevauchement si le début du slot est avant la fin du RDV 
+            // ET la fin du slot est après le début du RDV
+            const overlaps = currentTime < apptEnd && nextTime > apptStart;
+            
+            if (overlaps) {
+              console.log(`[GoogleCalendarOAuth] ❌ Créneau ${startTimeStr} déjà réservé (RDV: ${appt.summary})`);
+            }
+            
+            return overlaps;
+          });
+
+          // Ne pas inclure les créneaux dans le passé
+          const now = new Date();
+          const isPast = nextTime <= now;
+          
+          if (isPast) {
+            console.log(`[GoogleCalendarOAuth] ⏮️ Créneau passé ignoré: ${startTimeStr}`);
+          } else {
+            const isAvailable = !isBooked;
+            
+            slots.push({
+              date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
+              startTime: startTimeStr,
+              endTime: endTimeStr,
+              isAvailable: isAvailable,
+            });
+
+            if (isAvailable) {
+              console.log(`[GoogleCalendarOAuth] ✅ Créneau disponible: ${startTimeStr} - ${endTimeStr}`);
+            }
+          }
+
+          currentTime = nextTime;
+        }
       }
 
-      console.log(`[GoogleCalendarOAuth] ${slots.length} créneaux générés, ${slots.filter(s => s.isAvailable).length} disponibles`);
+      const availableCount = slots.filter(s => s.isAvailable).length;
+      console.log(`[GoogleCalendarOAuth] 📊 Résultat: ${slots.length} créneaux générés, ${availableCount} disponibles`);
+
       return slots;
-    } catch (error) {
-      console.error('[GoogleCalendarOAuth] Erreur lors de la récupération des créneaux:', error);
+    } catch (error: any) {
+      console.error('[GoogleCalendarOAuth] ❌ Erreur lors de la récupération des créneaux:', error.message);
+      if (error.response?.data) {
+        console.error('[GoogleCalendarOAuth] Détails:', error.response.data);
+      }
       throw error;
     }
   }
