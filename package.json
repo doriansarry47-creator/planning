@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --env-file .env scripts/seed-admin.ts",
     "sync:availability": "tsx --env-file .env scripts/sync-availability.ts",
-    "sync:appointments": "tsx --env-file .env scripts/sync-appointments-to-calendar.ts"
+    "sync:appointments": "tsx --env-file .env scripts/sync-appointments-to-calendar.ts",
+    "diagnose:calendar": "tsx --env-file .env scripts/diagnose-calendar.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.0.10",
