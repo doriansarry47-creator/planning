@@ -77,10 +77,17 @@ export class GoogleCalendarOAuthService {
         timeMax: endDate.toISOString(),
         singleEvents: true,
         orderBy: 'startTime',
+        showDeleted: false, // NE PAS inclure les événements supprimés
       });
 
-      const events = response.data.items || [];
-      console.log(`[GoogleCalendarOAuth] 📋 ${events.length} événements trouvés au total`);
+      const allEvents = response.data.items || [];
+      console.log(`[GoogleCalendarOAuth] 📋 ${allEvents.length} événements trouvés au total`);
+      
+      // Filtrer les événements annulés ou supprimés
+      const events = allEvents.filter((event: any) => 
+        event.status !== 'cancelled' && event.status !== 'deleted'
+      );
+      console.log(`[GoogleCalendarOAuth] ✅ ${events.length} événements actifs (${allEvents.length - events.length} annulés/supprimés ignorés)`);
       
       const slots: AvailabilitySlot[] = [];
 
@@ -93,8 +100,7 @@ export class GoogleCalendarOAuthService {
       
       const appointments = events.filter((event: any) => 
         !event.summary?.includes('DISPONIBLE') && 
-        event.transparency !== 'transparent' &&
-        event.status !== 'cancelled'
+        event.transparency !== 'transparent'
       );
 
       console.log(`[GoogleCalendarOAuth] ✅ ${availabilityEvents.length} plages de disponibilité trouvées`);

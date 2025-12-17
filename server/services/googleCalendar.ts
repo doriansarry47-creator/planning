@@ -389,16 +389,24 @@ export class GoogleCalendarService {
       console.log(`[GoogleCalendar] 📅 Récupération des créneaux entre ${startDate.toISOString()} et ${endDate.toISOString()}`);
       
       // Récupérer tous les événements (disponibilités + rendez-vous)
+      // showDeleted: false pour exclure les événements supprimés
       const response = await this.calendar.events.list({
         calendarId: this.config.calendarId,
         timeMin: startDate.toISOString(),
         timeMax: endDate.toISOString(),
         singleEvents: true,
         orderBy: 'startTime',
+        showDeleted: false, // NE PAS inclure les événements supprimés
       });
 
       const events = response.data.items || [];
       console.log(`[GoogleCalendar] 📋 ${events.length} événements trouvés au total`);
+      
+      // Filtrer les événements annulés (status !== 'cancelled')
+      const activeEvents = events.filter((event: any) => 
+        event.status !== 'cancelled' && event.status !== 'deleted'
+      );
+      console.log(`[GoogleCalendar] ✅ ${activeEvents.length} événements actifs (${events.length - activeEvents.length} annulés/supprimés ignorés)`);
       
       const slots: Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }> = [];
 
@@ -407,7 +415,7 @@ export class GoogleCalendarService {
       // 1. Marqué avec extendedProperties.isAvailabilitySlot
       // 2. Transparent (ne bloque pas le calendrier)
       // 3. Contient "DISPONIBLE" dans le titre
-      const availabilityEvents = events.filter(
+      const availabilityEvents = activeEvents.filter(
         (event: any) => 
           event.extendedProperties?.private?.isAvailabilitySlot === 'true' ||
           event.transparency === 'transparent' ||
@@ -415,7 +423,7 @@ export class GoogleCalendarService {
       );
       
       // Les rendez-vous sont les événements qui bloquent vraiment le calendrier
-      const appointments = events.filter(
+      const appointments = activeEvents.filter(
         (event: any) => 
           event.extendedProperties?.private?.isAppointment === 'true' || 
           (event.transparency === 'opaque' && !event.summary?.includes('DISPONIBLE')) ||
