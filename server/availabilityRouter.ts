@@ -3,6 +3,7 @@ import { publicProcedure, router } from './_core/trpc';
 import { getGoogleCalendarService } from './services/googleCalendar';
 import { getAvailabilitySyncService } from './services/availabilitySync';
 import { getCalendarSyncService } from './services/calendarSyncService';
+import { getAutoSyncService } from './services/autoSyncService';
 
 /**
  * Router TRPC pour la gestion des disponibilités via Google Calendar
@@ -146,18 +147,17 @@ export const availabilityRouter = router({
       })
     )
     .query(async ({ input }) => {
-      // ÉTAPE 1: Synchroniser les RDV supprimés sur Google Calendar
-      const calendarSyncService = getCalendarSyncService();
-      if (calendarSyncService) {
-        try {
-          console.log("[AvailabilityRouter] Synchronisation des RDV supprimés...");
-          const syncResult = await calendarSyncService.syncDeletedAppointments();
-          if (syncResult.cancelled > 0) {
-            console.log(`[AvailabilityRouter] ✅ ${syncResult.cancelled} RDV annulés, ${syncResult.freedSlots} créneaux libérés`);
-          }
-        } catch (syncError: any) {
-          console.warn("[AvailabilityRouter] ⚠️ Erreur de synchronisation (non bloquante):", syncError.message);
+      // ÉTAPE 1: Synchroniser automatiquement les RDV supprimés sur Google Calendar
+      // Le service AutoSync utilise un cache intelligent pour éviter les synchronisations répétées
+      const autoSyncService = getAutoSyncService();
+      try {
+        console.log("[AvailabilityRouter] 🔄 Synchronisation automatique avant affichage des créneaux...");
+        const syncResult = await autoSyncService.syncIfNeeded(false); // false = utiliser le cache si valide
+        if (syncResult && syncResult.cancelled > 0) {
+          console.log(`[AvailabilityRouter] ✅ ${syncResult.cancelled} RDV annulés, ${syncResult.freedSlots} créneaux libérés`);
         }
+      } catch (syncError: any) {
+        console.warn("[AvailabilityRouter] ⚠️ Erreur de synchronisation (non bloquante):", syncError.message);
       }
 
       // Utiliser le nouveau service de synchronisation

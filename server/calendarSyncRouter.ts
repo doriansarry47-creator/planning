@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { publicProcedure, router } from './_core/trpc';
 import { getCalendarSyncService } from './services/calendarSyncService';
 import { getGoogleCalendarService } from './services/googleCalendar';
+import { getAutoSyncService } from './services/autoSyncService';
 import { eq, and, gte, lte, or } from 'drizzle-orm';
 
 export const calendarSyncRouter = router({
@@ -304,12 +305,105 @@ export const calendarSyncRouter = router({
     .query(async () => {
       const syncService = getCalendarSyncService();
       const calendarService = getGoogleCalendarService();
+      const autoSyncService = getAutoSyncService();
 
       return {
         success: true,
         syncServiceAvailable: syncService !== null,
         calendarServiceAvailable: calendarService !== null,
+        autoSyncStats: autoSyncService.getStats(),
         timestamp: new Date().toISOString(),
       };
+    }),
+
+  /**
+   * Obtenir les statistiques de synchronisation automatique
+   */
+  getAutoSyncStats: publicProcedure
+    .input(z.object({}).optional())
+    .query(async () => {
+      const autoSyncService = getAutoSyncService();
+      const stats = autoSyncService.getStats();
+
+      return {
+        success: true,
+        stats,
+        message: stats.pollingActive 
+          ? 'Synchronisation automatique active' 
+          : 'Synchronisation automatique inactive',
+      };
+    }),
+
+  /**
+   * Forcer une synchronisation immédiate (ignorer le cache)
+   */
+  forceSyncNow: publicProcedure
+    .input(z.object({}).optional())
+    .mutation(async () => {
+      const autoSyncService = getAutoSyncService();
+
+      try {
+        console.log('[CalendarSyncRouter] 🔄 Synchronisation forcée démarrée...');
+        const result = await autoSyncService.syncIfNeeded(true); // true = forcer, ignorer le cache
+
+        return {
+          success: true,
+          result,
+          message: result && result.cancelled > 0
+            ? `Synchronisation terminée: ${result.cancelled} RDV annulés, ${result.freedSlots} créneaux libérés`
+            : 'Synchronisation terminée: Aucun changement détecté',
+        };
+      } catch (error: any) {
+        console.error('[CalendarSyncRouter] Erreur synchronisation forcée:', error);
+        return {
+          success: false,
+          error: error.message,
+          result: null,
+        };
+      }
+    }),
+
+  /**
+   * Démarrer le polling automatique
+   */
+  startAutoPolling: publicProcedure
+    .input(z.object({}).optional())
+    .mutation(async () => {
+      const autoSyncService = getAutoSyncService();
+      
+      try {
+        autoSyncService.startAutoPolling();
+        return {
+          success: true,
+          message: 'Polling automatique démarré (synchronisation toutes les 2 minutes)',
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
+    }),
+
+  /**
+   * Arrêter le polling automatique
+   */
+  stopAutoPolling: publicProcedure
+    .input(z.object({}).optional())
+    .mutation(async () => {
+      const autoSyncService = getAutoSyncService();
+      
+      try {
+        autoSyncService.stopAutoPolling();
+        return {
+          success: true,
+          message: 'Polling automatique arrêté',
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
     }),
 });
