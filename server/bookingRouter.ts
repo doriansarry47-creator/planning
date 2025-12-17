@@ -2,6 +2,7 @@ import { router, publicProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getGoogleCalendarService } from "./services/googleCalendar";
 import { getGoogleCalendarIcalService } from "./services/googleCalendarIcal";
+import { getCalendarSyncService } from "./services/calendarSyncService";
 import { appointments } from "../drizzle/schema";
 
 /**
@@ -40,7 +41,7 @@ const DEFAULT_AVAILABILITY_CONFIG = {
   morningEnd: "12:00",
   afternoonStart: "14:00", 
   afternoonEnd: "18:00",
-  slotDuration: 60, // minutes
+  slotDuration: 60, // Durée standard de 60 minutes par créneau
 };
 
 /**
@@ -104,10 +105,24 @@ export const bookingRouter = router({
     .mutation(async ({ input }) => {
       console.log("[BookingRouter BATCH] Récupération des disponibilités groupées par date");
       const service = getGoogleCalendarService();
+      const syncService = getCalendarSyncService();
       const useGoogleCalendar = service !== null;
       
       if (!useGoogleCalendar) {
         console.log("[BookingRouter] Google Calendar non configuré, utilisation des créneaux par défaut");
+      }
+
+      // ÉTAPE 1: Synchroniser les RDV supprimés sur Google Calendar
+      if (syncService) {
+        try {
+          console.log("[BookingRouter] Synchronisation des RDV supprimés...");
+          const syncResult = await syncService.syncDeletedAppointments();
+          if (syncResult.cancelled > 0) {
+            console.log(`[BookingRouter] ✅ ${syncResult.cancelled} RDV annulés, ${syncResult.freedSlots} créneaux libérés`);
+          }
+        } catch (syncError: any) {
+          console.warn("[BookingRouter] ⚠️ Erreur de synchronisation (non bloquante):", syncError.message);
+        }
       }
 
       try {

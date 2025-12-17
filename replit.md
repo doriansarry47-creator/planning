@@ -10,7 +10,19 @@ Application de prise de rendez-vous pour la thérapie sensori-motrice de Dorian 
 - **Calendar Integration**: Google Calendar (Service Account JWT)
 - **Email**: Resend API
 
-**Dernière mise à jour**: 8 décembre 2025
+**Dernière mise à jour**: 17 décembre 2025
+
+## Google Calendar Bidirectional Sync Fix (Dec 17, 2025)
+- Added CalendarSyncService for bidirectional sync between Google Calendar and database
+- **Problem Fixed**: Appointments deleted on Google Calendar were not being marked as cancelled in the database
+- **Solution**: New sync service that checks for deleted Google Calendar events and updates database status
+- Automatic sync runs before returning available slots to ensure deleted appointments free up slots
+- New `calendarSyncRouter` with endpoints for manual sync and status checking
+- Fixed 60-minute slot generation (was defaulting to 30 minutes)
+
+### New Files Added:
+- `server/services/calendarSyncService.ts` - Core sync logic
+- `server/calendarSyncRouter.ts` - API endpoints for sync
 
 ## Recent Performance Optimization (Dec 8, 2025)
 - Added batch Google Calendar API calls for slot retrieval
@@ -91,9 +103,11 @@ RESEND_API_KEY=<email service key>
 │   ├── services/
 │   │   ├── googleCalendar.ts
 │   │   ├── googleCalendarIcal.ts
+│   │   ├── calendarSyncService.ts ⭐ (Bidirectional sync)
 │   │   ├── emailService.ts
 │   │   └── smsService.ts
 │   ├── bookingRouter.ts (tRPC - Booking flow + DB save)
+│   ├── calendarSyncRouter.ts ⭐ (Sync API endpoints)
 │   ├── patientAppointmentsRouter.ts ⭐ (View/Cancel RDV)
 │   ├── routers.ts (Main router aggregator)
 │   └── db.ts (Neon PostgreSQL)

@@ -11,6 +11,7 @@ import { appointmentBookingRouter } from "./appointmentBookingRouter";
 import { patientBookingRouter } from "./patientBookingRouter";
 import { bookingRouter } from "./bookingRouter";
 import { patientAppointmentsRouter } from "./patientAppointmentsRouter";
+import { calendarSyncRouter } from "./calendarSyncRouter";
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { createPractitionerSchema } from "../shared/zodSchemas";
 
@@ -25,6 +26,7 @@ export const appRouter = router({
   patientBooking: patientBookingRouter,
   booking: bookingRouter, // Nouveau router pour la réservation simplifiée
   patientAppointments: patientAppointmentsRouter, // Nouveau router pour consulter/annuler les rendez-vous
+  calendarSync: calendarSyncRouter, // Router pour la synchronisation bidirectionnelle avec Google Calendar
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

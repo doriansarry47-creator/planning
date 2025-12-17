@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { publicProcedure, router } from './_core/trpc';
 import { getGoogleCalendarService } from './services/googleCalendar';
 import { getAvailabilitySyncService } from './services/availabilitySync';
+import { getCalendarSyncService } from './services/calendarSyncService';
 
 /**
  * Router TRPC pour la gestion des disponibilités via Google Calendar
@@ -141,10 +142,24 @@ export const availabilityRouter = router({
       z.object({
         startDate: z.string().datetime(),
         endDate: z.string().datetime(),
-        slotDuration: z.number().min(15).max(120).optional().default(30),
+        slotDuration: z.number().min(15).max(120).optional().default(60),
       })
     )
     .query(async ({ input }) => {
+      // ÉTAPE 1: Synchroniser les RDV supprimés sur Google Calendar
+      const calendarSyncService = getCalendarSyncService();
+      if (calendarSyncService) {
+        try {
+          console.log("[AvailabilityRouter] Synchronisation des RDV supprimés...");
+          const syncResult = await calendarSyncService.syncDeletedAppointments();
+          if (syncResult.cancelled > 0) {
+            console.log(`[AvailabilityRouter] ✅ ${syncResult.cancelled} RDV annulés, ${syncResult.freedSlots} créneaux libérés`);
+          }
+        } catch (syncError: any) {
+          console.warn("[AvailabilityRouter] ⚠️ Erreur de synchronisation (non bloquante):", syncError.message);
+        }
+      }
+
       // Utiliser le nouveau service de synchronisation
       const syncService = getAvailabilitySyncService();
       
