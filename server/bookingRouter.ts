@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getGoogleCalendarService } from "./services/googleCalendar";
 import { getGoogleCalendarIcalService } from "./services/googleCalendarIcal";
 import { getCalendarSyncService } from "./services/calendarSyncService";
+import { getAutoSyncService } from "./services/autoSyncService";
 import { appointments } from "../drizzle/schema";
 
 /**
@@ -105,24 +106,23 @@ export const bookingRouter = router({
     .mutation(async ({ input }) => {
       console.log("[BookingRouter BATCH] Récupération des disponibilités groupées par date");
       const service = getGoogleCalendarService();
-      const syncService = getCalendarSyncService();
+      const autoSyncService = getAutoSyncService();
       const useGoogleCalendar = service !== null;
       
       if (!useGoogleCalendar) {
         console.log("[BookingRouter] Google Calendar non configuré, utilisation des créneaux par défaut");
       }
 
-      // ÉTAPE 1: Synchroniser les RDV supprimés sur Google Calendar
-      if (syncService) {
-        try {
-          console.log("[BookingRouter] Synchronisation des RDV supprimés...");
-          const syncResult = await syncService.syncDeletedAppointments();
-          if (syncResult.cancelled > 0) {
-            console.log(`[BookingRouter] ✅ ${syncResult.cancelled} RDV annulés, ${syncResult.freedSlots} créneaux libérés`);
-          }
-        } catch (syncError: any) {
-          console.warn("[BookingRouter] ⚠️ Erreur de synchronisation (non bloquante):", syncError.message);
+      // ÉTAPE 1: Synchroniser automatiquement les RDV supprimés sur Google Calendar
+      // Le service AutoSync utilise un cache intelligent pour éviter les synchronisations répétées
+      try {
+        console.log("[BookingRouter] 🔄 Synchronisation automatique avant affichage des créneaux...");
+        const syncResult = await autoSyncService.syncIfNeeded(false); // false = utiliser le cache si valide
+        if (syncResult && syncResult.cancelled > 0) {
+          console.log(`[BookingRouter] ✅ ${syncResult.cancelled} RDV annulés, ${syncResult.freedSlots} créneaux libérés`);
         }
+      } catch (syncError: any) {
+        console.warn("[BookingRouter] ⚠️ Erreur de synchronisation (non bloquante):", syncError.message);
       }
 
       try {
