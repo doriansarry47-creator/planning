@@ -450,10 +450,16 @@ ${patientInfo.reason ? `\n💬 Motif: ${patientInfo.reason}` : ''}`;
         timeMax: endDate.toISOString(),
         singleEvents: true,
         orderBy: 'startTime',
+        showDeleted: false, // NE PAS inclure les événements supprimés
       });
 
       const slots: TimeSlot[] = [];
-      const events = response.data.items || [];
+      const allEvents = response.data.items || [];
+      
+      // Filtrer les événements annulés ou supprimés
+      const events = allEvents.filter((event: any) => 
+        event.status !== 'cancelled' && event.status !== 'deleted'
+      );
 
       for (const event of events) {
         const status = event.extendedProperties?.private?.status || 'available';

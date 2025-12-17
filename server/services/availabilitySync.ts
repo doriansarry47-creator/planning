@@ -60,19 +60,27 @@ export class AvailabilitySyncService {
       console.log('[AvailabilitySync] Récupération des créneaux disponibles...');
       
       // Récupérer tous les événements du calendrier
+      // showDeleted: false pour exclure les événements supprimés
       const response = await this.calendar.events.list({
         calendarId: this.config.calendarId,
         timeMin: startDate.toISOString(),
         timeMax: endDate.toISOString(),
         singleEvents: true,
         orderBy: 'startTime',
+        showDeleted: false, // NE PAS inclure les événements supprimés
       });
 
       const events = response.data.items || [];
       console.log(`[AvailabilitySync] ${events.length} événements trouvés dans le calendrier`);
 
+      // Filtrer les événements annulés (status !== 'cancelled')
+      const activeEvents = events.filter((event: any) => 
+        event.status !== 'cancelled' && event.status !== 'deleted'
+      );
+      console.log(`[AvailabilitySync] ${activeEvents.length} événements actifs (${events.length - activeEvents.length} annulés/supprimés ignorés)`);
+
       // Séparer les créneaux de disponibilité des rendez-vous
-      const availabilityEvents = events.filter((event: any) => {
+      const availabilityEvents = activeEvents.filter((event: any) => {
         // Un créneau de disponibilité doit avoir la propriété isAvailabilitySlot = true
         // OU contenir des mots-clés dans le titre ET être transparent
         const isSlot = event.extendedProperties?.private?.isAvailabilitySlot === 'true';
@@ -83,7 +91,7 @@ export class AvailabilitySyncService {
         return isSlot || (isTransparent && hasAvailabilityKeyword);
       });
 
-      const bookedEvents = events.filter((event: any) => {
+      const bookedEvents = activeEvents.filter((event: any) => {
         // Un rendez-vous est tout événement qui N'EST PAS un créneau de disponibilité
         // ET qui bloque le calendrier (opaque)
         const isSlot = event.extendedProperties?.private?.isAvailabilitySlot === 'true';

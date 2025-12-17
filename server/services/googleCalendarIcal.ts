@@ -355,9 +355,15 @@ export class GoogleCalendarIcalService {
         timeMax: endDateTime.toISOString(),
         q: 'DISPONIBLE',
         singleEvents: true,
+        showDeleted: false, // NE PAS inclure les événements supprimés
       });
 
-      const events = response.data.items || [];
+      const allEvents = response.data.items || [];
+      
+      // Filtrer les événements annulés ou supprimés
+      const events = allEvents.filter((event: any) => 
+        event.status !== 'cancelled' && event.status !== 'deleted'
+      );
       
       for (const event of events) {
         if (event.start?.dateTime && event.end?.dateTime) {

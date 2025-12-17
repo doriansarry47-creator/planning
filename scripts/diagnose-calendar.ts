@@ -86,10 +86,19 @@ async function diagnoseCalendar() {
       timeMax: endDate.toISOString(),
       singleEvents: true,
       orderBy: 'startTime',
+      showDeleted: false, // NE PAS inclure les événements supprimés
     });
     
-    const events = response.data.items || [];
-    console.log(`\n📊 Total d'événements trouvés: ${events.length}`);
+    const allEvents = response.data.items || [];
+    
+    // Filtrer les événements annulés ou supprimés
+    const events = allEvents.filter((event: any) => 
+      event.status !== 'cancelled' && event.status !== 'deleted'
+    );
+    
+    console.log(`\n📊 Total d'événements trouvés: ${allEvents.length}`);
+    console.log(`✅ Événements actifs: ${events.length}`);
+    console.log(`❌ Événements annulés/supprimés: ${allEvents.length - events.length}`);
     
     // 4. Analyser les événements
     console.log('\n📋 ÉTAPE 4 : Analyse des événements');

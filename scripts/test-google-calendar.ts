@@ -51,10 +51,21 @@ async function testGoogleCalendarConnection() {
       maxResults: 10,
       singleEvents: true,
       orderBy: 'startTime',
+      showDeleted: false, // NE PAS inclure les événements supprimés
     });
 
-    const events = response.data.items || [];
-    console.log(`✓ ${events.length} événements trouvés pour les 7 prochains jours\n`);
+    const allEvents = response.data.items || [];
+    
+    // Filtrer les événements annulés ou supprimés
+    const events = allEvents.filter((event: any) => 
+      event.status !== 'cancelled' && event.status !== 'deleted'
+    );
+    
+    console.log(`✓ ${events.length} événements actifs trouvés pour les 7 prochains jours`);
+    if (allEvents.length > events.length) {
+      console.log(`  (${allEvents.length - events.length} événements annulés/supprimés ignorés)`);
+    }
+    console.log('');
 
     // 5. Afficher les événements
     if (events.length > 0) {
