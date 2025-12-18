@@ -2,7 +2,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
-import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -10,11 +9,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { trpc, trpcClient, queryClient } from "./lib/trpc";
 import Home from "./pages/Home";
 import MyAppointments from "./pages/MyAppointments";
-import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import CancelAppointment from "./pages/CancelAppointment";
 import AvailableSlots from "./pages/AvailableSlots";
-import AdminAvailability from "./pages/AdminAvailability";
 import OptimizedBooking from "./pages/OptimizedBookAppointment";
 
 function Router() {
@@ -28,8 +25,6 @@ function Router() {
       <Route path={"/login"} component={Login} />
       <Route path={"/appointments/cancel/:hash"} component={CancelAppointment} />
       <Route path={"/appointments"} component={MyAppointments} />
-      <Route path={"/admin"} component={() => <ProtectedRoute component={AdminDashboard} role="admin" />} />
-      <Route path={"/admin/availability"} component={() => <ProtectedRoute component={AdminAvailability} role="admin" />} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
