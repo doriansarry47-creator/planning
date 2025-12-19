@@ -151,6 +151,28 @@ export const bookingRouter = router({
               });
             }
           }
+
+          // Fallback: Si Google Calendar n'a pas retourné de créneaux, utiliser les créneaux par défaut
+          if (Object.keys(slotsByDate).length === 0) {
+            console.log("[BookingRouter] ⚠️ Google Calendar a retourné aucun créneau, basculement sur les créneaux par défaut");
+            const currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+              const daySlots = generateDefaultSlotsForDate(new Date(currentDate));
+              
+              if (daySlots.length > 0) {
+                const dateStr = currentDate.toISOString().split('T')[0];
+                slotsByDate[dateStr] = daySlots.map(slotTime => ({
+                  date: dateStr,
+                  startTime: slotTime,
+                  endTime: `${(parseInt(slotTime.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+                  duration: 60,
+                  title: "Disponible (60 min)",
+                }));
+              }
+              
+              currentDate.setDate(currentDate.getDate() + 1);
+            }
+          }
         } else {
           // Utiliser les créneaux par défaut
           const currentDate = new Date(startDate);
