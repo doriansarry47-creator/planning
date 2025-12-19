@@ -835,7 +835,10 @@ export async function getAvailableSlots(practitionerId?: number, startDate?: Dat
   }
 
   try {
-    let conditions = [];
+    let conditions = [
+      eq(availabilitySlots.isActive, true),
+      eq(availabilitySlots.isAvailable, true)
+    ];
     
     if (practitionerId) {
       conditions.push(eq(availabilitySlots.practitionerId, practitionerId));
@@ -846,11 +849,11 @@ export async function getAvailableSlots(practitionerId?: number, startDate?: Dat
       conditions.push(lte(availabilitySlots.startTime, endDate));
     }
     
-    const query = conditions.length > 0 
-      ? db.select().from(availabilitySlots).where(and(...conditions))
-      : db.select().from(availabilitySlots);
+    const result = await db.select()
+      .from(availabilitySlots)
+      .where(and(...conditions))
+      .orderBy(availabilitySlots.startTime);
     
-    const result = await query.orderBy(availabilitySlots.startTime);
     return result;
   } catch (error) {
     console.error("[Database] Failed to get available slots:", error);
