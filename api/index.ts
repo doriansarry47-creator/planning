@@ -134,7 +134,7 @@ class GoogleCalendarService {
 
       const response = await calendar.events.insert({
         calendarId: calendarId,
-        resource: event,
+        requestBody: event,
         sendUpdates: 'none', // Ne pas envoyer de notifications Google Calendar
       });
 

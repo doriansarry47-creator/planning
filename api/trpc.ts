@@ -271,7 +271,7 @@ async function createGoogleCalendarEvent(appointmentData: {
 
     const response = await calendar.events.insert({
       calendarId: targetCalendarId || serviceAccountEmail,
-      resource: event,
+      requestBody: event,
       sendUpdates: 'all',
     });
 
