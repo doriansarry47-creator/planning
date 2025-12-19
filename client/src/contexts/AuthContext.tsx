@@ -4,7 +4,7 @@ interface User {
   id: string;
   email: string;
   name?: string;
-  role: 'admin' | 'practitioner' | 'user';
+  role: 'practitioner' | 'user';
 }
 
 interface AuthContextType {
@@ -13,7 +13,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   setUser: (user: User | null) => void;
   setIsAuthenticated: (value: boolean) => void;
-  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -47,64 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      // 🔹 Vérifie d'abord le compte administrateur local
-      if (email === 'doriansarry@yahoo.fr' && password === 'admin123') {
-        const adminUser: User = {
-          id: '1',
-          email,
-          name: 'Administrateur',
-          role: 'admin',
-        };
-
-        setUser(adminUser);
-        setIsAuthenticated(true);
-        localStorage.setItem('authUser', JSON.stringify(adminUser));
-        return true;
-      }
-
-      // 🔹 Authentification via l'API uniquement si ce n'est pas le compte admin local
-      try {
-        const response = await fetch('/trpc/admin.login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ json: { email, password } }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const apiUser = data.result?.data?.json?.user;
-
-          if (data.result?.data?.json?.success && apiUser) {
-            const authenticatedUser: User = {
-              id: String(apiUser.id),
-              email: apiUser.email,
-              name: apiUser.name,
-              role: apiUser.role,
-            };
-
-            setUser(authenticatedUser);
-            setIsAuthenticated(true);
-            localStorage.setItem('authUser', JSON.stringify(authenticatedUser));
-            return true;
-          }
-        }
-      } catch (apiError) {
-        // Si l'API n'est pas disponible, on continue sans erreur fatale
-        console.warn('API non disponible, seule l\'authentification locale est active');
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Erreur lors de la connexion:', error);
-      return false;
-    }
-  };
-
   const logout = async () => {
     try {
-      // 🔹 Déconnexion côté serveur (si API disponible)
+      // Déconnexion côté serveur (si API disponible)
       await fetch('/trpc/auth.logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn('Déconnexion API non disponible, nettoyage local uniquement');
     }
 
-    // 🔹 Nettoyage local
+    // Nettoyage local
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('authUser');
@@ -128,7 +72,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated,
         setUser,
         setIsAuthenticated,
-        login,
         logout,
       }}
     >

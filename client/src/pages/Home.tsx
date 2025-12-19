@@ -10,7 +10,7 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog';
-import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info, Lock, Sparkles, Calendar } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info, Sparkles, Calendar } from 'lucide-react';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,20 +25,6 @@ export default function Home() {
       </div>
       
       <div className="relative z-10">
-      {/* Bouton Admin Discret - Position fixe en haut à droite */}
-      <Link href="/login">
-        <button 
-          className="fixed top-4 right-4 z-50 p-2 rounded-full bg-gray-100/50 hover:bg-gray-200/80 
-                     text-gray-400 hover:text-gray-600 transition-all duration-300 
-                     backdrop-blur-sm border border-gray-200/30 hover:border-gray-300/50
-                     shadow-sm hover:shadow-md group"
-          aria-label="Accès administrateur"
-          title="Accès administrateur"
-        >
-          <Lock className="h-4 w-4 group-hover:scale-110 transition-transform" />
-        </button>
-      </Link>
-
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-20 md:py-32">
         <div className="max-w-5xl mx-auto text-center">

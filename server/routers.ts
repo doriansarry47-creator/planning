@@ -3,7 +3,6 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { timeOffRouter } from "./timeOffRouter";
 import { availabilitySlotsRouter } from "./availabilitySlotsRouter";
-import { adminRouter } from "./adminRouter";
 import { servicesRouter } from "./servicesRouter";
 import { scheduleRouter } from "./scheduleRouter";
 import { googleCalendarRouter } from "./googleCalendarRouter";
@@ -12,13 +11,12 @@ import { patientBookingRouter } from "./patientBookingRouter";
 import { bookingRouter } from "./bookingRouter";
 import { patientAppointmentsRouter } from "./patientAppointmentsRouter";
 import { calendarSyncRouter } from "./calendarSyncRouter";
-import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { createPractitionerSchema } from "../shared/zodSchemas";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
-  admin: adminRouter,
   services: servicesRouter,
   schedule: scheduleRouter,
   googleCalendar: googleCalendarRouter,
@@ -50,7 +48,7 @@ export const appRouter = router({
       const { getPractitionerById } = await import("./db");
       return getPractitionerById(input);
     }),
-    create: adminProcedure.input(createPractitionerSchema).mutation(async ({ input }) => {
+    create: publicProcedure.input(createPractitionerSchema).mutation(async ({ input }) => {
       const { createPractitioner, getUserByEmail, upsertUser } = await import("./db");
       
       // 1. Trouver l'utilisateur par email
@@ -95,7 +93,7 @@ export const appRouter = router({
      * Supprime uniquement les rendez-vous créés via le système de réservation en ligne
      * et pas ceux ajoutés manuellement
      */
-    resetWebAppointments: adminProcedure.mutation(async () => {
+    resetWebAppointments: publicProcedure.mutation(async () => {
       const { getDb } = await import("./db");
       const { appointments } = await import("../drizzle/schema");
       const { eq, isNotNull } = await import("drizzle-orm");
