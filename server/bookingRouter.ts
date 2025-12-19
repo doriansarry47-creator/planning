@@ -109,8 +109,9 @@ export const bookingRouter = router({
       const autoSyncService = getAutoSyncService();
       const useGoogleCalendar = service !== null;
       
+      console.log(`[BookingRouter] Google Calendar configured: ${useGoogleCalendar}`);
       if (!useGoogleCalendar) {
-        console.log("[BookingRouter] Google Calendar non configuré, utilisation des créneaux par défaut");
+        console.log("[BookingRouter] ℹ️ Google Calendar non configuré, utilisation des créneaux par défaut + iCal");
       }
 
       // ÉTAPE 1: Synchroniser automatiquement les RDV supprimés sur Google Calendar

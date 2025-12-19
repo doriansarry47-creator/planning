@@ -10,8 +10,10 @@ export const ENV = {
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   appUrl: process.env.APP_URL ?? "http://localhost:5173",
   
-  // Google Calendar Configuration
-  // Configuration Google Calendar (Service Account)
+  // Google Calendar Configuration (Service Account JWT)
   googleCalendarId: process.env.GOOGLE_CALENDAR_ID ?? "doriansarry47@gmail.com",
+  googleServiceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "",
+  googleServiceAccountPrivateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? process.env.GOOGLE_CALENDAR_PRIVATE_KEY ?? "",
+  googleCalendarIcalUrl: process.env.GOOGLE_CALENDAR_ICAL_URL ?? "",
   googleServiceAccountJsonPath: process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH ?? "./server/google-service-account.json",
 };
