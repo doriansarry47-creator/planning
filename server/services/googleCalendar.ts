@@ -471,8 +471,11 @@ export class GoogleCalendarService {
           const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
           const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
 
-            const dateStr = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
-            const slotKey = `${dateStr}|${startTimeStr}|${endTimeStr}`;
+            // Extraire la date normalisée (YYYY-MM-DD)
+            const dateStrNormalized = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
+            const [year, month, day] = dateStrNormalized.split('-').map(Number);
+            
+            const slotKey = `${dateStrNormalized}|${startTimeStr}|${endTimeStr}`;
             
             const isBooked = appointments.some((appt: any) => {
               if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
@@ -506,10 +509,6 @@ export class GoogleCalendarService {
         */
             const isAvailable = !isBooked;
             
-            // Extraire la date normalisée (YYYY-MM-DD)
-            const dateStr = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
-            const [year, month, day] = dateStr.split('-').map(Number);
-            
             slots.push({
               date: new Date(year, month - 1, day),
               startTime: startTimeStr,
@@ -518,7 +517,7 @@ export class GoogleCalendarService {
             });
 
             if (isAvailable) {
-              console.log(`[GoogleCalendar] ✅ Créneau conservé (filtrage frontend requis): ${startTimeStr} - ${endTimeStr} (${dateStr})`);
+              console.log(`[GoogleCalendar] ✅ Créneau conservé (filtrage frontend requis): ${startTimeStr} - ${endTimeStr} (${dateStrNormalized})`);
             }
         /*
           } else {

@@ -142,6 +142,7 @@ export class GoogleCalendarIcalService {
             bookedSlots.add(slotKey);
             console.log('[GoogleCalendarIcal] 🗄️ Créneau réservé (BD):', slotKey);
           }
+        }
       } catch (dbError) {
         console.warn('[GoogleCalendarIcal] Impossible de vérifier les rdv en BD:', dbError);
       }
