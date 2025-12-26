@@ -471,22 +471,30 @@ export class GoogleCalendarService {
           const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
           const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
 
-          // Vérifier si ce créneau est libre (pas de rendez-vous qui chevauche)
-          const isBooked = appointments.some((appt: any) => {
-            if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
-            const apptStart = new Date(appt.start.dateTime);
-            const apptEnd = new Date(appt.end.dateTime);
+            const dateStr = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
+            const slotKey = `${dateStr}|${startTimeStr}|${endTimeStr}`;
             
-            // Il y a chevauchement si le début du slot est avant la fin du RDV 
-            // ET la fin du slot est après le début du RDV
-            const overlaps = currentTime < apptEnd && nextTime > apptStart;
-            
-            if (overlaps) {
-              console.log(`[GoogleCalendar] ❌ Créneau ${startTimeStr} déjà réservé (RDV: ${appt.summary})`);
-            }
-            
-            return overlaps;
-          });
+            const isBooked = appointments.some((appt: any) => {
+              if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
+              const apptStart = new Date(appt.start.dateTime);
+              const apptEnd = new Date(appt.end.dateTime);
+              
+              // Clé de l'événement réservé pour le log
+              const bookedDate = formatInTimeZone(apptStart, TIMEZONE, 'yyyy-MM-dd');
+              const bookedStart = formatInTimeZone(apptStart, TIMEZONE, 'HH:mm');
+              const bookedEnd = formatInTimeZone(apptEnd, TIMEZONE, 'HH:mm');
+              const bookedKey = `${bookedDate}|${bookedStart}|${bookedEnd}`;
+              
+              // Il y a chevauchement si le début du slot est avant la fin du RDV 
+              // ET la fin du slot est après le début du RDV
+              const overlaps = currentTime < apptEnd && nextTime > apptStart;
+              
+              if (overlaps) {
+                console.log(`[GoogleCalendar] ⛔ Slot ${slotKey} bloqué par RDV ${bookedKey} (${appt.summary})`);
+              }
+              
+              return overlaps;
+            });
 
         // COMMENTÉ: Filtrage "now" déplacé vers le frontend
         /*
