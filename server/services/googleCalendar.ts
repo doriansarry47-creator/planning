@@ -476,11 +476,13 @@ export class GoogleCalendarService {
             return overlaps;
           });
 
-          // Ne pas inclure les créneaux dans le passé
-          const now = new Date();
-          const isPast = nextTime <= now;
-          
-          if (!isPast) {
+        // Ne pas inclure les créneaux dans le passé
+        // On utilise le début de la journée actuelle pour permettre les réservations le jour même
+        // mais on filtre quand même les heures passées
+        const now = new Date();
+        const isPast = nextTime <= now;
+        
+        if (!isPast) {
             const isAvailable = !isBooked;
             
             slots.push({
