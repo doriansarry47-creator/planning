@@ -45,22 +45,40 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
   const icalUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
   
   if (!icalUrl) {
-    console.warn('[Vercel TRPC] GOOGLE_CALENDAR_ICAL_URL non configure');
+    console.error('[Vercel TRPC] ❌ GOOGLE_CALENDAR_ICAL_URL non configure');
+    console.error('[Vercel TRPC] Variables env disponibles:', Object.keys(process.env).filter(k => k.includes('GOOGLE')));
     return [];
   }
 
   try {
-    console.log('[Vercel TRPC] Recuperation des disponibilites depuis iCal URL...');
+    console.log('[Vercel TRPC] 📅 Recuperation des disponibilites depuis iCal URL...');
+    console.log('[Vercel TRPC] 🌍 Environnement:', {
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      serverTime: new Date().toISOString(),
+    });
+    console.log('[Vercel TRPC] 🔗 iCal URL (tronqué):', icalUrl.substring(0, 50) + '...');
     
     const now = new Date();
     const filterStartDate = startDate || now;
     const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
+    console.log('[Vercel TRPC] 📆 Période de recherche:', {
+      start: filterStartDate.toISOString(),
+      end: filterEndDate.toISOString(),
+      now: now.toISOString(),
+    });
+
     const slots: AvailableSlot[] = [];
     const bookedSlotsFromIcal: Set<string> = new Set();
 
+    const startFetch = Date.now();
     const events = await ical.async.fromURL(icalUrl);
-    console.log('[Vercel TRPC] Evenements total dans iCal:', Object.keys(events).length);
+    const fetchDuration = Date.now() - startFetch;
+    
+    console.log('[Vercel TRPC] ✅ Fetch iCal réussi en', fetchDuration, 'ms');
+    console.log('[Vercel TRPC] 📋 Evenements total dans iCal:', Object.keys(events).length);
     
     // Premiere passe: collecter les creneaux reserves (rendez-vous) depuis iCal
     Object.values(events).forEach((event: any) => {
@@ -166,7 +184,18 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
       });
     });
 
-    console.log(`[Vercel TRPC] ${slots.length} creneaux disponibles trouves (apres filtrage)`);
+    console.log(`[Vercel TRPC] ✅ ${slots.length} creneaux disponibles trouves (apres filtrage)`);
+    
+    if (slots.length > 0) {
+      console.log('[Vercel TRPC] 📊 Exemples de créneaux:', slots.slice(0, 3).map(s => 
+        `${s.date} ${s.startTime}-${s.endTime}`
+      ));
+    } else {
+      console.warn('[Vercel TRPC] ⚠️ AUCUN créneau disponible trouvé - Vérifier:');
+      console.warn('  1. Les événements iCal contiennent "disponible" ou "available" dans le titre');
+      console.warn('  2. Les créneaux sont dans le futur');
+      console.warn('  3. Les créneaux ne sont pas déjà réservés');
+    }
     
     slots.sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
@@ -175,8 +204,23 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
     });
 
     return slots;
-  } catch (error) {
-    console.error('[Vercel TRPC] Erreur lors de la recuperation des disponibilites:', error);
+  } catch (error: any) {
+    console.error('[Vercel TRPC] ❌ Erreur lors de la recuperation des disponibilites:', error);
+    console.error('[Vercel TRPC] Type d\'erreur:', error.constructor.name);
+    console.error('[Vercel TRPC] Message:', error.message);
+    console.error('[Vercel TRPC] Stack:', error.stack);
+    
+    // Détails supplémentaires selon le type d'erreur
+    if (error.code) {
+      console.error('[Vercel TRPC] Code d\'erreur:', error.code);
+    }
+    if (error.response) {
+      console.error('[Vercel TRPC] Réponse HTTP:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+      });
+    }
+    
     return [];
   }
 }
