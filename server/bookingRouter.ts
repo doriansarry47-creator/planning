@@ -45,21 +45,29 @@ const DEFAULT_AVAILABILITY_CONFIG = {
   slotDuration: 60, // Durée standard de 60 minutes par créneau
 };
 
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+
+const TIMEZONE = 'Europe/Paris';
+
+// ... (reste des imports)
+
 /**
  * Générer les créneaux de disponibilité par défaut pour une date donnée
- * Utilisé comme fallback quand Google Calendar n'est pas disponible
  */
 function generateDefaultSlotsForDate(date: Date): string[] {
   const dayOfWeek = date.getDay();
   const slots: string[] = [];
+  
+  // Normaliser 'now' en Europe/Paris
   const now = new Date();
+  const nowZoned = toZonedTime(now, TIMEZONE);
   
   // Vérifier si c'est un jour de travail
   if (!DEFAULT_AVAILABILITY_CONFIG.workDays.includes(dayOfWeek)) {
     return [];
   }
   
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = formatInTimeZone(toZonedTime(date, TIMEZONE), TIMEZONE, 'yyyy-MM-dd');
   
   // Générer les créneaux du matin
   let [hours, minutes] = DEFAULT_AVAILABILITY_CONFIG.morningStart.split(':').map(Number);
@@ -67,14 +75,14 @@ function generateDefaultSlotsForDate(date: Date): string[] {
   
   while (hours < endMorningHours) {
     const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    const slotDateTime = new Date(`${dateStr}T${slotTime}:00`);
+    const slotDateTime = toZonedTime(new Date(`${dateStr}T${slotTime}:00`), TIMEZONE);
     
     // Ne pas inclure les créneaux passés
-    if (slotDateTime > now) {
+    if (slotDateTime.getTime() > nowZoned.getTime()) {
       slots.push(slotTime);
     }
     
-    hours += 1; // Créneaux de 60 minutes
+    hours += 1;
   }
   
   // Générer les créneaux de l'après-midi
@@ -83,14 +91,14 @@ function generateDefaultSlotsForDate(date: Date): string[] {
   
   while (hours < endAfternoonHours) {
     const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    const slotDateTime = new Date(`${dateStr}T${slotTime}:00`);
+    const slotDateTime = toZonedTime(new Date(`${dateStr}T${slotTime}:00`), TIMEZONE);
     
     // Ne pas inclure les créneaux passés
-    if (slotDateTime > now) {
+    if (slotDateTime.getTime() > nowZoned.getTime()) {
       slots.push(slotTime);
     }
     
-    hours += 1; // Créneaux de 60 minutes
+    hours += 1;
   }
   
   return slots;

@@ -1,13 +1,16 @@
 import ical from 'node-ical';
 import { google } from 'googleapis';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 
 /**
  * Service pour lire les disponibilités depuis Google Calendar via iCal
  * et créer des rendez-vous avec la clé privée
  */
 
+const TIMEZONE = 'Europe/Paris';
+
 export interface AvailableSlot {
-  date: string; // Format ISO date
+  date: string; // Format ISO date (YYYY-MM-DD)
   startTime: string; // Format HH:mm
   endTime: string; // Format HH:mm
   duration: number; // En minutes
@@ -56,11 +59,16 @@ export class GoogleCalendarIcalService {
   async getAvailableSlots(startDate?: Date, endDate?: Date): Promise<AvailableSlot[]> {
     try {
       console.log('[GoogleCalendarIcal] Récupération des disponibilités depuis iCal URL...');
-      console.log('[GoogleCalendarIcal] URL iCal:', this.icalUrl?.substring(0, 100) + '...');
       
+      // Normaliser 'now' en Europe/Paris
       const now = new Date();
-      const filterStartDate = startDate || now;
-      const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      const nowZoned = toZonedTime(now, TIMEZONE);
+      
+      const filterStartDate = startDate ? toZonedTime(startDate, TIMEZONE) : nowZoned;
+      const filterEndDate = endDate ? toZonedTime(endDate, TIMEZONE) : toZonedTime(new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), TIMEZONE);
+
+      console.log(`[GoogleCalendarIcal] 🕒 Temps actuel (Normalisé): ${formatInTimeZone(nowZoned, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')}`);
+      console.log(`[GoogleCalendarIcal] 📅 Filtre du ${formatInTimeZone(filterStartDate, TIMEZONE, 'yyyy-MM-dd')} au ${formatInTimeZone(filterEndDate, TIMEZONE, 'yyyy-MM-dd')}`);
 
       const slots: AvailableSlot[] = [];
       const bookedSlots: Set<string> = new Set();
@@ -86,11 +94,12 @@ export class GoogleCalendarIcalService {
           title.includes('🩺');
 
         if (isBooked) {
-          const eventStart = new Date(event.start);
-          const eventEnd = new Date(event.end);
-          const dateStr = eventStart.toISOString().split('T')[0];
-          const startTime = eventStart.toTimeString().slice(0, 5);
-          const endTime = eventEnd.toTimeString().slice(0, 5);
+          const eventStart = toZonedTime(new Date(event.start), TIMEZONE);
+          const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);
+          
+          const dateStr = formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd');
+          const startTime = formatInTimeZone(eventStart, TIMEZONE, 'HH:mm');
+          const endTime = formatInTimeZone(eventEnd, TIMEZONE, 'HH:mm');
           
           const slotKey = `${dateStr}|${startTime}|${endTime}`;
           bookedSlots.add(slotKey);
@@ -122,11 +131,12 @@ export class GoogleCalendarIcalService {
             );
 
           for (const apt of dbAppointments) {
-            const aptStart = new Date(apt.startTime);
-            const aptEnd = new Date(apt.endTime);
-            const dateStr = aptStart.toISOString().split('T')[0];
-            const startTime = aptStart.toTimeString().slice(0, 5);
-            const endTime = aptEnd.toTimeString().slice(0, 5);
+            const aptStart = toZonedTime(new Date(apt.startTime), TIMEZONE);
+            const aptEnd = toZonedTime(new Date(apt.endTime), TIMEZONE);
+            
+            const dateStr = formatInTimeZone(aptStart, TIMEZONE, 'yyyy-MM-dd');
+            const startTime = formatInTimeZone(aptStart, TIMEZONE, 'HH:mm');
+            const endTime = formatInTimeZone(aptEnd, TIMEZONE, 'HH:mm');
             
             const slotKey = `${dateStr}|${startTime}|${endTime}`;
             bookedSlots.add(slotKey);
@@ -154,22 +164,25 @@ export class GoogleCalendarIcalService {
 
         if (!isAvailable) return;
 
-        const eventStart = new Date(event.start);
-        const eventEnd = new Date(event.end);
+        const eventStart = toZonedTime(new Date(event.start), TIMEZONE);
+        const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);
 
-        // Filtrer par date
-        if (eventStart < filterStartDate || eventStart > filterEndDate) return;
+        // Filtrer par date (Comparaion d'objets Date normalisés)
+        if (eventStart.getTime() < filterStartDate.getTime() || eventStart.getTime() > filterEndDate.getTime()) return;
 
-        // Vérifier que l'événement est dans le futur
-        if (eventStart < now) return;
+        // Vérifier que l'événement est dans le futur (Comparaion d'objets Date normalisés)
+        if (eventStart.getTime() < nowZoned.getTime()) {
+           console.log(`[GoogleCalendarIcal] ⏭️ Créneau passé ignoré: ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
+           return;
+        }
 
         // Calculer la durée en minutes
         const duration = Math.round((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60));
 
-        // Extraire la date et les heures
-        const dateStr = eventStart.toISOString().split('T')[0];
-        const startTime = eventStart.toTimeString().slice(0, 5);
-        const endTime = eventEnd.toTimeString().slice(0, 5);
+        // Extraire la date et les heures normalisées
+        const dateStr = formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd');
+        const startTime = formatInTimeZone(eventStart, TIMEZONE, 'HH:mm');
+        const endTime = formatInTimeZone(eventEnd, TIMEZONE, 'HH:mm');
 
         // Vérifier que ce créneau n'est pas déjà réservé
         const slotKey = `${dateStr}|${startTime}|${endTime}`;
@@ -267,18 +280,17 @@ export class GoogleCalendarIcalService {
    */
   async bookAppointment(appointment: AppointmentData): Promise<string | null> {
     try {
-      // Construire la date/heure de début
-      const startDateTime = new Date(appointment.date);
+      // Normaliser les dates pour Google Calendar
+      const startDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
       const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
       startDateTime.setHours(startHours, startMinutes, 0, 0);
 
-      // Construire la date/heure de fin
-      const endDateTime = new Date(appointment.date);
+      const endDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
       const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
       // Vérifier d'abord que le créneau est disponible
-      const dateStr = appointment.date.toISOString().split('T')[0];
+      const dateStr = formatInTimeZone(startDateTime, TIMEZONE, 'yyyy-MM-dd');
       const isAvailable = await this.isSlotAvailable(dateStr, appointment.startTime, appointment.endTime);
       
       if (!isAvailable) {
@@ -302,11 +314,11 @@ export class GoogleCalendarIcalService {
         description: description,
         start: {
           dateTime: startDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
+          timeZone: TIMEZONE,
         },
         end: {
           dateTime: endDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
+          timeZone: TIMEZONE,
         },
         // SANS attendees pour éviter l'erreur Domain-Wide Delegation
         reminders: {
@@ -344,9 +356,9 @@ export class GoogleCalendarIcalService {
    */
   private async removeAvailabilitySlot(date: string, startTime: string, endTime: string): Promise<void> {
     try {
-      // Construire les dates
-      const startDateTime = new Date(date + 'T' + startTime + ':00');
-      const endDateTime = new Date(date + 'T' + endTime + ':00');
+      // Construire les dates normalisées pour la recherche
+      const startDateTime = toZonedTime(new Date(`${date}T${startTime}:00`), TIMEZONE);
+      const endDateTime = toZonedTime(new Date(`${date}T${endTime}:00`), TIMEZONE);
 
       // Rechercher l'événement de disponibilité correspondant
       const response = await this.calendar.events.list({
@@ -413,11 +425,11 @@ export class GoogleCalendarIcalService {
    */
   async updateAppointment(eventId: string, appointment: AppointmentData): Promise<boolean> {
     try {
-      const startDateTime = new Date(appointment.date);
+      const startDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
       const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
       startDateTime.setHours(startHours, startMinutes, 0, 0);
 
-      const endDateTime = new Date(appointment.date);
+      const endDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
       const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
@@ -435,11 +447,11 @@ export class GoogleCalendarIcalService {
         description: description,
         start: {
           dateTime: startDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
+          timeZone: TIMEZONE,
         },
         end: {
           dateTime: endDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
+          timeZone: TIMEZONE,
         },
         attendees: [
           { email: appointment.patientEmail, displayName: appointment.patientName },

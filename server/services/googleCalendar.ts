@@ -1,4 +1,7 @@
 import { google } from 'googleapis';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+
+const TIMEZONE = 'Europe/Paris';
 
 /**
  * Service Google Calendar pour synchroniser les rendez-vous
@@ -486,26 +489,29 @@ export class GoogleCalendarService {
           });
 
         // Ne pas inclure les créneaux dans le passé
-        // On utilise le début de la journée actuelle pour permettre les réservations le jour même
-        // mais on filtre quand même les heures passées
         const now = new Date();
-        const isPast = nextTime <= now;
+        const nowZoned = toZonedTime(now, TIMEZONE);
+        const isPast = nextTime.getTime() <= nowZoned.getTime();
         
         if (!isPast) {
             const isAvailable = !isBooked;
             
+            // Extraire la date normalisée (YYYY-MM-DD)
+            const dateStr = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
+            const [year, month, day] = dateStr.split('-').map(Number);
+            
             slots.push({
-              date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
+              date: new Date(year, month - 1, day),
               startTime: startTimeStr,
               endTime: endTimeStr,
               isAvailable: isAvailable,
             });
 
             if (isAvailable) {
-              console.log(`[GoogleCalendar] ✅ Créneau disponible: ${startTimeStr} - ${endTimeStr}`);
+              console.log(`[GoogleCalendar] ✅ Créneau disponible: ${startTimeStr} - ${endTimeStr} (${dateStr})`);
             }
           } else {
-            console.log(`[GoogleCalendar] ⏮️ Créneau passé ignoré: ${startTimeStr}`);
+            console.log(`[GoogleCalendar] ⏮️ Créneau passé ignoré: ${startTimeStr} (${formatInTimeZone(nextTime, TIMEZONE, 'yyyy-MM-dd HH:mm')})`);
           }
 
           currentTime = nextTime;
