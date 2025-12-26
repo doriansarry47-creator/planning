@@ -55,9 +55,18 @@ export class GoogleCalendarService {
     this.config = config;
     
     // Créer l'authentification avec Service Account (JWT)
+    const privateKey = config.serviceAccountPrivateKey
+      .replace(/\\n/g, '\n') // Remplacer les \n littéraux par de vrais sauts de ligne
+      .replace(/"/g, '')     // Enlever les guillemets résiduels
+      .trim();               // Nettoyer les espaces
+
+    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+      console.error('[GoogleCalendar] ❌ Erreur critique: La clé privée semble mal formatée (pas de header PEM)');
+    }
+
     this.auth = new google.auth.JWT({
       email: config.serviceAccountEmail,
-      key: config.serviceAccountPrivateKey.replace(/\\n/g, '\n'),
+      key: privateKey,
       scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'],
     });
 

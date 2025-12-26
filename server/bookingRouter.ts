@@ -127,9 +127,14 @@ export const bookingRouter = router({
       }
 
       try {
+        const now = new Date();
+        // Utiliser explicitement le début de la journée en heure locale (Paris) si possible, 
+        // ou s'assurer que l'on ne décale pas les dates sur Vercel (UTC)
         const startDate = input.startDate ? new Date(input.startDate) : new Date();
         const endDate = input.endDate ? new Date(input.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 
+        console.log(`[BookingRouter] 📅 Recherche entre ${startDate.toISOString()} et ${endDate.toISOString()} (Serveur Time: ${now.toISOString()})`);
+        
         const slotsByDate: Record<string, any[]> = {};
         
         if (useGoogleCalendar) {
