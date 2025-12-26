@@ -488,12 +488,14 @@ export class GoogleCalendarService {
             return overlaps;
           });
 
-        // Ne pas inclure les créneaux dans le passé
+        // COMMENTÉ: Filtrage "now" déplacé vers le frontend
+        /*
         const now = new Date();
         const nowZoned = toZonedTime(now, TIMEZONE);
         const isPast = nextTime.getTime() <= nowZoned.getTime();
         
         if (!isPast) {
+        */
             const isAvailable = !isBooked;
             
             // Extraire la date normalisée (YYYY-MM-DD)
@@ -508,11 +510,13 @@ export class GoogleCalendarService {
             });
 
             if (isAvailable) {
-              console.log(`[GoogleCalendar] ✅ Créneau disponible: ${startTimeStr} - ${endTimeStr} (${dateStr})`);
+              console.log(`[GoogleCalendar] ✅ Créneau conservé (filtrage frontend requis): ${startTimeStr} - ${endTimeStr} (${dateStr})`);
             }
+        /*
           } else {
             console.log(`[GoogleCalendar] ⏮️ Créneau passé ignoré: ${startTimeStr} (${formatInTimeZone(nextTime, TIMEZONE, 'yyyy-MM-dd HH:mm')})`);
           }
+        */
 
           currentTime = nextTime;
         }

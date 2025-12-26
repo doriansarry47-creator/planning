@@ -56,12 +56,35 @@ export default function OptimizedBookAppointment() {
         });
 
         const result = await response.json();
-        console.log('📋 Disponibilités reçues:', result);
+        console.log('📋 Disponibilités reçues (brutes):', result);
 
         if (result?.result?.data?.json?.success) {
           const data = result.result.data.json;
-          setSlotsByDate(data.slotsByDate || {});
-          setAvailableDates(data.availableDates || []);
+          const rawSlotsByDate = data.slotsByDate || {};
+          
+          // --- FILTRAGE CÔTÉ FRONTEND ---
+          // On filtre les créneaux pour ne garder que ceux qui sont dans le futur par rapport à l'heure du navigateur
+          const now = new Date();
+          const filteredSlotsByDate: SlotsByDate = {};
+          const filteredAvailableDates: string[] = [];
+
+          Object.entries(rawSlotsByDate).forEach(([dateStr, slots]) => {
+            const filteredSlots = (slots as AvailabilitySlot[]).filter(slot => {
+              // Créer un objet Date pour le créneau (YYYY-MM-DD + HH:mm)
+              const slotDateTime = new Date(`${slot.date}T${slot.startTime}:00`);
+              return slotDateTime > now;
+            });
+
+            if (filteredSlots.length > 0) {
+              filteredSlotsByDate[dateStr] = filteredSlots;
+              filteredAvailableDates.push(dateStr);
+            }
+          });
+
+          console.log(`📋 Disponibilités filtrées (frontend): ${filteredAvailableDates.length} dates`, filteredSlotsByDate);
+          
+          setSlotsByDate(filteredSlotsByDate);
+          setAvailableDates(filteredAvailableDates.sort());
         } else {
           console.error('❌ Erreur chargement disponibilités:', result);
           toast.error('Impossible de charger les disponibilités');

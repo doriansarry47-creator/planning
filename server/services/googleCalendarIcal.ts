@@ -170,11 +170,14 @@ export class GoogleCalendarIcalService {
         // Filtrer par date (Comparaion d'objets Date normalisés)
         if (eventStart.getTime() < filterStartDate.getTime() || eventStart.getTime() > filterEndDate.getTime()) return;
 
-        // Vérifier que l'événement est dans le futur (Comparaion d'objets Date normalisés)
+        // COMMENTÉ: Filtrage "now" déplacé vers le frontend pour éviter les problèmes de timezone serveur
+        /*
         if (eventStart.getTime() < nowZoned.getTime()) {
            console.log(`[GoogleCalendarIcal] ⏭️ Créneau passé ignoré: ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
            return;
         }
+        */
+        console.log(`[GoogleCalendarIcal] 🕒 Conservation du créneau (filtrage frontend requis): ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
 
         // Calculer la durée en minutes
         const duration = Math.round((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60));

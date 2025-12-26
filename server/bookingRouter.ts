@@ -77,10 +77,13 @@ function generateDefaultSlotsForDate(date: Date): string[] {
     const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     const slotDateTime = toZonedTime(new Date(`${dateStr}T${slotTime}:00`), TIMEZONE);
     
-    // Ne pas inclure les créneaux passés
+    // COMMENTÉ: Filtrage "now" déplacé vers le frontend
+    /*
     if (slotDateTime.getTime() > nowZoned.getTime()) {
       slots.push(slotTime);
     }
+    */
+    slots.push(slotTime);
     
     hours += 1;
   }
@@ -93,10 +96,13 @@ function generateDefaultSlotsForDate(date: Date): string[] {
     const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     const slotDateTime = toZonedTime(new Date(`${dateStr}T${slotTime}:00`), TIMEZONE);
     
-    // Ne pas inclure les créneaux passés
+    // COMMENTÉ: Filtrage "now" déplacé vers le frontend
+    /*
     if (slotDateTime.getTime() > nowZoned.getTime()) {
       slots.push(slotTime);
     }
+    */
+    slots.push(slotTime);
     
     hours += 1;
   }
