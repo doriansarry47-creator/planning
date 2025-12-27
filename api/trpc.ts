@@ -41,6 +41,50 @@ interface AvailableSlot {
   title: string;
 }
 
+/**
+ * Vérifie si un événement iCal est un créneau de disponibilité
+ * RÈGLE : Un événement "DISPONIBLE" est une SOURCE de créneaux bookables
+ */
+function isDisponibilite(event: any): boolean {
+  if (!event || !event.summary) return false;
+  
+  const title = event.summary.toLowerCase();
+  
+  return (
+    title.includes('disponible') || 
+    title.includes('available') || 
+    title.includes('dispo') ||
+    title.includes('libre') ||
+    title.includes('free') ||
+    title.includes('🟢')
+  );
+}
+
+/**
+ * Vérifie si un événement iCal est un rendez-vous (RDV) ou un blocage
+ * RÈGLE : Un événement NON "DISPONIBLE" bloque le temps
+ */
+function isRendezVousOuBlocage(event: any): boolean {
+  if (!event || !event.summary) return false;
+  
+  // Si c'est un créneau de disponibilité, ce n'est PAS un blocage
+  if (isDisponibilite(event)) return false;
+  
+  const title = event.summary.toLowerCase();
+  
+  return (
+    title.includes('réservé') || 
+    title.includes('reserve') ||
+    title.includes('consultation') ||
+    title.includes('rdv') ||
+    title.includes('rendez-vous') ||
+    title.includes('🔴') ||
+    title.includes('🩺') ||
+    title.includes('indisponible') ||
+    title.includes('unavailable')
+  );
+}
+
 async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, databaseUrl?: string): Promise<AvailableSlot[]> {
   const icalUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
   
@@ -72,6 +116,7 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
 
     const slots: AvailableSlot[] = [];
     const bookedSlotsFromIcal: Set<string> = new Set();
+    const disponibiliteEvents: any[] = [];
 
     const startFetch = Date.now();
     const events = await ical.async.fromURL(icalUrl);
@@ -80,23 +125,19 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
     console.log('[Vercel TRPC] ✅ Fetch iCal réussi en', fetchDuration, 'ms');
     console.log('[Vercel TRPC] 📋 Evenements total dans iCal:', Object.keys(events).length);
     
-    // Premiere passe: collecter les creneaux reserves (rendez-vous) depuis iCal
+    // PREMIÈRE PASSE: Identifier les événements "DISPONIBLE" (SOURCE de créneaux)
+    // et les événements bloquants (RDV, indisponibilités)
+    let disponibiliteCount = 0;
+    let blocageCount = 0;
+    
     Object.values(events).forEach((event: any) => {
       if (event.type !== 'VEVENT') return;
 
-      const title = event.summary?.toLowerCase() || '';
-      
-      // Identifier les rendez-vous reserves
-      const isBooked = 
-        title.includes('réservé') || 
-        title.includes('reserve') ||
-        title.includes('consultation') ||
-        title.includes('rdv') ||
-        title.includes('rendez-vous') ||
-        title.includes('🔴') ||
-        title.includes('🩺');
-
-      if (isBooked) {
+      if (isDisponibilite(event)) {
+        disponibiliteEvents.push(event);
+        disponibiliteCount++;
+        console.log('[Vercel TRPC] 🟢 DISPONIBILITÉ détectée:', event.summary);
+      } else if (isRendezVousOuBlocage(event)) {
         const eventStart = new Date(event.start);
         const eventEnd = new Date(event.end);
         const dateStr = eventStart.toISOString().split('T')[0];
@@ -105,56 +146,54 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
         
         const slotKey = `${dateStr}|${startTime}|${endTime}`;
         bookedSlotsFromIcal.add(slotKey);
-        console.log('[Vercel TRPC] Creneau reserve (iCal):', slotKey);
+        blocageCount++;
+        console.log('[Vercel TRPC] 🔴 BLOCAGE détecté:', slotKey, '-', event.summary);
       }
     });
-
-    // Recuperer aussi les rendez-vous confirmes depuis la base de donnees
-    const bookedFromDb = await getBookedSlots(databaseUrl);
     
-    // Deuxieme passe: collecter les creneaux disponibles
-    Object.values(events).forEach((event: any) => {
-      if (event.type !== 'VEVENT') return;
+    console.log(`[Vercel TRPC] 📊 Analyse iCal: ${disponibiliteCount} disponibilités, ${blocageCount} blocages`);
 
-      const title = event.summary?.toLowerCase() || '';
-      
-      const isAvailable = 
-        title.includes('disponible') || 
-        title.includes('available') || 
-        title.includes('dispo') ||
-        title.includes('libre') ||
-        title.includes('free') ||
-        title.includes('🟢');
-
-      if (!isAvailable) return;
-
+    // Récupérer aussi les rendez-vous confirmés depuis la base de données
+    const bookedFromDb = await getBookedSlots(databaseUrl);
+    console.log(`[Vercel TRPC] 💾 Rendez-vous en BD: ${bookedFromDb.size}`);
+    
+    // DEUXIÈME PASSE: Générer les créneaux bookables à partir des événements "DISPONIBLE"
+    for (const event of disponibiliteEvents) {
       const eventStart = new Date(event.start);
       const eventEnd = new Date(event.end);
 
-      if (eventStart < filterStartDate || eventStart > filterEndDate) return;
-      if (eventStart < now) return;
+      // Filtrer par date
+      if (eventStart < filterStartDate || eventStart > filterEndDate) {
+        console.log('[Vercel TRPC] ⏭️ Disponibilité hors période:', eventStart.toISOString());
+        continue;
+      }
+      
+      // Filtrer les créneaux passés
+      if (eventStart < now) {
+        console.log('[Vercel TRPC] ⏭️ Disponibilité passée:', eventStart.toISOString());
+        continue;
+      }
 
       const duration = Math.round((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60));
-
       const dateStr = eventStart.toISOString().split('T')[0];
       const startTime = eventStart.toTimeString().slice(0, 5);
       const endTime = eventEnd.toTimeString().slice(0, 5);
 
-      // Verifier que ce creneau n'est pas deja reserve
+      // Vérifier que ce créneau n'est pas déjà réservé
       const slotKey = `${dateStr}|${startTime}|${endTime}`;
       const slotKeySimple = `${dateStr}|${startTime}`;
       
       if (bookedSlotsFromIcal.has(slotKey)) {
-        console.log('[Vercel TRPC] Creneau filtre (reserve dans iCal):', slotKey);
-        return;
+        console.log('[Vercel TRPC] ❌ Créneau filtré (réservé dans iCal):', slotKey);
+        continue;
       }
       
       if (bookedFromDb.has(slotKeySimple)) {
-        console.log('[Vercel TRPC] Creneau filtre (reserve dans BD):', slotKeySimple);
-        return;
+        console.log('[Vercel TRPC] ❌ Créneau filtré (réservé dans BD):', slotKeySimple);
+        continue;
       }
 
-      // Verifier le chevauchement avec les creneaux reserves
+      // Vérifier le chevauchement avec les créneaux réservés
       let isOverlapping = false;
       for (const bookedKey of bookedSlotsFromIcal) {
         const [bookedDate, bookedStart, bookedEnd] = bookedKey.split('|');
@@ -166,15 +205,15 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
           
           if (slotStartMinutes < bookedEndMinutes && slotEndMinutes > bookedStartMinutes) {
             isOverlapping = true;
-            console.log('[Vercel TRPC] Creneau filtre (chevauchement):', slotKey, 'avec', bookedKey);
+            console.log('[Vercel TRPC] ❌ Créneau filtré (chevauchement):', slotKey, 'avec', bookedKey);
             break;
           }
         }
       }
 
-      if (isOverlapping) return;
+      if (isOverlapping) continue;
 
-      console.log('[Vercel TRPC] Creneau disponible ajoute:', dateStr, startTime, '-', endTime);
+      console.log('[Vercel TRPC] ✅ Créneau DISPONIBLE ajouté:', dateStr, startTime, '-', endTime);
       slots.push({
         date: dateStr,
         startTime,
@@ -182,19 +221,22 @@ async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, datab
         duration,
         title: event.summary || 'Disponible',
       });
-    });
+    }
 
-    console.log(`[Vercel TRPC] ✅ ${slots.length} creneaux disponibles trouves (apres filtrage)`);
+    console.log(`[Vercel TRPC] 🎯 RÉSULTAT FINAL: ${slots.length} créneaux bookables trouvés`);
     
     if (slots.length > 0) {
-      console.log('[Vercel TRPC] 📊 Exemples de créneaux:', slots.slice(0, 3).map(s => 
-        `${s.date} ${s.startTime}-${s.endTime}`
+      console.log('[Vercel TRPC] 📊 Exemples de créneaux bookables:', slots.slice(0, 5).map(s => 
+        `${s.date} ${s.startTime}-${s.endTime} (${s.title})`
       ));
     } else {
-      console.warn('[Vercel TRPC] ⚠️ AUCUN créneau disponible trouvé - Vérifier:');
-      console.warn('  1. Les événements iCal contiennent "disponible" ou "available" dans le titre');
-      console.warn('  2. Les créneaux sont dans le futur');
-      console.warn('  3. Les créneaux ne sont pas déjà réservés');
+      console.warn('[Vercel TRPC] ⚠️ AUCUN créneau bookable - Diagnostic:');
+      console.warn(`  - Disponibilités trouvées: ${disponibiliteCount}`);
+      console.warn(`  - Blocages trouvés: ${blocageCount}`);
+      console.warn(`  - Rendez-vous en BD: ${bookedFromDb.size}`);
+      console.warn('  ✓ Vérifier que les événements iCal contiennent "DISPONIBLE" dans le titre');
+      console.warn('  ✓ Vérifier que les créneaux sont dans le futur');
+      console.warn('  ✓ Vérifier que les créneaux ne sont pas déjà réservés');
     }
     
     slots.sort((a, b) => {
