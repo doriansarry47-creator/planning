@@ -53,22 +53,65 @@ export class GoogleCalendarIcalService {
   }
 
   /**
+   * Normaliser une date en Europe/Paris et extraire la clé YYYY-MM-DD à minuit
+   * Garantit une comparaison cohérente quelque soit le timezone serveur
+   */
+  private normalizeDateToMidnightParis(date: Date): Date {
+    // Convertir en Europe/Paris
+    const zonedDate = toZonedTime(date, TIMEZONE);
+    // Extraire YYYY-MM-DD
+    const dateStr = formatInTimeZone(zonedDate, TIMEZONE, 'yyyy-MM-dd');
+    // Recréer une date à minuit en Europe/Paris
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const midnight = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    return toZonedTime(midnight, TIMEZONE);
+  }
+
+  /**
    * Récupérer les disponibilités depuis l'iCal public
    * Filtre automatiquement les créneaux déjà réservés (dans iCal ET dans la base de données)
    */
   async getAvailableSlots(startDate?: Date, endDate?: Date): Promise<AvailableSlot[]> {
     try {
-      console.log('[GoogleCalendarIcal] Récupération des disponibilités depuis iCal URL...');
+      console.log('[GoogleCalendarIcal] 📅 Récupération des disponibilités depuis iCal URL...');
+      console.log(`[GoogleCalendarIcal] 🌍 Environnement serveur:`);
+      console.log(`  - nodeEnv: ${process.env.NODE_ENV}`);
+      console.log(`  - vercelEnv: ${process.env.VERCEL_ENV || 'N/A'}`);
+      console.log(`  - timezone système: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+      console.log(`  - serverTime (UTC): ${new Date().toISOString()}`);
+      console.log(`  - serverTime (Paris): ${formatInTimeZone(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss zzz')}`);
       
-      // Normaliser 'now' en Europe/Paris
+      // 🔧 CORRECTION CRITIQUE: Normaliser les dates de filtrage en mode "date seule" à minuit Paris
+      // Pour éviter les problèmes de timezone entre UTC (Vercel) et Europe/Paris
       const now = new Date();
       const nowZoned = toZonedTime(now, TIMEZONE);
       
-      const filterStartDate = startDate ? toZonedTime(startDate, TIMEZONE) : nowZoned;
-      const filterEndDate = endDate ? toZonedTime(endDate, TIMEZONE) : toZonedTime(new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), TIMEZONE);
+      // Si startDate/endDate sont fournis, les normaliser à minuit Paris
+      // Sinon utiliser maintenant et +90 jours
+      let filterStartDate: Date;
+      let filterEndDate: Date;
+      
+      if (startDate) {
+        filterStartDate = this.normalizeDateToMidnightParis(startDate);
+      } else {
+        // Par défaut: aujourd'hui à minuit Paris
+        filterStartDate = this.normalizeDateToMidnightParis(nowZoned);
+      }
+      
+      if (endDate) {
+        filterEndDate = this.normalizeDateToMidnightParis(endDate);
+        // Ajouter 23h59m59s pour inclure toute la journée
+        filterEndDate = new Date(filterEndDate.getTime() + 24 * 60 * 60 * 1000 - 1000);
+      } else {
+        // Par défaut: +90 jours à 23h59 Paris
+        const future = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+        filterEndDate = this.normalizeDateToMidnightParis(future);
+        filterEndDate = new Date(filterEndDate.getTime() + 24 * 60 * 60 * 1000 - 1000);
+      }
 
-      console.log(`[GoogleCalendarIcal] 🕒 Temps actuel (Normalisé): ${formatInTimeZone(nowZoned, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')}`);
-      console.log(`[GoogleCalendarIcal] 📅 Filtre du ${formatInTimeZone(filterStartDate, TIMEZONE, 'yyyy-MM-dd')} au ${formatInTimeZone(filterEndDate, TIMEZONE, 'yyyy-MM-dd')}`);
+      console.log(`[GoogleCalendarIcal] 🕒 Temps actuel (Paris): ${formatInTimeZone(nowZoned, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')}`);
+      console.log(`[GoogleCalendarIcal] 📅 Filtre du ${formatInTimeZone(filterStartDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')} au ${formatInTimeZone(filterEndDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')}`);
+      console.log(`[GoogleCalendarIcal] 🔢 Timestamps: start=${filterStartDate.getTime()}, end=${filterEndDate.getTime()}`);
 
       const slots: AvailableSlot[] = [];
       const bookedSlots: Set<string> = new Set();
@@ -78,8 +121,13 @@ export class GoogleCalendarIcalService {
       console.log('[GoogleCalendarIcal] Événements total dans iCal:', Object.keys(events).length);
       
       // Première passe: collecter les créneaux réservés (rendez-vous)
+      let totalEvents = 0;
+      let bookedEvents = 0;
+      let availableEvents = 0;
+      
       Object.values(events).forEach((event: any) => {
         if (event.type !== 'VEVENT') return;
+        totalEvents++;
 
         const summary = event.summary || '';
         const title = summary.toLowerCase();
@@ -96,6 +144,7 @@ export class GoogleCalendarIcalService {
           event.transparency === 'opaque';
 
         if (isBooked && !title.includes('disponible')) {
+          bookedEvents++;
           const eventStart = toZonedTime(new Date(event.start), TIMEZONE);
           const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);
           
@@ -108,8 +157,11 @@ export class GoogleCalendarIcalService {
           console.log('[GoogleCalendarIcal] 🔴 Bloqué (iCal):', slotKey, `(${summary})`);
         }
       });
+      
+      console.log(`[GoogleCalendarIcal] 📊 iCal: ${totalEvents} événements, ${bookedEvents} réservés détectés`);
 
       // Récupérer aussi les rendez-vous confirmés depuis la base de données
+      let dbAppointmentsCount = 0;
       try {
         const { getDb } = await import('../db');
         const db = await getDb();
@@ -132,6 +184,7 @@ export class GoogleCalendarIcalService {
               )
             );
 
+          dbAppointmentsCount = dbAppointments.length;
           for (const apt of dbAppointments) {
             const aptStart = toZonedTime(new Date(apt.startTime), TIMEZONE);
             const aptEnd = toZonedTime(new Date(apt.endTime), TIMEZONE);
@@ -146,10 +199,17 @@ export class GoogleCalendarIcalService {
           }
         }
       } catch (dbError) {
-        console.warn('[GoogleCalendarIcal] Impossible de vérifier les rdv en BD:', dbError);
+        console.warn('[GoogleCalendarIcal] ⚠️ Impossible de vérifier les rdv en BD:', dbError);
       }
+      
+      console.log(`[GoogleCalendarIcal] 📊 BD: ${dbAppointmentsCount} rendez-vous confirmés`);
 
       // Deuxième passe: collecter les créneaux disponibles et filtrer les réservés
+      let candidateSlots = 0;
+      let outsidePeriod = 0;
+      let overlapping = 0;
+      let kept = 0;
+      
       Object.values(events).forEach((event: any) => {
         if (event.type !== 'VEVENT') return;
 
@@ -171,24 +231,33 @@ export class GoogleCalendarIcalService {
           }
           return;
         }
+        
+        availableEvents++;
+        candidateSlots++;
+        console.log(`[GoogleCalendarIcal] 🟢 DISPONIBILITÉ détectée: ${event.summary}`);
 
         const eventStart = toZonedTime(new Date(event.start), TIMEZONE);
         const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);
+        
+        const eventStartTs = eventStart.getTime();
+        const eventEndTs = eventEnd.getTime();
+        const filterStartTs = filterStartDate.getTime();
+        const filterEndTs = filterEndDate.getTime();
 
-        // Filtrer par date (Comparaion d'objets Date normalisés)
-        if (eventStart.getTime() < filterStartDate.getTime() || eventStart.getTime() > filterEndDate.getTime()) {
-           console.log(`[GoogleCalendarIcal] ⏭️ Disponibilité hors période: ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')} (Filtre: ${formatInTimeZone(filterStartDate, TIMEZONE, 'yyyy-MM-dd')} - ${formatInTimeZone(filterEndDate, TIMEZONE, 'yyyy-MM-dd')})`);
-           return;
+        // 🔧 CORRECTION CRITIQUE: Vérifier si le créneau chevauche la période demandée
+        // Un créneau est dans la période si: début < fin_période ET fin > début_période
+        const isInPeriod = eventStartTs < filterEndTs && eventEndTs > filterStartTs;
+        
+        if (!isInPeriod) {
+          outsidePeriod++;
+          console.log(`[GoogleCalendarIcal] ⏭️ Disponibilité hors période: ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
+          console.log(`  - Event: start=${eventStartTs} (${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}), end=${eventEndTs}`);
+          console.log(`  - Filter: start=${filterStartTs} (${formatInTimeZone(filterStartDate, TIMEZONE, 'yyyy-MM-dd HH:mm')}), end=${filterEndTs}`);
+          console.log(`  - Condition: ${eventStartTs} < ${filterEndTs} = ${eventStartTs < filterEndTs}, ${eventEndTs} > ${filterStartTs} = ${eventEndTs > filterStartTs}`);
+          return;
         }
 
-        // COMMENTÉ: Filtrage "now" déplacé vers le frontend pour éviter les problèmes de timezone serveur
-        /*
-        if (eventStart.getTime() < nowZoned.getTime()) {
-           console.log(`[GoogleCalendarIcal] ⏭️ Créneau passé ignoré: ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
-           return;
-        }
-        */
-        console.log(`[GoogleCalendarIcal] 🕒 Conservation du créneau (filtrage frontend requis): ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
+        console.log(`[GoogleCalendarIcal] ✅ Créneau dans la période: ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
 
         // Calculer la durée en minutes
         const duration = Math.round((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60));
@@ -201,7 +270,8 @@ export class GoogleCalendarIcalService {
         // Vérifier que ce créneau n'est pas déjà réservé
         const slotKey = `${dateStr}|${startTime}|${endTime}`;
         if (bookedSlots.has(slotKey)) {
-          console.log('[GoogleCalendarIcal] ⛔ Créneau filtré (déjà réservé):', slotKey);
+          overlapping++;
+          console.log('[GoogleCalendarIcal] ❌ Créneau filtré (réservé dans BD):', slotKey);
           return;
         }
 
@@ -218,7 +288,8 @@ export class GoogleCalendarIcalService {
             // Vérifier le chevauchement
             if (slotStartMinutes < bookedEndMinutes && slotEndMinutes > bookedStartMinutes) {
               isOverlapping = true;
-              console.log('[GoogleCalendarIcal] ⛔ Créneau filtré (chevauchement):', slotKey, 'avec', bookedKey);
+              overlapping++;
+              console.log('[GoogleCalendarIcal] ❌ Créneau filtré (chevauchement):', slotKey, 'avec', bookedKey);
               break;
             }
           }
@@ -226,6 +297,7 @@ export class GoogleCalendarIcalService {
 
         if (isOverlapping) return;
 
+        kept++;
         console.log('[GoogleCalendarIcal] ✅ Créneau disponible ajouté:', dateStr, startTime, '-', endTime);
         slots.push({
           date: dateStr,
@@ -235,8 +307,18 @@ export class GoogleCalendarIcalService {
           title: event.summary || 'Disponible',
         });
       });
+      
+      console.log(`[GoogleCalendarIcal] 📊 Statistiques de filtrage:`);
+      console.log(`  - Total événements iCal: ${totalEvents}`);
+      console.log(`  - Disponibilités détectées: ${availableEvents}`);
+      console.log(`  - Blocages détectés: ${bookedEvents}`);
+      console.log(`  - Rendez-vous en BD: ${dbAppointmentsCount}`);
+      console.log(`  - Candidats analysés: ${candidateSlots}`);
+      console.log(`  - Hors période: ${outsidePeriod}`);
+      console.log(`  - Chevauchements: ${overlapping}`);
+      console.log(`  - Créneaux conservés: ${kept}`);
 
-      console.log(`[GoogleCalendarIcal] ✅ ${slots.length} créneaux disponibles trouvés (après filtrage)`);
+      console.log(`[GoogleCalendarIcal] 🎯 RÉSULTAT FINAL: ${slots.length} créneaux bookables trouvés`);
       
       // Trier par date et heure
       slots.sort((a, b) => {
