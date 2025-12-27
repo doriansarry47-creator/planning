@@ -81,7 +81,8 @@ export class GoogleCalendarIcalService {
       Object.values(events).forEach((event: any) => {
         if (event.type !== 'VEVENT') return;
 
-        const title = event.summary?.toLowerCase() || '';
+        const summary = event.summary || '';
+        const title = summary.toLowerCase();
         
         // Identifier les rendez-vous réservés
         const isBooked = 
@@ -91,9 +92,10 @@ export class GoogleCalendarIcalService {
           title.includes('rdv') ||
           title.includes('rendez-vous') ||
           title.includes('🔴') ||
-          title.includes('🩺');
+          title.includes('🩺') ||
+          event.transparency === 'opaque';
 
-        if (isBooked) {
+        if (isBooked && !title.includes('disponible')) {
           const eventStart = toZonedTime(new Date(event.start), TIMEZONE);
           const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);
           
@@ -103,7 +105,7 @@ export class GoogleCalendarIcalService {
           
           const slotKey = `${dateStr}|${startTime}|${endTime}`;
           bookedSlots.add(slotKey);
-          console.log('[GoogleCalendarIcal] 🔴 Créneau réservé (iCal):', slotKey);
+          console.log('[GoogleCalendarIcal] 🔴 Bloqué (iCal):', slotKey, `(${summary})`);
         }
       });
 
@@ -162,7 +164,13 @@ export class GoogleCalendarIcalService {
           title.includes('libre') ||
           title.includes('free');
 
-        if (!isAvailable) return;
+        if (!isAvailable) {
+          // Log uniquement si c'est un créneau potentiel mais pas marqué dispo
+          if (event.transparency === 'transparent') {
+            console.log('[GoogleCalendarIcal] ⏭️ Transparent mais pas de mot-clé dispo:', event.summary);
+          }
+          return;
+        }
 
         const eventStart = toZonedTime(new Date(event.start), TIMEZONE);
         const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);

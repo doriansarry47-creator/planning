@@ -49,6 +49,19 @@ export class CalendarSyncService {
       const { getDb } = await import('../db');
       const { appointments } = await import('../../drizzle/schema');
       const db = await getDb();
+      const { sql } = await import('drizzle-orm');
+
+      // Utiliser raw SQL pour vérifier l'existence de la table avant de synchroniser
+      try {
+        const tableCheck = await db.execute(sql`SELECT to_regclass('public.appointments')`);
+        if (!tableCheck.rows || !tableCheck.rows[0].to_regclass) {
+          console.warn('[CalendarSync] Table "appointments" inexistante, synchronisation ignorée.');
+          return result;
+        }
+      } catch (e) {
+        console.error('[CalendarSync] Erreur lors de la vérification de la table:', e);
+        return result;
+      }
 
       const now = new Date();
       const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);

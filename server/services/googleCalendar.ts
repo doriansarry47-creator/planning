@@ -455,7 +455,7 @@ export class GoogleCalendarService {
         const slotStart = toZonedTime(new Date(availEvent.start.dateTime), TIMEZONE);
         const slotEnd = toZonedTime(new Date(availEvent.end.dateTime), TIMEZONE);
 
-        console.log(`[GoogleCalendar] 🔍 Analyse plage: ${formatInTimeZone(slotStart, TIMEZONE, 'dd/MM HH:mm')} - ${formatInTimeZone(slotEnd, TIMEZONE, 'HH:mm')}`);
+        console.log(`[GoogleCalendar] 🔍 Analyse plage: ${formatInTimeZone(slotStart, TIMEZONE, 'dd/MM HH:mm')} - ${formatInTimeZone(slotEnd, TIMEZONE, 'HH:mm')} (${availEvent.summary})`);
 
         // Découper la plage en créneaux de 60 minutes
         let currentTime = new Date(slotStart);
@@ -464,7 +464,7 @@ export class GoogleCalendarService {
           
           // Ne pas créer de créneau qui dépasse la plage de disponibilité
           if (nextTime > slotEnd) {
-            console.log(`[GoogleCalendar] ⏩ Créneau incomplet ignoré à ${currentTime.toLocaleTimeString('fr-FR')}`);
+            console.log(`[GoogleCalendar] ⏩ Fin de plage à ${formatInTimeZone(slotEnd, TIMEZONE, 'HH:mm')}`);
             break;
           }
 

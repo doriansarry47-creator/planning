@@ -71,8 +71,11 @@ export default function OptimizedBookAppointment() {
           Object.entries(rawSlotsByDate).forEach(([dateStr, slots]) => {
             const filteredSlots = (slots as AvailabilitySlot[]).filter(slot => {
               // Créer un objet Date pour le créneau (YYYY-MM-DD + HH:mm)
+              // On force le fuseau horaire Europe/Paris pour la comparaison
               const slotDateTime = new Date(`${slot.date}T${slot.startTime}:00`);
-              return slotDateTime > now;
+              
+              // Comparaison avec l'heure actuelle
+              return slotDateTime.getTime() > now.getTime();
             });
 
             if (filteredSlots.length > 0) {
