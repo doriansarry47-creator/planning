@@ -168,7 +168,10 @@ export class GoogleCalendarIcalService {
         const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);
 
         // Filtrer par date (Comparaion d'objets Date normalisés)
-        if (eventStart.getTime() < filterStartDate.getTime() || eventStart.getTime() > filterEndDate.getTime()) return;
+        if (eventStart.getTime() < filterStartDate.getTime() || eventStart.getTime() > filterEndDate.getTime()) {
+           console.log(`[GoogleCalendarIcal] ⏭️ Disponibilité hors période: ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')} (Filtre: ${formatInTimeZone(filterStartDate, TIMEZONE, 'yyyy-MM-dd')} - ${formatInTimeZone(filterEndDate, TIMEZONE, 'yyyy-MM-dd')})`);
+           return;
+        }
 
         // COMMENTÉ: Filtrage "now" déplacé vers le frontend pour éviter les problèmes de timezone serveur
         /*

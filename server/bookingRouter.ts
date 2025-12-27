@@ -144,10 +144,16 @@ export const bookingRouter = router({
         const now = new Date();
         // Utiliser explicitement le début de la journée en heure locale (Paris) si possible, 
         // ou s'assurer que l'on ne décale pas les dates sur Vercel (UTC)
-        const startDate = input.startDate ? new Date(input.startDate) : new Date();
-        const endDate = input.endDate ? new Date(input.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // Utiliser explicitement le début de la journée en heure locale (Paris)
+        const startDate = input.startDate 
+          ? toZonedTime(new Date(input.startDate + 'T00:00:00'), TIMEZONE) 
+          : toZonedTime(new Date(), TIMEZONE);
+        
+        const endDate = input.endDate 
+          ? toZonedTime(new Date(input.endDate + 'T23:59:59'), TIMEZONE)
+          : toZonedTime(new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000), TIMEZONE);
 
-        console.log(`[BookingRouter] 📅 Recherche entre ${startDate.toISOString()} et ${endDate.toISOString()} (Serveur Time: ${now.toISOString()})`);
+        console.log(`[BookingRouter] 📅 Recherche (Zonée Paris) du ${formatInTimeZone(startDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')} au ${formatInTimeZone(endDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')}`);
         
         const slotsByDate: Record<string, any[]> = {};
         

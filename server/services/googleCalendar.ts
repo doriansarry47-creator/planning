@@ -452,10 +452,10 @@ export class GoogleCalendarService {
           continue;
         }
 
-        const slotStart = new Date(availEvent.start.dateTime);
-        const slotEnd = new Date(availEvent.end.dateTime);
+        const slotStart = toZonedTime(new Date(availEvent.start.dateTime), TIMEZONE);
+        const slotEnd = toZonedTime(new Date(availEvent.end.dateTime), TIMEZONE);
 
-        console.log(`[GoogleCalendar] 🔍 Analyse plage: ${slotStart.toLocaleString('fr-FR')} - ${slotEnd.toLocaleString('fr-FR')}`);
+        console.log(`[GoogleCalendar] 🔍 Analyse plage: ${formatInTimeZone(slotStart, TIMEZONE, 'dd/MM HH:mm')} - ${formatInTimeZone(slotEnd, TIMEZONE, 'HH:mm')}`);
 
         // Découper la plage en créneaux de 60 minutes
         let currentTime = new Date(slotStart);
