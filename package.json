@@ -15,7 +15,9 @@
     "db:seed": "tsx --env-file .env scripts/seed-admin.ts",
     "sync:availability": "tsx --env-file .env scripts/sync-availability.ts",
     "sync:appointments": "tsx --env-file .env scripts/sync-appointments-to-calendar.ts",
-    "diagnose:calendar": "tsx --env-file .env scripts/diagnose-calendar.ts"
+    "diagnose:calendar": "tsx --env-file .env scripts/diagnose-calendar.ts",
+    "test:oauth2": "tsx --env-file .env scripts/test-oauth2-service.ts",
+    "get-refresh-token": "tsx --env-file .env scripts/get-refresh-token.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.0.10",
