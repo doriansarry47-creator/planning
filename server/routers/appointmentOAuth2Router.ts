@@ -14,6 +14,7 @@
  */
 
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { publicProcedure, router } from '../_core/trpc';
 import { getGoogleCalendarOAuth2Service } from '../services/googleCalendarOAuth2';
 import {
@@ -22,8 +23,8 @@ import {
   isSlotAvailable,
   DEFAULT_WORKING_HOURS,
 } from '../services/availabilityCalculator';
-import { db } from '../db';
-import { appointments } from '../../drizzle/schema';
+import { getDb } from '../db';
+import { appointments } from '../../drizzle/schema.postgres';
 
 /**
  * Router pour les rendez-vous
@@ -115,6 +116,10 @@ export const appointmentOAuth2Router = router({
         console.info(`[appointmentOAuth2Router] ✅ Événement Google Calendar créé: ${googleEventId}`);
 
         // ÉTAPE 3 : Enregistrer le rendez-vous dans la base de données
+        const db = await getDb();
+        if (!db) {
+          throw new Error('Database not available');
+        }
         const [appointment] = await db
           .insert(appointments)
           .values({
@@ -172,10 +177,14 @@ export const appointmentOAuth2Router = router({
         }
 
         // ÉTAPE 1 : Récupérer le rendez-vous depuis la base de données
+        const db = await getDb();
+        if (!db) {
+          throw new Error('Database not available');
+        }
         const [appointment] = await db
           .select()
           .from(appointments)
-          .where((t: any) => t.id === input.appointmentId)
+          .where(eq(appointments.id, input.appointmentId))
           .limit(1);
 
         if (!appointment) {
@@ -204,7 +213,7 @@ export const appointmentOAuth2Router = router({
             status: 'cancelled',
             updatedAt: new Date(),
           })
-          .where((t: any) => t.id === input.appointmentId);
+          .where(eq(appointments.id, input.appointmentId));
 
         console.info('[appointmentOAuth2Router] ✅ Rendez-vous annulé avec succès');
 
@@ -237,11 +246,15 @@ export const appointmentOAuth2Router = router({
       try {
         console.info(`[appointmentOAuth2Router] 📋 Récupération des rendez-vous pour ${input.email}`);
 
+        const db = await getDb();
+        if (!db) {
+          throw new Error('Database not available');
+        }
         const clientAppointments = await db
           .select()
           .from(appointments)
-          .where((t: any) => t.patientEmail === input.email)
-          .orderBy((t: any) => t.date);
+          .where(eq(appointments.patientEmail, input.email))
+          .orderBy(appointments.date);
 
         console.info(`[appointmentOAuth2Router] ✅ ${clientAppointments.length} rendez-vous trouvés`);
 
@@ -266,10 +279,14 @@ export const appointmentOAuth2Router = router({
     )
     .query(async ({ input }) => {
       try {
+        const db = await getDb();
+        if (!db) {
+          throw new Error('Database not available');
+        }
         const [appointment] = await db
           .select()
           .from(appointments)
-          .where((t: any) => t.id === input.appointmentId)
+          .where(eq(appointments.id, input.appointmentId))
           .limit(1);
 
         if (!appointment) {
