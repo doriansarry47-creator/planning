@@ -17,6 +17,10 @@ GOOGLE_SERVICE_ACCOUNT_EMAIL = "planningadmin@apaddicto.iam.gserviceaccount.com"
 GOOGLE_CALENDAR_EMAIL = "planningadmin@apaddicto.iam.gserviceaccount.com"
 GOOGLE_CALENDAR_ID = "doriansarry47@gmail.com"
 APP_URL = "http://localhost:5000"
+GOOGLE_CLIENT_ID = "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"
+GOOGLE_CLIENT_SECRET = "603850749287-208mpcdm3pb7qk09rndqapig5cq6ra14.apps.googleusercontent.com"
+GOOGLE_REFRESH_TOKEN = "1//036wt8eMutncaCgYIARAAGAMSNwF-L9IrYYVjwaU8Aom2Xu31hFufKfxX8TiMsCqa6Am8bdSzXUYk0hbKilAvYukmI47egIUWd5M"
+GOOGLE_REDIRECT_URI = "planningadmin@apaddicto.iam.gserviceaccount.com"
 
 [workflows]
 runButton = "Project"
