@@ -1,0 +1,6 @@
+# Redirections pour Netlify
+# Les API routes vers les fonctions serverless
+/api/*  /.netlify/functions/:splat  200
+
+# Tous les autres chemins vers index.html pour le SPA routing
+/*  /index.html  200

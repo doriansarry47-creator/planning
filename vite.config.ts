@@ -2,11 +2,23 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { fileURLToPath } from "url";
+import { copyFileSync } from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Plugin to copy _redirects file for Netlify
+const copyRedirectsPlugin = () => ({
+  name: 'copy-redirects',
+  closeBundle() {
+    const src = path.resolve(__dirname, 'client/_redirects');
+    const dest = path.resolve(__dirname, 'client/dist/_redirects');
+    copyFileSync(src, dest);
+    console.log('✅ _redirects file copied to dist/');
+  }
+});
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), copyRedirectsPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./client/src"),

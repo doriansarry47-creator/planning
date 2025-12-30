@@ -1,0 +1,45 @@
+# Dépendances
+node_modules/
+
+# Fichiers de développement
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Tests
+coverage/
+.nyc_output/
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build temporaires
+.cache/
+dist/
+!client/dist/
+
+# Vercel
+.vercel/
+
+# Scripts
+scripts/
+patches/
+
+# Drizzle
+drizzle/

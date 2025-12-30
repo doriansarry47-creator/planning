@@ -6,6 +6,9 @@
     "dev": "tsx watch --env-file .env server/_core/index.ts",
     "build": "vite build",
     "start": "NODE_ENV=production node dist/index.js",
+    "netlify:dev": "netlify dev",
+    "netlify:build": "netlify build",
+    "netlify:deploy": "netlify deploy --prod",
     "db:init": "tsx --env-file .env scripts/init-db.ts",
     "db:push": "drizzle-kit push",
     "db:push:postgres": "drizzle-kit push --config=drizzle.config.postgres.ts",
@@ -98,6 +101,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@netlify/functions": "^2.8.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.0",
     "@types/leaflet": "^1.9.15",
@@ -108,6 +112,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.1",
+    "netlify-cli": "^17.37.3",
     "pg": "^8.16.3",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
