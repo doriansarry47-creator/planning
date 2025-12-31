@@ -33,14 +33,14 @@ export const bookingRouter = router({
   getAvailabilitiesByDate: publicProcedure
     .input(getAvailabilitiesSchema)
     .mutation(async ({ input }) => {
-      console.log("[BookingRouter] 📅 Récupération des disponibilités (OAuth 2.0 Priority)");
+      console.log("[BookingRouter] 📅 Récupération des disponibilités (Calculateur Déterministe)");
       const service = getGoogleCalendarService();
       
       try {
         const now = new Date();
-        const startDateStr = input.startDate || formatInTimeZone(toZonedTime(now, TIMEZONE), TIMEZONE, 'yyyy-MM-dd');
+        const nowZoned = toZonedTime(now, TIMEZONE);
+        const startDateStr = input.startDate || formatInTimeZone(nowZoned, TIMEZONE, 'yyyy-MM-dd');
         
-        // Calculer la date de fin (30 jours par défaut)
         let endDateStr: string;
         if (input.endDate) {
           endDateStr = input.endDate;
@@ -50,10 +50,9 @@ export const bookingRouter = router({
           endDateStr = formatInTimeZone(toZonedTime(endDateObj, TIMEZONE), TIMEZONE, 'yyyy-MM-dd');
         }
 
-        console.log(`[BookingRouter] Période de recherche: ${startDateStr} au ${endDateStr}`);
+        console.log(`[BookingRouter] Période: ${startDateStr} au ${endDateStr} (Now Paris: ${formatInTimeZone(nowZoned, TIMEZONE, 'yyyy-MM-dd HH:mm:ss')})`);
 
         if (service) {
-          // Utiliser l'instance calendar configurée dans le service
           const calendar = (service as any).oauth2Service 
             ? (service as any).oauth2Service.calendar 
             : (service as any).calendar;
@@ -61,9 +60,7 @@ export const bookingRouter = router({
           const calendarId = (service as any).config?.calendarId || "primary";
 
           if (calendar) {
-            console.log(`[BookingRouter] Fetching events for calendar: ${calendarId}`);
-            
-            // Créer les dates ISO pour l'API Google en respectant la timezone
+            // Utiliser le début de journée Paris pour timeMin et fin de journée pour timeMax
             const timeMin = toZonedTime(new Date(startDateStr + 'T00:00:00'), TIMEZONE).toISOString();
             const timeMax = toZonedTime(new Date(endDateStr + 'T23:59:59'), TIMEZONE).toISOString();
 
@@ -76,11 +73,11 @@ export const bookingRouter = router({
             });
 
             const googleEvents = response.data.items || [];
-            console.log(`[BookingRouter] Found ${googleEvents.length} events in Google Calendar`);
+            console.log(`[BookingRouter] Google API: Found ${googleEvents.length} events`);
             
             const simpleEvents = googleEvents.map(convertGoogleEventToSimpleEvent);
 
-            // Utiliser le calculateur deterministe
+            // Calculer les créneaux avec le moteur déterministe (Stateless)
             const availableSlots = calculateAvailableSlots(startDateStr, endDateStr, simpleEvents);
             
             const slotsByDate: Record<string, any[]> = {};
@@ -94,28 +91,19 @@ export const bookingRouter = router({
               });
             }
 
-            console.log(`[BookingRouter] Available dates found: ${Object.keys(slotsByDate).length}`);
+            console.log(`[BookingRouter] ✅ Succès: ${Object.keys(slotsByDate).length} jours disponibles`);
 
             return {
               success: true,
               slotsByDate,
               availableDates: Object.keys(slotsByDate).sort(),
             };
-          } else {
-            console.warn("[BookingRouter] Calendar instance not found in service");
           }
-        } else {
-          console.warn("[BookingRouter] GoogleCalendarService not available");
         }
 
-        return { 
-          success: false, 
-          slotsByDate: {}, 
-          availableDates: [], 
-          error: "Service de calendrier non initialisé" 
-        };
+        return { success: false, slotsByDate: {}, availableDates: [], error: "Service de calendrier non initialisé" };
       } catch (error: any) {
-        console.error("[BookingRouter] Erreur critique lors de la récupération des disponibilités:", error);
+        console.error("[BookingRouter] ❌ Erreur critique:", error);
         throw new Error(`Erreur serveur: ${error.message}`);
       }
     }),

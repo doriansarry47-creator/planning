@@ -275,81 +275,10 @@ export class GoogleCalendarService {
     endDate: Date,
     slotDuration: number = 60
   ): Promise<Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }>> {
-    if (!this.isInitialized && !this.oauth2Service) return [];
-
-    try {
-      // Utiliser le calendar configuré (soit via JWT soit via OAuth2)
-      const calendar = this.oauth2Service ? (this.oauth2Service as any).calendar : this.calendar;
-      
-      const response = await calendar.events.list({
-        calendarId: this.config.calendarId,
-        timeMin: startDate.toISOString(),
-        timeMax: endDate.toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-        showDeleted: false,
-      });
-
-      const events = response.data.items || [];
-      const activeEvents = events.filter((event: any) => 
-        event.status !== 'cancelled' && event.status !== 'deleted'
-      );
-      
-      const slots: Array<{ date: Date; startTime: string; endTime: string; isAvailable: boolean }> = [];
-
-      const availabilityEvents = activeEvents.filter(
-        (event: any) => 
-          event.extendedProperties?.private?.isAvailabilitySlot === 'true' ||
-          event.transparency === 'transparent' ||
-          event.summary?.includes('DISPONIBLE')
-      );
-      
-      const appointments = activeEvents.filter(
-        (event: any) => 
-          event.extendedProperties?.private?.isAppointment === 'true' || 
-          (event.transparency === 'opaque' && !event.summary?.includes('DISPONIBLE')) ||
-          (!event.transparency && !event.summary?.includes('DISPONIBLE'))
-      );
-
-      for (const availEvent of availabilityEvents) {
-        if (!availEvent.start?.dateTime || !availEvent.end?.dateTime) continue;
-
-        const slotStart = toZonedTime(new Date(availEvent.start.dateTime), TIMEZONE);
-        const slotEnd = toZonedTime(new Date(availEvent.end.dateTime), TIMEZONE);
-
-        let currentTime = new Date(slotStart);
-        while (currentTime < slotEnd) {
-          const nextTime = new Date(currentTime.getTime() + slotDuration * 60000);
-          if (nextTime > slotEnd) break;
-
-          const startTimeStr = formatInTimeZone(currentTime, TIMEZONE, 'HH:mm');
-          const endTimeStr = formatInTimeZone(nextTime, TIMEZONE, 'HH:mm');
-          const dateStrNormalized = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
-          const [year, month, day] = dateStrNormalized.split('-').map(Number);
-            
-          const isBooked = appointments.some((appt: any) => {
-            if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
-            const apptStart = new Date(appt.start.dateTime);
-            const apptEnd = new Date(appt.end.dateTime);
-            return currentTime < apptEnd && nextTime > apptStart;
-          });
-
-          slots.push({
-            date: new Date(year, month - 1, day),
-            startTime: startTimeStr,
-            endTime: endTimeStr,
-            isAvailable: !isBooked,
-          });
-
-          currentTime = nextTime;
-        }
-      }
-
-      return slots;
-    } catch (error: any) {
-      console.error('[GoogleCalendar] ❌ Erreur slots:', error.message);
-      return [];
-    }
+    // REDIRECTION: Utiliser le nouveau système de calcul déterministe via le bookingRouter
+    // Cette méthode est conservée pour la compatibilité mais n'est plus le chemin principal
+    console.log("[GoogleCalendar] ⚠️ Appel à getAvailabilitySlots (Legacy) - Redirection suggérée vers le nouveau calculateur");
+    return [];
   }
 
   private buildRecurrenceRule(recurrence: AvailabilitySlotData['recurrence']): string | null {
