@@ -4,8 +4,8 @@ import superjson from "superjson";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { neon } from "@neondatabase/serverless";
-import ical from 'node-ical';
 import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 
 const t = initTRPC.context<any>().create({
   transformer: superjson,
@@ -42,229 +42,199 @@ interface AvailableSlot {
 }
 
 /**
- * Vérifie si un événement iCal est un créneau de disponibilité
- * RÈGLE : Un événement "DISPONIBLE" est une SOURCE de créneaux bookables
+ * Crée et configure le client OAuth2 pour Google Calendar
  */
-function isDisponibilite(event: any): boolean {
-  if (!event || !event.summary) return false;
-  
-  const title = event.summary.toLowerCase();
-  
-  return (
-    title.includes('disponible') || 
-    title.includes('available') || 
-    title.includes('dispo') ||
-    title.includes('libre') ||
-    title.includes('free') ||
-    title.includes('🟢')
-  );
+function createOAuth2Client(): OAuth2Client | null {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    console.error('[Vercel TRPC OAuth2] ❌ Configuration OAuth incomplète. Variables requises:');
+    console.error('  - GOOGLE_CLIENT_ID:', clientId ? '✅' : '❌');
+    console.error('  - GOOGLE_CLIENT_SECRET:', clientSecret ? '✅' : '❌');
+    console.error('  - GOOGLE_REFRESH_TOKEN:', refreshToken ? '✅' : '❌');
+    return null;
+  }
+
+  try {
+    const oauth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      'https://localhost' // Redirect URI (non utilisé avec refresh token)
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: refreshToken,
+    });
+
+    console.log('[Vercel TRPC OAuth2] ✅ Client OAuth2 initialisé avec succès');
+    return oauth2Client;
+  } catch (error: any) {
+    console.error('[Vercel TRPC OAuth2] ❌ Erreur lors de la création du client:', error.message);
+    return null;
+  }
 }
 
 /**
- * Vérifie si un événement iCal est un rendez-vous (RDV) ou un blocage
- * RÈGLE : Un événement NON "DISPONIBLE" bloque le temps
+ * Récupérer les événements depuis Google Calendar via OAuth2
  */
-function isRendezVousOuBlocage(event: any): boolean {
-  if (!event || !event.summary) return false;
+async function getEventsFromGoogleCalendar(startDate: Date, endDate: Date): Promise<any[]> {
+  const oauth2Client = createOAuth2Client();
   
-  // Si c'est un créneau de disponibilité, ce n'est PAS un blocage
-  if (isDisponibilite(event)) return false;
-  
-  const title = event.summary.toLowerCase();
-  
-  return (
-    title.includes('réservé') || 
-    title.includes('reserve') ||
-    title.includes('consultation') ||
-    title.includes('rdv') ||
-    title.includes('rendez-vous') ||
-    title.includes('🔴') ||
-    title.includes('🩺') ||
-    title.includes('indisponible') ||
-    title.includes('unavailable')
-  );
-}
-
-async function getAvailableSlotsFromIcal(startDate?: Date, endDate?: Date, databaseUrl?: string): Promise<AvailableSlot[]> {
-  const icalUrl = process.env.GOOGLE_CALENDAR_ICAL_URL;
-  
-  if (!icalUrl) {
-    console.error('[Vercel TRPC] ❌ GOOGLE_CALENDAR_ICAL_URL non configure');
-    console.error('[Vercel TRPC] Variables env disponibles:', Object.keys(process.env).filter(k => k.includes('GOOGLE')));
+  if (!oauth2Client) {
+    console.error('[Vercel TRPC] ❌ Impossible de créer le client OAuth2');
     return [];
   }
 
   try {
-    console.log('[Vercel TRPC] 📅 Recuperation des disponibilites depuis iCal URL...');
-    console.log('[Vercel TRPC] 🌍 Environnement:', {
-      nodeEnv: process.env.NODE_ENV,
-      vercelEnv: process.env.VERCEL_ENV,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      serverTime: new Date().toISOString(),
-    });
-    console.log('[Vercel TRPC] 🔗 iCal URL (tronqué):', icalUrl.substring(0, 50) + '...');
-    
-    const now = new Date();
-    const filterStartDate = startDate || now;
-    const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
-    console.log('[Vercel TRPC] 📆 Période de recherche:', {
-      start: filterStartDate.toISOString(),
-      end: filterEndDate.toISOString(),
-      now: now.toISOString(),
+    console.log('[Vercel TRPC OAuth2] 📅 Récupération des événements Google Calendar...');
+    console.log('[Vercel TRPC OAuth2] 📆 Période:', {
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
     });
 
-    const slots: AvailableSlot[] = [];
-    const bookedSlotsFromIcal: Set<string> = new Set();
-    const disponibiliteEvents: any[] = [];
+    const response = await calendar.events.list({
+      calendarId: calendarId,
+      timeMin: startDate.toISOString(),
+      timeMax: endDate.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      timeZone: 'Europe/Paris',
+      showDeleted: false,
+      maxResults: 2500,
+    });
 
-    const startFetch = Date.now();
-    const events = await ical.async.fromURL(icalUrl);
-    const fetchDuration = Date.now() - startFetch;
-    
-    console.log('[Vercel TRPC] ✅ Fetch iCal réussi en', fetchDuration, 'ms');
-    console.log('[Vercel TRPC] 📋 Evenements total dans iCal:', Object.keys(events).length);
-    
-    // PREMIÈRE PASSE: Identifier les événements "DISPONIBLE" (SOURCE de créneaux)
-    // et les événements bloquants (RDV, indisponibilités)
-    let disponibiliteCount = 0;
-    let blocageCount = 0;
-    
-    Object.values(events).forEach((event: any) => {
-      if (event.type !== 'VEVENT') return;
+    const events = response.data.items || [];
+    console.log(`[Vercel TRPC OAuth2] ✅ ${events.length} événements récupérés`);
 
-      if (isDisponibilite(event)) {
-        disponibiliteEvents.push(event);
-        disponibiliteCount++;
-        console.log('[Vercel TRPC] 🟢 DISPONIBILITÉ détectée:', event.summary);
-      } else if (isRendezVousOuBlocage(event)) {
-        const eventStart = new Date(event.start);
-        const eventEnd = new Date(event.end);
-        const dateStr = eventStart.toISOString().split('T')[0];
-        const startTime = eventStart.toTimeString().slice(0, 5);
-        const endTime = eventEnd.toTimeString().slice(0, 5);
+    return events;
+  } catch (error: any) {
+    console.error('[Vercel TRPC OAuth2] ❌ Erreur lors de la récupération des événements:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Génère les créneaux disponibles basés sur les horaires de travail et les événements existants
+ */
+async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, databaseUrl?: string): Promise<AvailableSlot[]> {
+  console.log('[Vercel TRPC OAuth2] 📅 Récupération des disponibilités via OAuth2 (Refresh Token)');
+  
+  const now = new Date();
+  const filterStartDate = startDate || now;
+  const filterEndDate = endDate || new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+  console.log('[Vercel TRPC OAuth2] 🌍 Environnement:', {
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    serverTime: now.toISOString(),
+  });
+
+  // Récupérer les événements existants depuis Google Calendar
+  const events = await getEventsFromGoogleCalendar(filterStartDate, filterEndDate);
+  
+  if (events.length === 0) {
+    console.warn('[Vercel TRPC OAuth2] ⚠️ Aucun événement récupéré depuis Google Calendar');
+  }
+
+  // Récupérer les rendez-vous de la base de données
+  const bookedFromDb = await getBookedSlots(databaseUrl);
+  console.log(`[Vercel TRPC OAuth2] 💾 ${bookedFromDb.size} rendez-vous en BD`);
+
+  // Horaires de travail (configuration)
+  const workingHours = {
+    startHour: 9,
+    startMinute: 0,
+    endHour: 18,
+    endMinute: 0,
+    slotDuration: 60, // minutes
+    workingDays: [1, 2, 3, 4, 5], // Lundi à Vendredi (ISO 8601)
+  };
+
+  const slots: AvailableSlot[] = [];
+  
+  // Générer les créneaux pour chaque jour de la période
+  let currentDate = new Date(filterStartDate);
+  currentDate.setHours(0, 0, 0, 0);
+
+  while (currentDate <= filterEndDate) {
+    const dayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // Dimanche = 7
+    
+    // Vérifier si c'est un jour ouvrable
+    if (workingHours.workingDays.includes(dayOfWeek)) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      // Générer les créneaux pour ce jour
+      for (let hour = workingHours.startHour; hour < workingHours.endHour; hour++) {
+        const slotStart = new Date(currentDate);
+        slotStart.setHours(hour, workingHours.startMinute, 0, 0);
         
-        const slotKey = `${dateStr}|${startTime}|${endTime}`;
-        bookedSlotsFromIcal.add(slotKey);
-        blocageCount++;
-        console.log('[Vercel TRPC] 🔴 BLOCAGE détecté:', slotKey, '-', event.summary);
-      }
-    });
-    
-    console.log(`[Vercel TRPC] 📊 Analyse iCal: ${disponibiliteCount} disponibilités, ${blocageCount} blocages`);
+        const slotEnd = new Date(slotStart);
+        slotEnd.setMinutes(slotEnd.getMinutes() + workingHours.slotDuration);
 
-    // Récupérer aussi les rendez-vous confirmés depuis la base de données
-    const bookedFromDb = await getBookedSlots(databaseUrl);
-    console.log(`[Vercel TRPC] 💾 Rendez-vous en BD: ${bookedFromDb.size}`);
-    
-    // DEUXIÈME PASSE: Générer les créneaux bookables à partir des événements "DISPONIBLE"
-    for (const event of disponibiliteEvents) {
-      const eventStart = new Date(event.start);
-      const eventEnd = new Date(event.end);
+        // Ignorer les créneaux passés
+        if (slotStart < now) {
+          continue;
+        }
 
-      // Filtrer par date
-      if (eventStart < filterStartDate || eventStart > filterEndDate) {
-        console.log('[Vercel TRPC] ⏭️ Disponibilité hors période:', eventStart.toISOString());
-        continue;
-      }
-      
-      // Filtrer les créneaux passés
-      if (eventStart < now) {
-        console.log('[Vercel TRPC] ⏭️ Disponibilité passée:', eventStart.toISOString());
-        continue;
-      }
+        const startTime = slotStart.toTimeString().slice(0, 5);
+        const endTime = slotEnd.toTimeString().slice(0, 5);
+        const slotKey = `${dateStr}|${startTime}`;
 
-      const duration = Math.round((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60));
-      const dateStr = eventStart.toISOString().split('T')[0];
-      const startTime = eventStart.toTimeString().slice(0, 5);
-      const endTime = eventEnd.toTimeString().slice(0, 5);
+        // Vérifier que le créneau n'est pas déjà réservé en BD
+        if (bookedFromDb.has(slotKey)) {
+          console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (réservé en BD):', slotKey);
+          continue;
+        }
 
-      // Vérifier que ce créneau n'est pas déjà réservé
-      const slotKey = `${dateStr}|${startTime}|${endTime}`;
-      const slotKeySimple = `${dateStr}|${startTime}`;
-      
-      if (bookedSlotsFromIcal.has(slotKey)) {
-        console.log('[Vercel TRPC] ❌ Créneau filtré (réservé dans iCal):', slotKey);
-        continue;
-      }
-      
-      if (bookedFromDb.has(slotKeySimple)) {
-        console.log('[Vercel TRPC] ❌ Créneau filtré (réservé dans BD):', slotKeySimple);
-        continue;
-      }
+        // Vérifier qu'aucun événement Google Calendar ne chevauche ce créneau
+        let isAvailable = true;
+        for (const event of events) {
+          if (!event.start?.dateTime || !event.end?.dateTime) continue;
 
-      // Vérifier le chevauchement avec les créneaux réservés
-      let isOverlapping = false;
-      for (const bookedKey of bookedSlotsFromIcal) {
-        const [bookedDate, bookedStart, bookedEnd] = bookedKey.split('|');
-        if (bookedDate === dateStr) {
-          const slotStartMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
-          const slotEndMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
-          const bookedStartMinutes = parseInt(bookedStart.split(':')[0]) * 60 + parseInt(bookedStart.split(':')[1]);
-          const bookedEndMinutes = parseInt(bookedEnd.split(':')[0]) * 60 + parseInt(bookedEnd.split(':')[1]);
-          
-          if (slotStartMinutes < bookedEndMinutes && slotEndMinutes > bookedStartMinutes) {
-            isOverlapping = true;
-            console.log('[Vercel TRPC] ❌ Créneau filtré (chevauchement):', slotKey, 'avec', bookedKey);
+          const eventStart = new Date(event.start.dateTime);
+          const eventEnd = new Date(event.end.dateTime);
+
+          // Détection de chevauchement
+          if (slotStart < eventEnd && slotEnd > eventStart) {
+            isAvailable = false;
+            console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (chevauchement avec événement):', slotKey, '-', event.summary);
             break;
           }
         }
+
+        if (isAvailable) {
+          slots.push({
+            date: dateStr,
+            startTime,
+            endTime,
+            duration: workingHours.slotDuration,
+            title: 'Disponible (60 min)',
+          });
+        }
       }
-
-      if (isOverlapping) continue;
-
-      console.log('[Vercel TRPC] ✅ Créneau DISPONIBLE ajouté:', dateStr, startTime, '-', endTime);
-      slots.push({
-        date: dateStr,
-        startTime,
-        endTime,
-        duration,
-        title: event.summary || 'Disponible',
-      });
-    }
-
-    console.log(`[Vercel TRPC] 🎯 RÉSULTAT FINAL: ${slots.length} créneaux bookables trouvés`);
-    
-    if (slots.length > 0) {
-      console.log('[Vercel TRPC] 📊 Exemples de créneaux bookables:', slots.slice(0, 5).map(s => 
-        `${s.date} ${s.startTime}-${s.endTime} (${s.title})`
-      ));
-    } else {
-      console.warn('[Vercel TRPC] ⚠️ AUCUN créneau bookable - Diagnostic:');
-      console.warn(`  - Disponibilités trouvées: ${disponibiliteCount}`);
-      console.warn(`  - Blocages trouvés: ${blocageCount}`);
-      console.warn(`  - Rendez-vous en BD: ${bookedFromDb.size}`);
-      console.warn('  ✓ Vérifier que les événements iCal contiennent "DISPONIBLE" dans le titre');
-      console.warn('  ✓ Vérifier que les créneaux sont dans le futur');
-      console.warn('  ✓ Vérifier que les créneaux ne sont pas déjà réservés');
     }
     
-    slots.sort((a, b) => {
-      const dateCompare = a.date.localeCompare(b.date);
-      if (dateCompare !== 0) return dateCompare;
-      return a.startTime.localeCompare(b.startTime);
-    });
-
-    return slots;
-  } catch (error: any) {
-    console.error('[Vercel TRPC] ❌ Erreur lors de la recuperation des disponibilites:', error);
-    console.error('[Vercel TRPC] Type d\'erreur:', error.constructor.name);
-    console.error('[Vercel TRPC] Message:', error.message);
-    console.error('[Vercel TRPC] Stack:', error.stack);
-    
-    // Détails supplémentaires selon le type d'erreur
-    if (error.code) {
-      console.error('[Vercel TRPC] Code d\'erreur:', error.code);
-    }
-    if (error.response) {
-      console.error('[Vercel TRPC] Réponse HTTP:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-      });
-    }
-    
-    return [];
+    // Passer au jour suivant
+    currentDate.setDate(currentDate.getDate() + 1);
   }
+
+  console.log(`[Vercel TRPC OAuth2] 🎯 RÉSULTAT: ${slots.length} créneaux disponibles`);
+  
+  if (slots.length > 0) {
+    console.log('[Vercel TRPC OAuth2] 📊 Exemples de créneaux:', slots.slice(0, 5).map(s => 
+      `${s.date} ${s.startTime}-${s.endTime}`
+    ));
+  } else {
+    console.warn('[Vercel TRPC OAuth2] ⚠️ AUCUN créneau disponible - Vérifier la configuration');
+  }
+
+  return slots;
 }
 
 async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<string>> {
@@ -305,25 +275,16 @@ async function createGoogleCalendarEvent(appointmentData: {
   endTime: string;
   reason?: string;
 }): Promise<string | null> {
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
-  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CALENDAR_EMAIL;
-  const targetCalendarId = process.env.GOOGLE_CALENDAR_ID;
-
-  if (!privateKey || !serviceAccountEmail) {
-    console.warn('[Vercel TRPC] Configuration Google Calendar incomplete pour creation evenement');
-    console.warn('  - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:', privateKey ? 'OK' : 'MANQUANT');
-    console.warn('  - GOOGLE_SERVICE_ACCOUNT_EMAIL:', serviceAccountEmail ? 'OK' : 'MANQUANT');
+  const oauth2Client = createOAuth2Client();
+  
+  if (!oauth2Client) {
+    console.error('[Vercel TRPC OAuth2] ❌ Impossible de créer un événement sans OAuth2');
     return null;
   }
 
   try {
-    const auth = new google.auth.JWT({
-      email: serviceAccountEmail,
-      key: privateKey.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/calendar'],
-    });
-
-    const calendar = google.calendar({ version: 'v3', auth });
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const targetCalendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
     const startDateTime = new Date(appointmentData.date);
     const [startHours, startMinutes] = appointmentData.startTime.split(':').map(Number);
@@ -334,8 +295,8 @@ async function createGoogleCalendarEvent(appointmentData: {
     endDateTime.setHours(endHours, endMinutes, 0, 0);
 
     const event = {
-      summary: `RDV - ${appointmentData.patientName}`,
-      description: `Patient: ${appointmentData.patientName}\nEmail: ${appointmentData.patientEmail}\nTelephone: ${appointmentData.patientPhone || 'Non renseigne'}\nMotif: ${appointmentData.reason || 'Non precise'}`,
+      summary: `🗓️ RDV - ${appointmentData.patientName}`,
+      description: `Patient: ${appointmentData.patientName}\nEmail: ${appointmentData.patientEmail}\nTéléphone: ${appointmentData.patientPhone || 'Non renseigné'}\nMotif: ${appointmentData.reason || 'Non précisé'}\n\n✅ Réservé via l'application web`,
       start: {
         dateTime: startDateTime.toISOString(),
         timeZone: 'Europe/Paris',
@@ -344,7 +305,7 @@ async function createGoogleCalendarEvent(appointmentData: {
         dateTime: endDateTime.toISOString(),
         timeZone: 'Europe/Paris',
       },
-      colorId: '9',
+      colorId: '11',
       transparency: 'opaque',
       reminders: {
         useDefault: false,
@@ -356,48 +317,41 @@ async function createGoogleCalendarEvent(appointmentData: {
     };
 
     const response = await calendar.events.insert({
-      calendarId: targetCalendarId || serviceAccountEmail,
+      calendarId: targetCalendarId,
       requestBody: event,
-      sendUpdates: 'all',
+      sendUpdates: 'none',
     });
 
-    console.log('[Vercel TRPC] Evenement Google Calendar cree:', response.data.id);
+    console.log('[Vercel TRPC OAuth2] ✅ Événement Google Calendar créé:', response.data.id);
     return response.data.id || null;
-  } catch (error) {
-    console.error('[Vercel TRPC] Erreur creation evenement Google Calendar:', error);
+  } catch (error: any) {
+    console.error('[Vercel TRPC OAuth2] ❌ Erreur création événement:', error.message);
     return null;
   }
 }
 
 async function deleteGoogleCalendarEvent(eventId: string): Promise<boolean> {
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
-  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CALENDAR_EMAIL;
-  const targetCalendarId = process.env.GOOGLE_CALENDAR_ID;
-
-  if (!privateKey || !serviceAccountEmail) {
-    console.warn('[Vercel TRPC] Configuration Google Calendar incomplete pour suppression evenement');
+  const oauth2Client = createOAuth2Client();
+  
+  if (!oauth2Client) {
+    console.error('[Vercel TRPC OAuth2] ❌ Impossible de supprimer un événement sans OAuth2');
     return false;
   }
 
   try {
-    const auth = new google.auth.JWT({
-      email: serviceAccountEmail,
-      key: privateKey.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/calendar'],
-    });
-
-    const calendar = google.calendar({ version: 'v3', auth });
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const targetCalendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
     await calendar.events.delete({
-      calendarId: targetCalendarId || serviceAccountEmail,
+      calendarId: targetCalendarId,
       eventId: eventId,
-      sendUpdates: 'all',
+      sendUpdates: 'none',
     });
 
-    console.log('[Vercel TRPC] Evenement Google Calendar supprime:', eventId);
+    console.log('[Vercel TRPC OAuth2] ✅ Événement Google Calendar supprimé:', eventId);
     return true;
-  } catch (error) {
-    console.error('[Vercel TRPC] Erreur suppression evenement Google Calendar:', error);
+  } catch (error: any) {
+    console.error('[Vercel TRPC OAuth2] ❌ Erreur suppression événement:', error.message);
     return false;
   }
 }
@@ -411,17 +365,17 @@ const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         try {
-          console.log("[Vercel TRPC] getAvailabilitiesByDate appele avec:", input);
+          console.log("[Vercel TRPC OAuth2] getAvailabilitiesByDate appelé avec:", input);
           
           const startDate = input.startDate ? new Date(input.startDate) : new Date();
           const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
           
-          // La fonction getAvailableSlotsFromIcal filtre deja les creneaux reserves (iCal + BD)
-          const icalSlots = await getAvailableSlotsFromIcal(startDate, endDate, process.env.DATABASE_URL);
+          // Utiliser OAuth2 avec refresh token au lieu d'iCal
+          const slots = await getAvailableSlotsFromOAuth(startDate, endDate, process.env.DATABASE_URL);
           
           const slotsByDate: Record<string, any[]> = {};
           
-          for (const slot of icalSlots) {
+          for (const slot of slots) {
             if (!slotsByDate[slot.date]) {
               slotsByDate[slot.date] = [];
             }
@@ -433,7 +387,7 @@ const appRouter = router({
           }
           
           const availableDates = Object.keys(slotsByDate).sort();
-          console.log(`[Vercel TRPC] ${availableDates.length} dates disponibles depuis iCal (apres filtrage)`);
+          console.log(`[Vercel TRPC OAuth2] ✅ ${availableDates.length} dates disponibles via OAuth2`);
           
           return {
             success: true,
@@ -441,10 +395,10 @@ const appRouter = router({
             availableDates,
           };
         } catch (error: any) {
-          console.error("[Vercel TRPC] Erreur getAvailabilitiesByDate:", error);
+          console.error("[Vercel TRPC OAuth2] ❌ Erreur getAvailabilitiesByDate:", error);
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Impossible de recuperer les disponibilites: " + error.message
+            message: "Impossible de récupérer les disponibilités: " + error.message
           });
         }
       }),
@@ -458,8 +412,8 @@ const appRouter = router({
         const startDate = input.startDate ? new Date(input.startDate) : new Date();
         const endDate = input.endDate ? new Date(input.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
         
-        // La fonction filtre deja les creneaux reserves
-        const slots = await getAvailableSlotsFromIcal(startDate, endDate, process.env.DATABASE_URL);
+        // Utiliser OAuth2 avec refresh token
+        const slots = await getAvailableSlotsFromOAuth(startDate, endDate, process.env.DATABASE_URL);
         
         return { success: true, slots };
       }),
