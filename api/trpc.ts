@@ -119,7 +119,57 @@ async function getEventsFromGoogleCalendar(startDate: Date, endDate: Date): Prom
 }
 
 /**
- * Génère les créneaux disponibles basés sur les horaires de travail et les événements existants
+ * Vérifie si un événement Google Calendar est un créneau de DISPONIBILITÉ
+ * RÈGLE : Un événement "DISPONIBLE" est une SOURCE de créneaux bookables
+ */
+function isDisponibilite(event: any): boolean {
+  if (!event || !event.summary) return false;
+  
+  const title = event.summary.toLowerCase();
+  
+  return (
+    title.includes('disponible') || 
+    title.includes('available') || 
+    title.includes('dispo') ||
+    title.includes('libre') ||
+    title.includes('free') ||
+    title.includes('🟢')
+  );
+}
+
+/**
+ * Vérifie si un événement Google Calendar est un RENDEZ-VOUS ou un BLOCAGE
+ * RÈGLE : Un événement NON "DISPONIBLE" bloque le temps
+ */
+function isRendezVousOuBlocage(event: any): boolean {
+  if (!event || !event.summary) return false;
+  
+  // Si c'est un créneau de disponibilité, ce n'est PAS un blocage
+  if (isDisponibilite(event)) return false;
+  
+  const title = event.summary.toLowerCase();
+  
+  return (
+    title.includes('réservé') || 
+    title.includes('reserve') ||
+    title.includes('consultation') ||
+    title.includes('rdv') ||
+    title.includes('rendez-vous') ||
+    title.includes('🔴') ||
+    title.includes('🩺') ||
+    title.includes('indisponible') ||
+    title.includes('unavailable') ||
+    // Tout événement non "DISPONIBLE" est considéré comme un blocage par défaut
+    true
+  );
+}
+
+/**
+ * Génère les créneaux disponibles basés sur les événements "DISPONIBLE" de Google Calendar
+ * LOGIQUE CORRIGÉE :
+ * 1. Les événements "DISPONIBLE" créent des créneaux bookables
+ * 2. Les événements "RDV" ou autres bloquent le temps
+ * 3. Les créneaux déjà réservés en BD sont filtrés
  */
 async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, databaseUrl?: string): Promise<AvailableSlot[]> {
   console.log('[Vercel TRPC OAuth2] 📅 Récupération des disponibilités via OAuth2 (Refresh Token)');
@@ -146,92 +196,108 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
   const bookedFromDb = await getBookedSlots(databaseUrl);
   console.log(`[Vercel TRPC OAuth2] 💾 ${bookedFromDb.size} rendez-vous en BD`);
 
-  // Horaires de travail (configuration)
-  const workingHours = {
-    startHour: 9,
-    startMinute: 0,
-    endHour: 18,
-    endMinute: 0,
-    slotDuration: 60, // minutes
-    workingDays: [1, 2, 3, 4, 5], // Lundi à Vendredi (ISO 8601)
-  };
-
-  const slots: AvailableSlot[] = [];
+  // PREMIÈRE PASSE : Séparer les disponibilités des blocages
+  const disponibiliteEvents: any[] = [];
+  const blocageEvents: any[] = [];
   
-  // Générer les créneaux pour chaque jour de la période
-  let currentDate = new Date(filterStartDate);
-  currentDate.setHours(0, 0, 0, 0);
-
-  while (currentDate <= filterEndDate) {
-    const dayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // Dimanche = 7
+  for (const event of events) {
+    if (!event.start?.dateTime || !event.end?.dateTime) continue;
     
-    // Vérifier si c'est un jour ouvrable
-    if (workingHours.workingDays.includes(dayOfWeek)) {
-      const dateStr = currentDate.toISOString().split('T')[0];
-      
-      // Générer les créneaux pour ce jour
-      for (let hour = workingHours.startHour; hour < workingHours.endHour; hour++) {
-        const slotStart = new Date(currentDate);
-        slotStart.setHours(hour, workingHours.startMinute, 0, 0);
-        
-        const slotEnd = new Date(slotStart);
-        slotEnd.setMinutes(slotEnd.getMinutes() + workingHours.slotDuration);
-
-        // Ignorer les créneaux passés
-        if (slotStart < now) {
-          continue;
-        }
-
-        const startTime = slotStart.toTimeString().slice(0, 5);
-        const endTime = slotEnd.toTimeString().slice(0, 5);
-        const slotKey = `${dateStr}|${startTime}`;
-
-        // Vérifier que le créneau n'est pas déjà réservé en BD
-        if (bookedFromDb.has(slotKey)) {
-          console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (réservé en BD):', slotKey);
-          continue;
-        }
-
-        // Vérifier qu'aucun événement Google Calendar ne chevauche ce créneau
-        let isAvailable = true;
-        for (const event of events) {
-          if (!event.start?.dateTime || !event.end?.dateTime) continue;
-
-          const eventStart = new Date(event.start.dateTime);
-          const eventEnd = new Date(event.end.dateTime);
-
-          // Détection de chevauchement
-          if (slotStart < eventEnd && slotEnd > eventStart) {
-            isAvailable = false;
-            console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (chevauchement avec événement):', slotKey, '-', event.summary);
-            break;
-          }
-        }
-
-        if (isAvailable) {
-          slots.push({
-            date: dateStr,
-            startTime,
-            endTime,
-            duration: workingHours.slotDuration,
-            title: 'Disponible (60 min)',
-          });
-        }
-      }
+    if (isDisponibilite(event)) {
+      disponibiliteEvents.push(event);
+      console.log(`[Vercel TRPC OAuth2] 🟢 DISPONIBILITÉ détectée: ${event.summary}`);
+    } else if (isRendezVousOuBlocage(event)) {
+      blocageEvents.push(event);
+      console.log(`[Vercel TRPC OAuth2] 🔴 BLOCAGE détecté: ${event.summary}`);
     }
-    
-    // Passer au jour suivant
-    currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  console.log(`[Vercel TRPC OAuth2] 🎯 RÉSULTAT: ${slots.length} créneaux disponibles`);
+  console.log(`[Vercel TRPC OAuth2] 📊 Analyse: ${disponibiliteEvents.length} disponibilités, ${blocageEvents.length} blocages`);
+
+  const slots: AvailableSlot[] = [];
+  const slotDuration = 60; // minutes
+
+  // DEUXIÈME PASSE : Générer les créneaux à partir des disponibilités
+  for (const dispoEvent of disponibiliteEvents) {
+    const eventStart = new Date(dispoEvent.start.dateTime);
+    const eventEnd = new Date(dispoEvent.end.dateTime);
+    
+    // Ignorer les événements passés
+    if (eventEnd < now) {
+      continue;
+    }
+
+    // Générer des créneaux de 1h dans cette plage de disponibilité
+    let slotStart = new Date(eventStart);
+    
+    while (slotStart < eventEnd) {
+      const slotEnd = new Date(slotStart.getTime() + slotDuration * 60 * 1000);
+      
+      // S'assurer que le créneau ne dépasse pas la fin de la disponibilité
+      if (slotEnd > eventEnd) break;
+      
+      // Ignorer les créneaux passés
+      if (slotStart < now) {
+        slotStart = new Date(slotStart.getTime() + slotDuration * 60 * 1000);
+        continue;
+      }
+
+      const dateStr = slotStart.toISOString().split('T')[0];
+      const startTime = slotStart.toTimeString().slice(0, 5);
+      const endTime = slotEnd.toTimeString().slice(0, 5);
+      const slotKey = `${dateStr}|${startTime}`;
+
+      // Vérifier que le créneau n'est pas déjà réservé en BD
+      if (bookedFromDb.has(slotKey)) {
+        console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (réservé en BD):', slotKey);
+        slotStart = new Date(slotStart.getTime() + slotDuration * 60 * 1000);
+        continue;
+      }
+
+      // Vérifier qu'aucun blocage ne chevauche ce créneau
+      let isBlocked = false;
+      for (const blocageEvent of blocageEvents) {
+        const blocStart = new Date(blocageEvent.start.dateTime);
+        const blocEnd = new Date(blocageEvent.end.dateTime);
+
+        // Détection de chevauchement
+        if (slotStart < blocEnd && slotEnd > blocStart) {
+          isBlocked = true;
+          console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (chevauchement avec blocage):', slotKey, '-', blocageEvent.summary);
+          break;
+        }
+      }
+
+      if (!isBlocked) {
+        slots.push({
+          date: dateStr,
+          startTime,
+          endTime,
+          duration: slotDuration,
+          title: 'Disponible (60 min)',
+        });
+        console.log('[Vercel TRPC OAuth2] ✅ Créneau DISPONIBLE ajouté:', slotKey);
+      }
+
+      // Passer au créneau suivant
+      slotStart = new Date(slotStart.getTime() + slotDuration * 60 * 1000);
+    }
+  }
+
+  console.log(`[Vercel TRPC OAuth2] 🎯 RÉSULTAT FINAL: ${slots.length} créneaux bookables trouvés`);
   
   if (slots.length > 0) {
     console.log('[Vercel TRPC OAuth2] 📊 Exemples de créneaux:', slots.slice(0, 5).map(s => 
       `${s.date} ${s.startTime}-${s.endTime}`
     ));
   } else {
-    console.warn('[Vercel TRPC OAuth2] ⚠️ AUCUN créneau disponible - Vérifier la configuration');
+    console.warn('[Vercel TRPC OAuth2] ⚠️ AUCUN créneau bookable - Diagnostic:');
+    console.warn(`  - Disponibilités trouvées: ${disponibiliteEvents.length}`);
+    console.warn(`  - Blocages trouvés: ${blocageEvents.length}`);
+    console.warn(`  - Rendez-vous en BD: ${bookedFromDb.size}`);
+    console.warn('  ✓ Vérifier que les événements Google Calendar contiennent "DISPONIBLE" dans le titre');
+    console.warn('  ✓ Vérifier que les créneaux sont dans le futur');
+    console.warn('  ✓ Vérifier qu\'il n\'y a pas de chevauchement total avec des blocages');
   }
 
   return slots;
