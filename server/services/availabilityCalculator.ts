@@ -37,7 +37,7 @@ interface SimpleEvent {
  */
 export const DEFAULT_WORKING_HOURS: WorkingHoursRules = {
   timezone: 'Europe/Paris',
-  workingDays: [1, 2, 3, 4, 5], // Lundi à Vendredi (ISO 8601: 1 = Lundi, 7 = Dimanche)
+  workingDays: [1, 2, 4, 5], // Lundi, Mardi, Jeudi, Vendredi (Exclut Mercredi 3)
   startHour: 9,                  // 9h00
   startMinute: 0,
   endHour: 18,                   // 18h00
