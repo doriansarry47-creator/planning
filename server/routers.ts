@@ -11,6 +11,7 @@ import { patientBookingRouter } from "./patientBookingRouter";
 import { bookingRouter } from "./bookingRouter";
 import { patientAppointmentsRouter } from "./patientAppointmentsRouter";
 import { calendarSyncRouter } from "./calendarSyncRouter";
+import { availabilityRouter } from "./availabilityRouter";
 import { availabilityOAuth2Router } from "./routers/availabilityOAuth2Router";
 import { appointmentOAuth2Router } from "./routers/appointmentOAuth2Router";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -27,6 +28,7 @@ export const appRouter = router({
   booking: bookingRouter, // Nouveau router pour la réservation simplifiée
   patientAppointments: patientAppointmentsRouter, // Nouveau router pour consulter/annuler les rendez-vous
   calendarSync: calendarSyncRouter, // Router pour la synchronisation bidirectionnelle avec Google Calendar
+  availability: availabilityRouter, // ✅ Router de disponibilités basé sur Google Calendar (événements "DISPONIBLE")
   availabilityOAuth2: availabilityOAuth2Router, // ✅ NOUVEAU: Disponibilités avec OAuth 2.0
   appointmentOAuth2: appointmentOAuth2Router, // ✅ NOUVEAU: Réservation avec OAuth 2.0
   auth: router({
