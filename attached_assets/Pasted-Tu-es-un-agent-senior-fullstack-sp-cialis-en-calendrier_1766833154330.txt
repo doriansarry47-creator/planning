@@ -1,0 +1,88 @@
+Tu es un agent senior fullstack spécialisé en calendriers iCal, gestion de disponibilités,
+timezone, Node.js, TypeScript, Vercel, TRPC et systèmes de réservation.
+
+CONTEXTE
+========
+J’ai une API TRPC `getAvailabilitiesByDate` qui :
+- Récupère un iCal Google Calendar
+- Détecte les événements "🟢 DISPONIBLE" comme des créneaux ouverts
+- Détecte les événements RDV / RÉSERVÉ comme des blocages
+- Filtre ensuite les créneaux pour ne garder que ceux :
+  - dans la période demandée
+  - dans le futur
+  - non déjà réservés en base de données
+
+PROBLÈME
+========
+Visuellement, le calendrier contient BEAUCOUP de créneaux "DISPONIBLE".
+Les logs confirment :
+- 90 disponibilités détectées
+- 12 blocages
+- 45 rendez-vous en base
+
+MAIS le résultat final est :
+➡️ 0 créneaux bookables trouvés
+
+Logs clés :
+- Beaucoup de lignes : "⏭️ Disponibilité hors période"
+- Beaucoup de lignes : "❌ Créneau filtré (réservé dans BD)"
+- Timezone serveur = UTC
+- iCal Google Calendar (probablement Europe/Paris)
+- Les DISPONIBLE sont souvent à 17:30 ou 18:30 heure locale
+
+OBJECTIF
+========
+Identifier précisément POURQUOI tous les créneaux DISPONIBLE sont éliminés
+et proposer une correction robuste.
+
+CE QUE TU DOIS FAIRE
+====================
+1️⃣ ANALYSE
+- Lire attentivement les logs fournis
+- Identifier les causes probables :
+  - Problème de timezone (UTC vs local)
+  - Mauvaise comparaison startDate / endDate
+  - Erreur de normalisation des dates (startOfDay / endOfDay)
+  - Conflit entre iCal et BD (clé date+heure mal alignée)
+  - Suppression globale d’un créneau DISPONIBLE à cause d’un RDV partiel
+
+2️⃣ DIAGNOSTIC PRÉCIS
+Pour chaque hypothèse :
+- Explique pourquoi elle est plausible
+- Cite les lignes de log qui le prouvent
+- Dis si elle peut à elle seule provoquer "0 créneau bookable"
+
+3️⃣ CORRECTION TECHNIQUE
+Proposer une solution claire et concrète :
+- Normalisation des dates (UTC ↔ timezone locale)
+- Comparaison robuste des périodes
+- Matching exact entre créneau iCal et RDV BD
+- Gestion correcte des événements partiels (un RDV ne doit bloquer qu’un seul slot, pas toute la plage)
+
+4️⃣ CODE
+Fournir :
+- Un exemple TypeScript clair pour :
+  - Normaliser les dates
+  - Comparer correctement les créneaux
+  - Corriger le filtrage "hors période"
+- Si nécessaire, proposer l’usage de :
+  - date-fns-tz ou luxon
+  - une fonction utilitaire unique de parsing iCal
+
+5️⃣ RÈGLES MÉTIER À RESPECTER
+- Un événement "DISPONIBLE" = créneau ouvrable
+- Un RDV ne bloque QUE l’intervalle exact
+- La suppression d’un DISPONIBLE ne doit jamais supprimer toute une journée
+- Les créneaux doivent être bookables s’ils sont visibles côté Google Calendar
+
+6️⃣ LIVRABLE FINAL
+- Résumé du bug principal
+- Liste des corrections à appliquer
+- Code corrigé ou pseudo-code précis
+- Checklist de tests à faire après correction
+
+IMPORTANT
+=========
+- Sois précis, pas vague
+- Ne propose pas 10 solutions abstraites
+- Agis comme si tu devais livrer le correctif aujourd’hui en production

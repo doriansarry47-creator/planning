@@ -1,0 +1,101 @@
+19:05:31.328 Running build in Washington, D.C., USA (East) – iad1
+19:05:31.329 Build machine configuration: 2 cores, 8 GB
+19:05:31.637 Cloning github.com/doriansarry47-creator/planning (Branch: main, Commit: caa9815)
+19:05:32.225 Cloning completed: 588.000ms
+19:05:32.345 Found .vercelignore
+19:05:32.357 Removed 27 ignored files defined in .vercelignore
+19:05:32.357   /.git/config
+19:05:32.357   /.git/description
+19:05:32.358   /.git/FETCH_HEAD
+19:05:32.358   /.git/HEAD
+19:05:32.358   /.git/hooks/applypatch-msg.sample
+19:05:32.358   /.git/hooks/commit-msg.sample
+19:05:32.358   /.git/hooks/fsmonitor-watchman.sample
+19:05:32.358   /.git/hooks/post-update.sample
+19:05:32.358   /.git/hooks/pre-applypatch.sample
+19:05:32.358   /.git/hooks/pre-commit.sample
+19:05:32.698 Restored build cache from previous deployment (9YCPB5No4MkAiXkJL5JKd9Kv5dvj)
+19:05:33.500 Running "vercel build"
+19:05:33.910 Vercel CLI 49.0.0
+19:05:34.625 Running "install" command: `npm install`...
+19:05:38.042 
+19:05:38.043 up to date, audited 805 packages in 3s
+19:05:38.044 
+19:05:38.044 97 packages are looking for funding
+19:05:38.044   run `npm fund` for details
+19:05:38.100 
+19:05:38.100 23 vulnerabilities (18 moderate, 5 high)
+19:05:38.101 
+19:05:38.101 To address issues that do not require attention, run:
+19:05:38.101   npm audit fix
+19:05:38.101 
+19:05:38.101 To address all issues (including breaking changes), run:
+19:05:38.101   npm audit fix --force
+19:05:38.101 
+19:05:38.102 Run `npm audit` for details.
+19:05:38.337 
+19:05:38.338 > planning-app@1.0.0 build
+19:05:38.339 > vite build
+19:05:38.339 
+19:05:38.643 [36mvite v4.5.14 [32mbuilding for production...[36m[39m
+19:05:38.672 transforming...
+19:05:48.129 [32m✓[39m 3361 modules transformed.
+19:05:48.874 rendering chunks...
+19:05:48.906 computing gzip size...
+19:05:48.995 [2mdist/[22m[32mindex.html                 [39m[1m[2m  0.85 kB[22m[1m[22m[2m │ gzip:   0.45 kB[22m
+19:05:48.996 [2mdist/[22m[2massets/[22m[35mindex-35f0265f.css  [39m[1m[2m110.33 kB[22m[1m[22m[2m │ gzip:  17.95 kB[22m
+19:05:48.997 [2mdist/[22m[2massets/[22m[36mindex-1a75590a.js   [39m[1m[33m989.49 kB[39m[22m[2m │ gzip: 296.29 kB[22m
+19:05:48.997 [33m
+19:05:48.998 (!) Some chunks are larger than 500 kBs after minification. Consider:
+19:05:48.998 - Using dynamic import() to code-split the application
+19:05:48.998 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+19:05:48.998 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+19:05:48.999 [32m✓ built in 10.36s[39m
+19:05:49.292 Installing dependencies...
+19:05:50.488 
+19:05:50.489 up to date in 1s
+19:05:50.489 
+19:05:50.490 97 packages are looking for funding
+19:05:50.490   run `npm fund` for details
+19:05:50.762 Using TypeScript 5.9.3 (local user-provided)
+19:06:10.217 api/index-backup-20251123-052244.ts(18,34): error TS2552: Cannot find name 'req'. Did you mean '_req'?
+19:06:10.218 api/index-backup-20251123-052244.ts(19,35): error TS2552: Cannot find name 'req'. Did you mean '_req'?
+19:06:10.218 api/index-backup-20251123-052244.ts(22,9): error TS2552: Cannot find name 'res'. Did you mean '_res'?
+19:06:10.219 api/index-backup-20251123-052244.ts(31,9): error TS2552: Cannot find name 'res'. Did you mean '_res'?
+19:06:10.219 api/index-backup-20251123-052244.ts(34,9): error TS2552: Cannot find name 'res'. Did you mean '_res'?
+19:06:10.219 api/index-backup-20251123-052244.ts(332,25): error TS6133: 'req' is declared but its value is never read.
+19:06:10.219 
+19:06:27.509 Using TypeScript 5.9.3 (local user-provided)
+19:06:27.682 api/index-backup-20251123-053225.ts(388,25): error TS6133: 'req' is declared but its value is never read.
+19:06:27.682 
+19:06:44.223 Using TypeScript 5.9.3 (local user-provided)
+19:06:44.292 api/index.ts(9,11): error TS6133: 'calendar' is declared but its value is never read.
+19:06:44.292 api/index.ts(12,11): error TS6133: 'calendarId' is declared but its value is never read.
+19:06:44.292 
+19:07:00.491 Using TypeScript 5.9.3 (local user-provided)
+19:07:00.612 Using TypeScript 5.9.3 (local user-provided)
+19:07:00.815 api/optimized-index.ts(395,29): error TS6133: 'req' is declared but its value is never read.
+19:07:00.815 
+19:07:17.354 Using TypeScript 5.9.3 (local user-provided)
+19:07:17.748 Using TypeScript 5.9.3 (local user-provided)
+19:07:17.950 api/trpc.ts(10,1): error TS6133: 'eq' is declared but its value is never read.
+19:07:17.950 api/trpc.ts(22,11): error TS6133: 'calendar' is declared but its value is never read.
+19:07:17.951 api/trpc.ts(25,11): error TS6133: 'calendarId' is declared but its value is never read.
+19:07:17.951 api/trpc.ts(175,16): error TS2554: Expected 1 arguments, but got 2.
+19:07:17.951 
+19:07:36.595 Build Completed in /vercel/output [2m]
+19:07:37.693 Deploying outputs...
+19:08:04.027 Error: The Edge Function "api/trpc" is referencing unsupported modules:
+19:08:04.027 	- agent-base: http, https, net
+19:08:04.027 	- dotenv: fs, path, os, crypto
+19:08:04.028 	- fetch-blob: node:fs, node:path
+19:08:04.028 	- gaxios: https, stream, crypto
+19:08:04.028 	- gcp-metadata: fs, os
+19:08:04.028 	- google-auth-library: stream, fs, crypto, https, child_process, os, path, querystring
+19:08:04.028 	- google-logging-utils: process
+19:08:04.028 	- googleapis-common: stream, crypto, fs, url, http2, zlib, process
+19:08:04.028 	- gtoken: fs, path
+19:08:04.028 	- https-proxy-agent: net, tls, url
+19:08:04.028 	- jwa: crypto
+19:08:04.029 	- jws: stream
+19:08:04.029 	- node-fetch: node:stream, node:http, node:https, node:zlib, node:url, node:net

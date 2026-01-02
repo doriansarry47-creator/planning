@@ -1,0 +1,47 @@
+Tu es un développeur expert Next.js / TypeScript / tRPC / Google Calendar API.
+
+Contexte :
+- L’application est déjà fonctionnelle et le design (UI/UX) ne doit EN AUCUN CAS être modifié.
+- Le système actuel utilise une autre méthode de connexion à Google Calendar.
+- Je veux migrer vers un mode **OAuth 2.0 avec access_token + refresh_token**.
+- L’objectif est de lier mon Google Calendar personnel à l’application de façon persistante.
+
+🎯 Objectif principal :
+Mettre en place une authentification **OAuth Google Calendar** avec gestion automatique du refresh token, afin que l’application puisse accéder au calendrier même après expiration de l’access token.
+
+⚠️ Contraintes importantes :
+- ❌ Ne pas modifier le design, les composants UI ou le parcours utilisateur.
+- ❌ Ne pas casser le fonctionnement existant.
+- ✅ Se limiter à la logique backend / auth / services.
+- ✅ Fonctionner correctement en environnement serverless (Vercel / Replit).
+
+🔐 Exigences techniques :
+1. Utiliser OAuth 2.0 Google avec les scopes minimum nécessaires :
+   - https://www.googleapis.com/auth/calendar.readonly
+   (ou calendar si écriture nécessaire)
+2. Implémenter la récupération et le stockage sécurisé du refresh_token.
+3. Mettre en place un mécanisme automatique de rafraîchissement de l’access_token.
+4. S’assurer que le token est réutilisé sans nécessiter de reconnexion utilisateur.
+5. Gérer proprement les erreurs OAuth (token expiré, token révoqué, permissions manquantes).
+
+📁 Fichiers concernés (indicatif) :
+- Service Google Calendar
+- Routes API / tRPC
+- Middleware d’authentification
+- Variables d’environnement
+
+🔑 Variables d’environnement attendues :
+- GOOGLE_CLIENT_ID
+- GOOGLE_CLIENT_SECRET
+- GOOGLE_REDIRECT_URI
+- GOOGLE_REFRESH_TOKEN (si déjà obtenu)
+
+📌 Résultat attendu :
+- Le Google Calendar est correctement lié via OAuth
+- Les disponibilités sont récupérées sans interruption
+- Aucun changement visuel dans l’application
+- Le système est stable en production
+
+🧪 Bonus :
+- Ajouter des logs clairs (sans exposer les tokens)
+- Fournir une courte explication du flux OAuth mis en place

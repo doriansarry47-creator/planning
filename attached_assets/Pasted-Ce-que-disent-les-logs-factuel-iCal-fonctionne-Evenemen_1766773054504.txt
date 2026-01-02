@@ -1,0 +1,117 @@
+Ce que disent les logs (factuel)
+
+iCal fonctionne
+
+Evenements total dans iCal: 119
+Creneau reserve (iCal): 2026-01-15|17:30|18:30
+...
+
+
+Les créneaux réservés en base sont bien chargés
+
+Creneau filtre (reserve dans BD): 2026-01-02|17:30
+Creneau filtre (reserve dans BD): 2026-01-01|17:30
+...
+
+
+Puis catastrophe
+
+0 creneaux disponibles trouves (apres filtrage)
+
+
+👉 Donc :
+
+Les créneaux sont générés ✅
+
+Le filtre iCal fonctionne ✅
+
+Le filtre “réservé en base” supprime TOUS les créneaux ❌
+
+🚨 CAUSE RACINE (le vrai bug)
+❌ Mauvaise clé de comparaison entre :
+
+créneaux générés
+
+créneaux réservés en base
+
+Ce que tu compares actuellement (très probablement) :
+// slots générés
+"2026-01-15|17:30|18:30"
+
+// réservations DB
+"2026-01-15|17:30"
+
+
+➡️ Résultat :
+
+Tous les créneaux dont l’heure de début correspond
+
+sont considérés comme réservés
+
+même s’ils ne le sont PAS
+
+💥 C’est pour ça que 100 % des créneaux disparaissent
+
+🧠 Pourquoi ça ne se voyait pas avant
+
+En local : moins de données → le bug passe
+
+En prod :
+
+beaucoup d’événements
+
+beaucoup de réservations
+
+collision massive sur date + startTime
+
+✅ CORRECTION DÉFINITIVE (OBLIGATOIRE)
+🟢 RÈGLE D’OR
+
+⚠️ On ne filtre JAMAIS un créneau avec seulement date + startTime
+
+Il faut une clé canonique IDENTIQUE des deux côtés.
+
+✅ Solution PRO (recommandée)
+1️⃣ Définir une clé unique NORMALISÉE
+function slotKey(date: string, start: string, end: string) {
+  return `${date}|${start}|${end}`;
+}
+
+2️⃣ Construire le Set côté DB
+const reservedSet = new Set(
+  reservedFromDB.map(r =>
+    slotKey(r.date, r.startTime, r.endTime)
+  )
+);
+
+3️⃣ Filtrer les créneaux générés CORRECTEMENT
+const availableSlots = allSlots.filter(slot => {
+  const key = slotKey(slot.date, slot.start, slot.end);
+  return !reservedSet.has(key);
+});
+
+❌ CE QU’IL NE FAUT SURTOUT PAS FAIRE
+// ❌ DANGEREUX
+`${date}|${startTime}`
+
+
+➡️ Collision garantie
+➡️ 0 créneau en prod
+
+🧪 LOG DE VALIDATION (à garder)
+
+Ajoute ceci temporairement :
+
+console.log('[CHECK] Slot:', key);
+console.log('[CHECK] Reserved keys:', [...reservedSet].slice(0,5));
+
+
+👉 Tu verras immédiatement que les clés correspondent (ou pas).
+
+📌 Résumé clair pour commit / client
+
+Bug identifié :
+Tous les créneaux étaient filtrés à tort car la comparaison entre les créneaux générés et les réservations en base utilisait une clé incomplète (date + heure de début).
+
+Correction :
+Mise en place d’une clé canonique unique (date + heure début + heure fin) pour garantir une comparaison exacte et éviter toute collision.
