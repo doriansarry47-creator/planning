@@ -101,10 +101,12 @@ export class GoogleCalendarOAuth2Service {
     this.config = config;
 
     // Créer le client OAuth 2.0
+    // Le redirect URI doit correspondre à celui configuré dans Google Cloud Console
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/oauth2callback';
     this.oauth2Client = new google.auth.OAuth2(
       config.clientId,
       config.clientSecret,
-      'https://localhost' // Redirect URI (non utilisé car on a déjà le refresh token)
+      redirectUri // Redirect URI configuré dans Google Cloud Console
     );
 
     // Définir les credentials avec le refresh token
