@@ -30,10 +30,21 @@ echo ""
 # NOTE: Les valeurs réelles doivent être fournies via les variables d'environnement
 # ou en modifiant ce fichier localement (ne pas commit les secrets)
 
-# Charger les variables depuis .env si disponible
+# Nouvelles credentials OAuth2 Google Calendar (mise à jour 2026-01-02)
+# Ces valeurs remplacent les anciennes credentials qui causaient l'erreur "deleted_client"
+# ⚠️ SÉCURITÉ: Avant d'utiliser ce script, configurez ces variables localement
+# ou via les variables d'environnement. Ne jamais commit les secrets dans Git.
+
+# Option 1: Charger depuis .env (recommandé)
 if [ -f .env ]; then
   source <(grep -v '^#' .env | grep -E 'GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_REFRESH_TOKEN|GOOGLE_CALENDAR_ID' | sed 's/^/export /')
 fi
+
+# Option 2: Définir manuellement (à utiliser localement uniquement)
+# GOOGLE_CLIENT_ID="votre_client_id_ici"
+# GOOGLE_CLIENT_SECRET="votre_client_secret_ici"
+# GOOGLE_REFRESH_TOKEN="votre_refresh_token_ici"
+# GOOGLE_CALENDAR_ID="doriansarry47@gmail.com"
 
 VARS=(
   "GOOGLE_CLIENT_ID:${GOOGLE_CLIENT_ID}"
@@ -41,7 +52,7 @@ VARS=(
   "GOOGLE_REFRESH_TOKEN:${GOOGLE_REFRESH_TOKEN}"
   "GOOGLE_REDIRECT_URI:http://localhost:3000/oauth2callback"
   "GOOGLE_CALENDAR_ID:${GOOGLE_CALENDAR_ID}"
-  "VITE_GOOGLE_CLIENT_ID:${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_CLIENT_ID}}"
+  "VITE_GOOGLE_CLIENT_ID:${GOOGLE_CLIENT_ID}"
 )
 
 # Variables à supprimer (anciennes)
