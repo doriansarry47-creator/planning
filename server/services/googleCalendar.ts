@@ -208,11 +208,50 @@ export class GoogleCalendarService {
     if (!this.isInitialized) return false;
 
     try {
+      // 1. Récupérer les détails avant suppression
+      const event = await this.calendar.events.get({
+        calendarId: this.config.calendarId,
+        eventId: eventId,
+      });
+
+      if (!event.data) return false;
+
+      const startDateTime = event.data.start.dateTime || event.data.start.date;
+      const endDateTime = event.data.end.dateTime || event.data.end.date;
+
+      // 2. Supprimer l'événement
       await this.calendar.events.delete({
         calendarId: this.config.calendarId,
         eventId: eventId,
         sendUpdates: 'all',
       });
+
+      // 3. Recréer le créneau de disponibilité
+      try {
+        const newSlot = {
+          summary: '🟢 DISPONIBLE',
+          description: 'Créneau libéré après annulation',
+          start: {
+            dateTime: startDateTime,
+            timeZone: TIMEZONE,
+          },
+          end: {
+            dateTime: endDateTime,
+            timeZone: TIMEZONE,
+          },
+          transparency: 'transparent',
+          colorId: '10', // Vert
+        };
+
+        await this.calendar.events.insert({
+          calendarId: this.config.calendarId,
+          resource: newSlot,
+        });
+        console.log('[GoogleCalendar] ✅ Créneau de disponibilité recréé');
+      } catch (slotError) {
+        console.warn('[GoogleCalendar] ⚠️ Impossible de recréer le créneau:', slotError);
+      }
+
       return true;
     } catch (error) {
       return false;
