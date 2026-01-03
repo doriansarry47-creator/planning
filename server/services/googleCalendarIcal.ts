@@ -499,6 +499,18 @@ export class GoogleCalendarIcalService {
    */
   async cancelAppointment(eventId: string): Promise<boolean> {
     try {
+      // 1. Récupérer les détails du rendez-vous avant de le supprimer
+      const event = await this.calendar.events.get({
+        calendarId: this.targetCalendarId,
+        eventId: eventId,
+      });
+
+      if (!event.data) return false;
+
+      const startDateTime = event.data.start.dateTime || event.data.start.date;
+      const endDateTime = event.data.end.dateTime || event.data.end.date;
+
+      // 2. Supprimer le rendez-vous
       await this.calendar.events.delete({
         calendarId: this.targetCalendarId,
         eventId: eventId,
@@ -506,6 +518,33 @@ export class GoogleCalendarIcalService {
       });
 
       console.log('[GoogleCalendarIcal] Rendez-vous annulé:', eventId);
+
+      // 3. Recréer le créneau de disponibilité
+      try {
+        const newSlot = {
+          summary: '🟢 DISPONIBLE',
+          description: 'Créneau libéré après annulation',
+          start: {
+            dateTime: startDateTime,
+            timeZone: TIMEZONE,
+          },
+          end: {
+            dateTime: endDateTime,
+            timeZone: TIMEZONE,
+          },
+          transparency: 'transparent',
+          colorId: '10', // Vert
+        };
+
+        await this.calendar.events.insert({
+          calendarId: this.targetCalendarId,
+          resource: newSlot,
+        });
+        console.log('[GoogleCalendarIcal] ✅ Créneau de disponibilité recréé');
+      } catch (slotError) {
+        console.warn('[GoogleCalendarIcal] ⚠️ Impossible de recréer le créneau:', slotError);
+      }
+
       return true;
     } catch (error) {
       console.error('[GoogleCalendarIcal] Erreur lors de l\'annulation:', error);
