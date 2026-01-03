@@ -377,16 +377,13 @@ export class GoogleCalendarIcalService {
   async bookAppointment(appointment: AppointmentData): Promise<string | null> {
     try {
       // Normaliser les dates pour Google Calendar
-      const startDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
-      const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
-      const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      // 🔧 CORRECTION: Utiliser une chaîne de caractères ISO pour éviter le décalage de timezone
+      // appointment.date est au format YYYY-MM-DD
+      const dateStr = typeof appointment.date === 'string' ? appointment.date : formatInTimeZone(appointment.date, TIMEZONE, 'yyyy-MM-dd');
+      const startDateTime = toZonedTime(new Date(`${dateStr}T${appointment.startTime}:00`), TIMEZONE);
+      const endDateTime = toZonedTime(new Date(`${dateStr}T${appointment.endTime}:00`), TIMEZONE);
 
       // Vérifier d'abord que le créneau est disponible
-      const dateStr = formatInTimeZone(startDateTime, TIMEZONE, 'yyyy-MM-dd');
       const isAvailable = await this.isSlotAvailable(dateStr, appointment.startTime, appointment.endTime);
       
       if (!isAvailable) {
@@ -521,13 +518,11 @@ export class GoogleCalendarIcalService {
    */
   async updateAppointment(eventId: string, appointment: AppointmentData): Promise<boolean> {
     try {
-      const startDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
-      const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = toZonedTime(new Date(appointment.date), TIMEZONE);
-      const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      // 🔧 CORRECTION: Utiliser une chaîne de caractères ISO pour éviter le décalage de timezone
+      // appointment.date est au format YYYY-MM-DD
+      const dateStr = typeof appointment.date === 'string' ? appointment.date : formatInTimeZone(appointment.date, TIMEZONE, 'yyyy-MM-dd');
+      const startDateTime = toZonedTime(new Date(`${dateStr}T${appointment.startTime}:00`), TIMEZONE);
+      const endDateTime = toZonedTime(new Date(`${dateStr}T${appointment.endTime}:00`), TIMEZONE);
 
       let description = `📅 Rendez-vous confirmé avec ${appointment.patientName}`;
       if (appointment.reason) {
