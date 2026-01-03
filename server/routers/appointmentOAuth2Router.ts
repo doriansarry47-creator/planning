@@ -70,11 +70,12 @@ export const appointmentOAuth2Router = router({
           throw new Error('Google Calendar service not configured');
         }
 
-        // ÉTAPE 1 : Vérifier que le créneau est toujours disponible
+        // ÉTAPE 1 : Vérifier EN TEMPS RÉEL que le créneau est toujours disponible
         const nextDay = new Date(input.date);
         nextDay.setDate(nextDay.getDate() + 1);
         const nextDayStr = nextDay.toISOString().split('T')[0];
 
+        console.info('[appointmentOAuth2Router] 🔍 Vérification de disponibilité en temps réel...');
         const existingEvents = await calendarService.getExistingEvents(
           input.date,
           nextDayStr
@@ -96,30 +97,73 @@ export const appointmentOAuth2Router = router({
         );
 
         if (!slotIsAvailable) {
-          console.error('[appointmentOAuth2Router] ❌ Créneau non disponible');
+          console.error('[appointmentOAuth2Router] ❌ Créneau non disponible (vérification Google Calendar)');
           throw new Error('Le créneau sélectionné n\'est plus disponible. Veuillez en choisir un autre.');
         }
 
-        console.info('[appointmentOAuth2Router] ✅ Créneau disponible, création en cours...');
+        console.info('[appointmentOAuth2Router] ✅ Créneau disponible dans Google Calendar');
 
-        // ÉTAPE 2 : Créer l'événement dans Google Calendar
-        const googleEventId = await calendarService.createAppointment({
-          date: input.date,
-          startTime: input.startTime,
-          endTime: input.endTime,
-          clientName: input.clientName,
-          clientEmail: input.clientEmail,
-          clientPhone: input.clientPhone,
-          notes: input.notes,
-        });
+        // ÉTAPE 2 : Créer IMMÉDIATEMENT l'événement dans Google Calendar
+        // Cela agit comme un LOCK - empêche les doubles réservations
+        console.info('[appointmentOAuth2Router] 🔒 Création immédiate dans Google Calendar (LOCK)...');
+        
+        let googleEventId: string;
+        try {
+          googleEventId = await calendarService.createAppointment({
+            date: input.date,
+            startTime: input.startTime,
+            endTime: input.endTime,
+            clientName: input.clientName,
+            clientEmail: input.clientEmail,
+            clientPhone: input.clientPhone,
+            notes: input.notes,
+          });
 
-        console.info(`[appointmentOAuth2Router] ✅ Événement Google Calendar créé: ${googleEventId}`);
+          console.info(`[appointmentOAuth2Router] ✅ Événement Google Calendar créé: ${googleEventId}`);
+        } catch (calendarError: any) {
+          console.error('[appointmentOAuth2Router] ❌ Erreur création Google Calendar:', calendarError.message);
+          
+          // Vérifier si c'est une erreur de conflit (créneau déjà pris)
+          if (calendarError.message.includes('conflict') || calendarError.message.includes('overlap')) {
+            throw new Error('Le créneau vient d\'être réservé par un autre utilisateur. Veuillez en choisir un autre.');
+          }
+          
+          throw new Error(`Erreur lors de la création du rendez-vous: ${calendarError.message}`);
+        }
 
-        // ÉTAPE 3 : Enregistrer le rendez-vous dans la base de données
+        // ÉTAPE 3 : Vérifier dans la base de données (double sécurité)
         const db = await getDb();
         if (!db) {
-          throw new Error('Database not available');
+          // Rollback: Supprimer l'événement Google Calendar
+          console.error('[appointmentOAuth2Router] ❌ Base de données non disponible, rollback...');
+          await calendarService.deleteAppointment(googleEventId);
+          throw new Error('Base de données non disponible');
         }
+
+        // Vérifier qu'il n'existe pas déjà un rendez-vous pour ce créneau
+        console.info('[appointmentOAuth2Router] 🔍 Vérification de doublon en base de données...');
+        const existingAppointment = await db
+          .select()
+          .from(appointments)
+          .where(eq(appointments.date, new Date(input.date)))
+          .limit(100); // Récupérer tous les RDV du jour
+
+        const conflict = existingAppointment.find(apt => 
+          apt.startTime === input.startTime && 
+          apt.status !== 'cancelled'
+        );
+
+        if (conflict) {
+          // Rollback: Supprimer l'événement Google Calendar
+          console.error('[appointmentOAuth2Router] ❌ Doublon détecté en BD, rollback...');
+          console.error(`  Rendez-vous existant: ID=${conflict.id}, Patient=${conflict.patientName}`);
+          await calendarService.deleteAppointment(googleEventId);
+          throw new Error('Un autre utilisateur vient de réserver ce créneau. Veuillez en choisir un autre.');
+        }
+
+        console.info('[appointmentOAuth2Router] ✅ Aucun doublon détecté');
+
+        // ÉTAPE 4 : Enregistrer le rendez-vous dans la base de données
         const [appointment] = await db
           .insert(appointments)
           .values({
@@ -137,6 +181,7 @@ export const appointmentOAuth2Router = router({
           .returning();
 
         console.info(`[appointmentOAuth2Router] ✅ Rendez-vous enregistré en base: ${appointment.id}`);
+        console.info(`[appointmentOAuth2Router] 🎉 Réservation complète et sécurisée`);
 
         return {
           success: true,
