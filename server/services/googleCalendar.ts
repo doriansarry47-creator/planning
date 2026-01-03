@@ -102,15 +102,10 @@ export class GoogleCalendarService {
     if (!this.isInitialized) return null;
 
     try {
-      // Construire la date/heure de début
-      const startDateTime = new Date(appointment.date);
-      const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      // Construire la date/heure de fin
-      const endDateTime = new Date(appointment.date);
-      const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      // Construire la date/heure de début et fin avec timezone
+      const dateStr = formatInTimeZone(appointment.date, TIMEZONE, 'yyyy-MM-dd');
+      const startDateTime = toZonedTime(new Date(`${dateStr}T${appointment.startTime}:00`), TIMEZONE);
+      const endDateTime = toZonedTime(new Date(`${dateStr}T${appointment.endTime}:00`), TIMEZONE);
 
       // Construire la description de l'événement
       let description = `Rendez-vous avec ${appointment.patientName}`;
@@ -172,13 +167,9 @@ export class GoogleCalendarService {
 
     try {
       const calendar = this.oauth2Service ? (this.oauth2Service as any).calendar : this.calendar;
-      const startDateTime = new Date(appointment.date);
-      const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = new Date(appointment.date);
-      const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      const dateStr = formatInTimeZone(appointment.date, TIMEZONE, 'yyyy-MM-dd');
+      const startDateTime = toZonedTime(new Date(`${dateStr}T${appointment.startTime}:00`), TIMEZONE);
+      const endDateTime = toZonedTime(new Date(`${dateStr}T${appointment.endTime}:00`), TIMEZONE);
 
       const event = {
         summary: `Consultation - ${appointment.patientName}`,
@@ -244,13 +235,9 @@ export class GoogleCalendarService {
     if (!this.isInitialized) return false;
 
     try {
-      const startDateTime = new Date(date);
-      const [startHours, startMinutes] = startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = new Date(date);
-      const [endHours, endMinutes] = endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      const dateStr = formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd');
+      const startDateTime = toZonedTime(new Date(`${dateStr}T${startTime}:00`), TIMEZONE);
+      const endDateTime = toZonedTime(new Date(`${dateStr}T${endTime}:00`), TIMEZONE);
 
       const response = await this.calendar.freebusy.query({
         resource: {
