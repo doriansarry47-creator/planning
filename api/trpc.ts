@@ -695,22 +695,21 @@ const appRouter = router({
               VALUES 
               (${practitionerId}, ${serviceId}, ${appointmentDate.toISOString()}, ${endDate.toISOString()}, 'confirmed', ${`${input.patientInfo.firstName} ${input.patientInfo.lastName}`}, ${input.patientInfo.email}, ${input.patientInfo.phone}, ${input.patientInfo.reason || null}, ${cancellationHash}, ${googleEventId || null}, NOW(), NOW())
             `;
-          }
           
-          return {
-            success: true,
-            appointmentHash: cancellationHash,
-            googleEventId,
-            message: "Rendez-vous confirme avec succes",
-            confirmation: {
-              date: input.date,
-              time: input.time,
-              endTime,
-              practitioner: "Dorian Sarry",
-              patient: `${input.patientInfo.firstName} ${input.patientInfo.lastName}`
-            }
-          };
-        } catch (error: any) {
+            return {
+              success: true,
+              appointmentHash: cancellationHash,
+              googleEventId,
+              message: "Rendez-vous confirme avec succes",
+              confirmation: {
+                date: input.date,
+                time: input.time,
+                endTime,
+                practitioner: "Dorian Sarry",
+                patient: `${input.patientInfo.firstName} ${input.patientInfo.lastName}`
+              }
+            };
+          } catch (error: any) {
           console.error("[Vercel TRPC] Erreur booking:", error);
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
@@ -785,6 +784,8 @@ const appRouter = router({
             SET status = 'cancelled', "updatedAt" = NOW()
             WHERE "cancellationHash" = ${input.hash}
           `;
+          
+          console.log("[Vercel TRPC] ✅ Rendez-vous annulé et créneau libéré");
           
           return { success: true, message: "Rendez-vous annule" };
         } catch (error: any) {
