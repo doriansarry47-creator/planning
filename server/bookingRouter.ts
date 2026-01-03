@@ -61,8 +61,9 @@ export const bookingRouter = router({
 
           if (calendar) {
             // Utiliser le début de journée Paris pour timeMin et fin de journée pour timeMax
-            const timeMin = toZonedTime(new Date(startDateStr + 'T00:00:00'), TIMEZONE).toISOString();
-            const timeMax = toZonedTime(new Date(endDateStr + 'T23:59:59'), TIMEZONE).toISOString();
+            // On utilise formatInTimeZone pour s'assurer que la date est interprétée dans la bonne timezone
+            const timeMin = new Date(`${startDateStr}T00:00:00+01:00`).toISOString();
+            const timeMax = new Date(`${endDateStr}T23:59:59+01:00`).toISOString();
 
             const response = await calendar.events.list({
               calendarId: calendarId,
@@ -120,7 +121,8 @@ export const bookingRouter = router({
       const appointmentDate = new Date(input.date);
       
       const [hours, minutes] = startTime.split(':').map(Number);
-      const startDateTime = toZonedTime(new Date(`${input.date}T${startTime}:00`), TIMEZONE);
+      // On crée la date en spécifiant l'offset de Paris (+01:00 en hiver)
+      const startDateTime = new Date(`${input.date}T${startTime}:00+01:00`);
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
       const endTime = formatInTimeZone(endDateTime, TIMEZONE, 'HH:mm');
 
