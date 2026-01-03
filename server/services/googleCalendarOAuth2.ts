@@ -19,6 +19,7 @@
 
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
+import { toZonedTime } from 'date-fns-tz';
 
 /**
  * Configuration OAuth 2.0 pour Google Calendar
@@ -165,8 +166,10 @@ export class GoogleCalendarOAuth2Service {
       // Google Calendar API accepte des dates ISO et retourne des dates avec timezone
       const response = await this.calendar.events.list({
         calendarId: this.config.calendarId,
+
         timeMin: `${startDate}T00:00:00`,
         timeMax: `${endDate}T23:59:59`,
+
         singleEvents: true,          // Déplier les événements récurrents
         orderBy: 'startTime',
         timeZone: this.config.timezone,
@@ -204,6 +207,7 @@ export class GoogleCalendarOAuth2Service {
 
       // S'assurer que le token est valide
       await this.ensureValidAccessToken();
+
 
       // Construire les dates/heures au format ISO 8601
       // 🔧 CORRECTION: Pas besoin de toZonedTime, on fournit directement la datetime locale
@@ -340,6 +344,7 @@ export class GoogleCalendarOAuth2Service {
     endTime: string,
     existingEvents: CalendarEvent[]
   ): boolean {
+
     // 🔧 CORRECTION: Créer les dates directement sans conversion supplémentaire
     const slotStart = new Date(`${date}T${startTime}:00`);
     const slotEnd = new Date(`${date}T${endTime}:00`);
