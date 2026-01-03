@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { formatInTimeZone } from 'date-fns-tz';
 import { sendAppointmentConfirmationEmail, sendAppointmentNotificationToPractitioner } from './emailService';
 import { nanoid } from 'nanoid';
 
@@ -138,8 +139,10 @@ export class AvailabilitySyncService {
 
           // NE PAS INCLURE les créneaux réservés dans la liste
           if (!isBooked) {
-            const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
-            const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
+            // 🔧 CORRECTION: Utiliser formatInTimeZone pour extraire l'heure correcte en Europe/Paris
+            // car currentTime est un objet Date (UTC) et getHours() utilise l'heure locale du serveur
+            const startTimeStr = formatInTimeZone(currentTime, 'Europe/Paris', 'HH:mm');
+            const endTimeStr = formatInTimeZone(nextTime, 'Europe/Paris', 'HH:mm');
 
             availableSlots.push({
               date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
