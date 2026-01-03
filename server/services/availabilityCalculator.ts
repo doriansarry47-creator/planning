@@ -81,7 +81,7 @@ export function calculateAvailableSlots(
   for (const range of availabilityRanges) {
     let currentTime = new Date(range.startDateTime);
     const rangeEnd = new Date(range.endDateTime);
-    const dateStr = range.startDateTime.toISOString().split('T')[0];
+    const dateStr = formatInTimeZone(range.startDateTime, rules.timezone, 'yyyy-MM-dd');
 
     while (true) {
       const slotEnd = new Date(currentTime.getTime() + rules.slotDuration * 60000);
@@ -126,7 +126,7 @@ export function calculateAvailableSlots(
  */
 export function convertGoogleEventToSimpleEvent(googleEvent: any): SimpleEvent {
   // Google Calendar renvoie des dates avec offset (ex: 2026-01-05T17:00:00+01:00)
-  // Le constructeur Date() de JS les convertit correctement en UTC en interne.
+  // On s'assure de bien capturer le moment exact en UTC
   return {
     startDateTime: new Date(googleEvent.start.dateTime),
     endDateTime: new Date(googleEvent.end.dateTime),
