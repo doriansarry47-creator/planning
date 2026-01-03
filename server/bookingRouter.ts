@@ -60,10 +60,9 @@ export const bookingRouter = router({
           const calendarId = (service as any).config?.calendarId || "primary";
 
           if (calendar) {
-            // Utiliser le début de journée Paris pour timeMin et fin de journée pour timeMax
-            // On utilise toZonedTime pour gérer dynamiquement l'offset (été/hiver)
-            const timeMin = toZonedTime(new Date(`${startDateStr}T00:00:00`), TIMEZONE).toISOString();
-            const timeMax = toZonedTime(new Date(`${endDateStr}T23:59:59`), TIMEZONE).toISOString();
+            // 🔧 CORRECTION: Utiliser formatInTimeZone pour obtenir l'ISO correct avec l'offset dynamique de Paris
+            const timeMin = formatInTimeZone(new Date(`${startDateStr}T00:00:00`), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+            const timeMax = formatInTimeZone(new Date(`${endDateStr}T23:59:59`), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
 
             const response = await calendar.events.list({
               calendarId: calendarId,
@@ -120,9 +119,10 @@ export const bookingRouter = router({
       const startTime = input.time;
       const appointmentDate = new Date(input.date);
       
-      const [hours, minutes] = startTime.split(':').map(Number);
-      // On crée la date en utilisant toZonedTime pour gérer dynamiquement l'offset (été/hiver)
-      const startDateTime = toZonedTime(new Date(`${input.date}T${startTime}:00`), TIMEZONE);
+      const [hours, minutes] = startTime.split(':').map(Number);      // 🔧 CORRECTION: Utiliser une chaîne ISO avec offset pour garantir l'interprétation correcte
+      // On récupère l'offset actuel de Paris pour cette date précise
+      const startDateTimeISO = formatInTimeZone(new Date(`${input.date}T${input.time}:00`), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+      const startDateTime = new Date(startDateTimeISO);
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
       const endTime = formatInTimeZone(endDateTime, TIMEZONE, 'HH:mm');
 

@@ -70,12 +70,17 @@ export default function OptimizedBookAppointment() {
 
           Object.entries(rawSlotsByDate).forEach(([dateStr, slots]) => {
             const filteredSlots = (slots as AvailabilitySlot[]).filter(slot => {
-              // Créer un objet Date pour le créneau (YYYY-MM-DD + HH:mm)
-              // On force le fuseau horaire Europe/Paris pour la comparaison
+              // 🔧 CORRECTION: Utiliser une comparaison robuste avec le fuseau horaire Europe/Paris
+              // On crée la date du créneau en supposant qu'elle est en Europe/Paris
+              // Pour une comparaison correcte, on peut utiliser une chaîne ISO complète ou Intl
               const slotDateTime = new Date(`${slot.date}T${slot.startTime}:00`);
               
-              // Comparaison avec l'heure actuelle
-              return slotDateTime.getTime() > now.getTime();
+              // Si le navigateur n'est pas en Europe/Paris, 'new Date(string)' peut interpréter différemment.
+              // Une approche plus sûre pour le frontend :
+              const nowInParis = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+              const slotInParis = new Date(new Date(`${slot.date}T${slot.startTime}:00`).toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+
+              return slotInParis.getTime() > nowInParis.getTime();
             });
 
             if (filteredSlots.length > 0) {
