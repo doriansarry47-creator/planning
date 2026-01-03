@@ -79,9 +79,10 @@ export function calculateAvailableSlots(
 
   // 2. Découper chaque plage de disponibilité
     for (const range of availabilityRanges) {
-      // 🔧 CORRECTION: S'assurer que currentTime est bien interprété dans la timezone cible
-      let currentTime = toZonedTime(range.startDateTime, rules.timezone);
-      const rangeEnd = toZonedTime(range.endDateTime, rules.timezone);
+      // 🔧 CORRECTION: Les dates viennent de Google Calendar avec timezone déjà incluse
+      // Pas besoin de toZonedTime car new Date() gère déjà l'offset (+01:00)
+      let currentTime = range.startDateTime;
+      const rangeEnd = range.endDateTime;
       const dateStr = formatInTimeZone(currentTime, rules.timezone, 'yyyy-MM-dd');
 
     while (true) {

@@ -19,7 +19,6 @@
 
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
-import { toZonedTime } from 'date-fns-tz';
 
 /**
  * Configuration OAuth 2.0 pour Google Calendar
@@ -162,10 +161,12 @@ export class GoogleCalendarOAuth2Service {
       await this.ensureValidAccessToken();
 
       // Récupérer les événements
+      // 🔧 CORRECTION: Utiliser les dates directement sans conversion timezone
+      // Google Calendar API accepte des dates ISO et retourne des dates avec timezone
       const response = await this.calendar.events.list({
         calendarId: this.config.calendarId,
-        timeMin: toZonedTime(new Date(startDate), this.config.timezone).toISOString(),
-        timeMax: toZonedTime(new Date(endDate), this.config.timezone).toISOString(),
+        timeMin: `${startDate}T00:00:00`,
+        timeMax: `${endDate}T23:59:59`,
         singleEvents: true,          // Déplier les événements récurrents
         orderBy: 'startTime',
         timeZone: this.config.timezone,
@@ -204,9 +205,10 @@ export class GoogleCalendarOAuth2Service {
       // S'assurer que le token est valide
       await this.ensureValidAccessToken();
 
-      // Construire les dates/heures au format ISO 8601 en utilisant la timezone
-      const startDateTime = toZonedTime(new Date(`${appointment.date}T${appointment.startTime}:00`), this.config.timezone).toISOString();
-      const endDateTime = toZonedTime(new Date(`${appointment.date}T${appointment.endTime}:00`), this.config.timezone).toISOString();
+      // Construire les dates/heures au format ISO 8601
+      // 🔧 CORRECTION: Pas besoin de toZonedTime, on fournit directement la datetime locale
+      const startDateTime = `${appointment.date}T${appointment.startTime}:00`;
+      const endDateTime = `${appointment.date}T${appointment.endTime}:00`;
 
       // Construire la description
       let description = `Client: ${appointment.clientName}\n`;
@@ -338,8 +340,9 @@ export class GoogleCalendarOAuth2Service {
     endTime: string,
     existingEvents: CalendarEvent[]
   ): boolean {
-    const slotStart = toZonedTime(new Date(`${date}T${startTime}:00`), this.config.timezone);
-    const slotEnd = toZonedTime(new Date(`${date}T${endTime}:00`), this.config.timezone);
+    // 🔧 CORRECTION: Créer les dates directement sans conversion supplémentaire
+    const slotStart = new Date(`${date}T${startTime}:00`);
+    const slotEnd = new Date(`${date}T${endTime}:00`);
 
     // Vérifier qu'aucun événement ne chevauche ce créneau
     for (const event of existingEvents) {
