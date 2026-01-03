@@ -87,8 +87,19 @@ export function calculateAvailableSlots(
       
       if (slotEnd > rangeEnd) break;
 
-      const startTimeStr = currentTime.toISOString().split('T')[1].substring(0, 5);
-      const endTimeStr = slotEnd.toISOString().split('T')[1].substring(0, 5);
+      // Utiliser toLocaleTimeString pour respecter la timezone Europe/Paris
+      const startTimeStr = currentTime.toLocaleTimeString('fr-FR', { 
+        timeZone: rules.timezone, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false 
+      });
+      const endTimeStr = slotEnd.toLocaleTimeString('fr-FR', { 
+        timeZone: rules.timezone, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false 
+      });
 
       // FILTRE : Pas dans le passé
       if (slotEnd > minBookingTime) {
