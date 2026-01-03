@@ -78,10 +78,11 @@ export function calculateAvailableSlots(
   console.info(`[AvailabilityCalculator] 🔍 Trouvé ${availabilityRanges.length} plages "DISPONIBLE" et ${appointments.length} rendez-vous`);
 
   // 2. Découper chaque plage de disponibilité
-  for (const range of availabilityRanges) {
-    let currentTime = new Date(range.startDateTime);
-    const rangeEnd = new Date(range.endDateTime);
-    const dateStr = formatInTimeZone(range.startDateTime, rules.timezone, 'yyyy-MM-dd');
+    for (const range of availabilityRanges) {
+      // 🔧 CORRECTION: S'assurer que currentTime est bien interprété dans la timezone cible
+      let currentTime = toZonedTime(range.startDateTime, rules.timezone);
+      const rangeEnd = toZonedTime(range.endDateTime, rules.timezone);
+      const dateStr = formatInTimeZone(currentTime, rules.timezone, 'yyyy-MM-dd');
 
     while (true) {
       const slotEnd = new Date(currentTime.getTime() + rules.slotDuration * 60000);
@@ -125,8 +126,9 @@ export function calculateAvailableSlots(
  * Convertir un événement Google Calendar en SimpleEvent
  */
 export function convertGoogleEventToSimpleEvent(googleEvent: any): SimpleEvent {
-  // Google Calendar renvoie des dates avec offset (ex: 2026-01-05T17:00:00+01:00)
-  // On s'assure de bien capturer le moment exact en UTC
+  // 🔧 CORRECTION: Google Calendar renvoie des dates avec offset.
+  // new Date() sur une chaîne ISO avec offset (ex: 2026-01-05T17:00:00+01:00) 
+  // crée un objet Date UTC correct.
   return {
     startDateTime: new Date(googleEvent.start.dateTime),
     endDateTime: new Date(googleEvent.end.dateTime),
