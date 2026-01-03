@@ -162,13 +162,15 @@ export class GoogleCalendarOAuth2Service {
       await this.ensureValidAccessToken();
 
       // Récupérer les événements
-      // 🔧 CORRECTION: Utiliser les dates directement sans conversion timezone
-      // Google Calendar API accepte des dates ISO et retourne des dates avec timezone
+      // 🔧 CORRECTION TIMEZONE: Ajouter l'offset explicite pour Europe/Paris
+      // Google Calendar API interprète les dates sans offset comme UTC
+      // Europe/Paris = UTC+1 (hiver) ou UTC+2 (été)
+      // Pour garantir la cohérence, on utilise l'offset +01:00 (standard)
       const response = await this.calendar.events.list({
         calendarId: this.config.calendarId,
 
-        timeMin: `${startDate}T00:00:00`,
-        timeMax: `${endDate}T23:59:59`,
+        timeMin: `${startDate}T00:00:00+01:00`,
+        timeMax: `${endDate}T23:59:59+01:00`,
 
         singleEvents: true,          // Déplier les événements récurrents
         orderBy: 'startTime',
@@ -187,6 +189,16 @@ export class GoogleCalendarOAuth2Service {
       ) as CalendarEvent[];
 
       console.info(`[GoogleCalendarOAuth2] ✅ ${activeEvents.length} événements actifs récupérés (${events.length - activeEvents.length} ignorés)`);
+      
+      // 🔍 DEBUG: Afficher quelques événements pour vérifier les timezones
+      if (activeEvents.length > 0) {
+        console.info('[GoogleCalendarOAuth2] 📋 Exemples d\'événements récupérés:');
+        activeEvents.slice(0, 3).forEach((event: any, index: number) => {
+          console.info(`  ${index + 1}. ${event.summary || 'Sans titre'}`);
+          console.info(`     Début: ${event.start.dateTime} (${event.start.timeZone || 'no tz'})`);
+          console.info(`     Fin: ${event.end.dateTime} (${event.end.timeZone || 'no tz'})`);
+        });
+      }
 
       return activeEvents;
     } catch (error: any) {

@@ -92,15 +92,21 @@ async function getEventsFromGoogleCalendar(startDate: Date, endDate: Date): Prom
     const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
     console.log('[Vercel TRPC OAuth2] 📅 Récupération des événements Google Calendar...');
-    console.log('[Vercel TRPC OAuth2] 📆 Période:', {
-      start: startDate.toISOString(),
-      end: endDate.toISOString(),
+    
+    // 🔧 CORRECTION TIMEZONE: Formater les dates avec offset Europe/Paris
+    // Google Calendar API accepte les dates ISO avec offset
+    const timeMinStr = startDate.toISOString().replace('Z', '+01:00');
+    const timeMaxStr = endDate.toISOString().replace('Z', '+01:00');
+    
+    console.log('[Vercel TRPC OAuth2] 📆 Période (Europe/Paris):', {
+      timeMin: timeMinStr,
+      timeMax: timeMaxStr,
     });
 
     const response = await calendar.events.list({
       calendarId: calendarId,
-      timeMin: startDate.toISOString(),
-      timeMax: endDate.toISOString(),
+      timeMin: timeMinStr,
+      timeMax: timeMaxStr,
       singleEvents: true,
       orderBy: 'startTime',
       timeZone: 'Europe/Paris',
@@ -110,6 +116,14 @@ async function getEventsFromGoogleCalendar(startDate: Date, endDate: Date): Prom
 
     const events = response.data.items || [];
     console.log(`[Vercel TRPC OAuth2] ✅ ${events.length} événements récupérés`);
+    
+    // 🔍 DEBUG: Afficher quelques événements
+    if (events.length > 0) {
+      console.log('[Vercel TRPC OAuth2] 📋 Exemples d\'événements:');
+      events.slice(0, 3).forEach((evt: any, idx: number) => {
+        console.log(`  ${idx + 1}. ${evt.summary || 'Sans titre'}: ${evt.start?.dateTime || evt.start?.date}`);
+      });
+    }
 
     return events;
   } catch (error: any) {
@@ -548,8 +562,18 @@ const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         try {
-          console.log("[Vercel TRPC] bookAppointment:", input);
+          console.log("[Vercel TRPC] 📝 bookAppointment:", input);
           
+          // 🔒 ÉTAPE 1: Vérifier EN TEMPS RÉEL la disponibilité
+          console.log("[Vercel TRPC] 🔍 Vérification de disponibilité en temps réel...");
+          
+          const startDateObj = new Date(input.date);
+          const endDateObj = new Date(input.date);
+          endDateObj.setDate(endDateObj.getDate() + 1);
+          
+          const events = await getEventsFromGoogleCalendar(startDateObj, endDateObj);
+          
+          // Vérifier si le créneau est toujours disponible
           const appointmentDate = new Date(input.date);
           const [hours, minutes] = input.time.split(':').map(Number);
           appointmentDate.setHours(hours, minutes, 0, 0);
@@ -557,8 +581,32 @@ const appRouter = router({
           const endDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
           const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
           
+          // Vérifier les chevauchements avec les événements existants (non "DISPONIBLE")
+          const hasConflict = events.some((evt: any) => {
+            if (!evt.start?.dateTime || !evt.end?.dateTime) return false;
+            if (isDisponibilite(evt)) return false; // Ignorer les plages de disponibilité
+            
+            const evtStart = new Date(evt.start.dateTime);
+            const evtEnd = new Date(evt.end.dateTime);
+            
+            // Détection de chevauchement
+            return appointmentDate < evtEnd && endDate > evtStart;
+          });
+          
+          if (hasConflict) {
+            console.error("[Vercel TRPC] ❌ Créneau non disponible (conflit détecté)");
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Le créneau sélectionné n'est plus disponible. Un autre utilisateur vient de le réserver."
+            });
+          }
+          
+          console.log("[Vercel TRPC] ✅ Créneau disponible");
+          
           const cancellationHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
           
+          // 🔒 ÉTAPE 2: Créer IMMÉDIATEMENT dans Google Calendar (LOCK)
+          console.log("[Vercel TRPC] 🔒 Création immédiate dans Google Calendar...");
           const googleEventId = await createGoogleCalendarEvent({
             patientName: `${input.patientInfo.firstName} ${input.patientInfo.lastName}`,
             patientEmail: input.patientInfo.email,
@@ -570,11 +618,51 @@ const appRouter = router({
           });
           
           const dbUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
-          if (dbUrl) {
-            const sql = neon(dbUrl);
-            
-            const existingPractitioner = await sql`SELECT id FROM practitioners LIMIT 1`;
-            let practitionerId: number;
+          if (!dbUrl) {
+            // Rollback: Supprimer l'événement Google Calendar
+            console.error("[Vercel TRPC] ❌ Base de données non disponible, rollback...");
+            if (googleEventId) {
+              await deleteGoogleCalendarEvent(googleEventId);
+            }
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Base de données non configurée"
+            });
+          }
+          
+          const sql = neon(dbUrl);
+          
+          // 🔒 ÉTAPE 3: Vérifier doublon dans la base de données
+          console.log("[Vercel TRPC] 🔍 Vérification de doublon en BD...");
+          const existingAppointments = await sql`
+            SELECT id, "customerName", "startTime" 
+            FROM appointments 
+            WHERE DATE("startTime") = ${appointmentDate.toISOString().split('T')[0]}
+            AND status IN ('confirmed', 'pending')
+          `;
+          
+          const conflict = existingAppointments.find((apt: any) => {
+            const aptTime = new Date(apt.startTime);
+            return aptTime.getHours() === hours && aptTime.getMinutes() === minutes;
+          });
+          
+          if (conflict) {
+            // Rollback: Supprimer l'événement Google Calendar
+            console.error("[Vercel TRPC] ❌ Doublon détecté en BD, rollback...");
+            console.error(`  Rendez-vous existant: ID=${conflict.id}, Patient=${conflict.customerName}`);
+            if (googleEventId) {
+              await deleteGoogleCalendarEvent(googleEventId);
+            }
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Un autre utilisateur vient de réserver ce créneau. Veuillez en choisir un autre."
+            });
+          }
+          
+          console.log("[Vercel TRPC] ✅ Aucun doublon détecté");
+          
+          const existingPractitioner = await sql`SELECT id FROM practitioners LIMIT 1`;
+          let practitionerId: number;
             
             if (existingPractitioner.length === 0) {
               const newPractitioner = await sql`

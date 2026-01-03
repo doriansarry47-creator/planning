@@ -81,9 +81,13 @@ export function calculateAvailableSlots(
     for (const range of availabilityRanges) {
 
       // 🔧 CORRECTION: Les dates viennent de Google Calendar avec timezone déjà incluse
-      // Pas besoin de toZonedTime car new Date() gère déjà l'offset (+01:00)
+      // Google Calendar API retourne des dates ISO avec offset (ex: "2026-01-03T17:00:00+01:00")
+      // new Date() parse correctement ces dates et les stocke en UTC en interne
+      // formatInTimeZone() les convertit ensuite vers Europe/Paris pour l'affichage
       let currentTime = range.startDateTime;
       const rangeEnd = range.endDateTime;
+
+      console.info(`[AvailabilityCalculator] 🔍 Plage "${range.summary || 'DISPONIBLE'}": ${currentTime.toISOString()} → ${rangeEnd.toISOString()}`);
 
       const dateStr = formatInTimeZone(currentTime, rules.timezone, 'yyyy-MM-dd');
 
@@ -95,6 +99,8 @@ export function calculateAvailableSlots(
       // Utiliser date-fns-tz pour formater l'heure dans la timezone cible
       const startTimeStr = formatInTimeZone(currentTime, rules.timezone, 'HH:mm');
       const endTimeStr = formatInTimeZone(slotEnd, rules.timezone, 'HH:mm');
+      
+      console.info(`[AvailabilityCalculator] 🎯 Créneau généré: ${dateStr} ${startTimeStr}-${endTimeStr}`);
 
       // FILTRE : Pas dans le passé
       if (slotEnd > minBookingTime) {
