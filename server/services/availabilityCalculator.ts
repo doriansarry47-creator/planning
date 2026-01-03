@@ -19,6 +19,7 @@
  */
 
 import { WorkingHoursRules, TimeSlot } from './googleCalendarOAuth2';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 
 /**
  * RÈGLES DE TRAVAIL PAR DÉFAUT
@@ -87,19 +88,9 @@ export function calculateAvailableSlots(
       
       if (slotEnd > rangeEnd) break;
 
-      // Utiliser toLocaleTimeString pour respecter la timezone Europe/Paris
-      const startTimeStr = currentTime.toLocaleTimeString('fr-FR', { 
-        timeZone: rules.timezone, 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: false 
-      });
-      const endTimeStr = slotEnd.toLocaleTimeString('fr-FR', { 
-        timeZone: rules.timezone, 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: false 
-      });
+      // Utiliser date-fns-tz pour formater l'heure dans la timezone cible
+      const startTimeStr = formatInTimeZone(currentTime, rules.timezone, 'HH:mm');
+      const endTimeStr = formatInTimeZone(slotEnd, rules.timezone, 'HH:mm');
 
       // FILTRE : Pas dans le passé
       if (slotEnd > minBookingTime) {
@@ -134,6 +125,8 @@ export function calculateAvailableSlots(
  * Convertir un événement Google Calendar en SimpleEvent
  */
 export function convertGoogleEventToSimpleEvent(googleEvent: any): SimpleEvent {
+  // Google Calendar renvoie des dates avec offset (ex: 2026-01-05T17:00:00+01:00)
+  // Le constructeur Date() de JS les convertit correctement en UTC en interne.
   return {
     startDateTime: new Date(googleEvent.start.dateTime),
     endDateTime: new Date(googleEvent.end.dateTime),
