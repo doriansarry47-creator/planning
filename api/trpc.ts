@@ -222,6 +222,14 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
     const eventStart = new Date(dispoEvent.start.dateTime);
     const eventEnd = new Date(dispoEvent.end.dateTime);
     
+    console.log('[Vercel TRPC Timezone] 🕐 Événement Google Calendar:', {
+      title: dispoEvent.summary,
+      startISO: dispoEvent.start.dateTime,
+      endISO: dispoEvent.end.dateTime,
+      startParsed: eventStart.toISOString(),
+      endParsed: eventEnd.toISOString(),
+    });
+    
     // Ignorer les événements passés
     if (eventEnd < now) {
       continue;
@@ -242,10 +250,38 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
         continue;
       }
 
-      const dateStr = slotStart.toISOString().split('T')[0];
-      const startTime = slotStart.toTimeString().slice(0, 5);
-      const endTime = slotEnd.toTimeString().slice(0, 5);
+      // ✅ CORRECTION TIMEZONE: Utiliser Europe/Paris pour l'affichage
+      const dateStr = slotStart.toLocaleString('fr-FR', { 
+        timeZone: 'Europe/Paris', 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+      }).split('/').reverse().join('-');
+      
+      const startTime = slotStart.toLocaleString('fr-FR', { 
+        timeZone: 'Europe/Paris', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      });
+      
+      const endTime = slotEnd.toLocaleString('fr-FR', { 
+        timeZone: 'Europe/Paris', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      });
+      
       const slotKey = `${dateStr}|${startTime}`;
+      
+      console.log('[Vercel TRPC Timezone] 🎯 Créneau généré:', {
+        slotKey,
+        dateStr,
+        startTime,
+        endTime,
+        slotStartUTC: slotStart.toISOString(),
+        slotEndUTC: slotEnd.toISOString(),
+      });
 
       // Vérifier que le créneau n'est pas déjà réservé en BD
       if (bookedFromDb.has(slotKey)) {
@@ -321,8 +357,22 @@ async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<stri
     
     for (const apt of result) {
       const aptStart = new Date(apt.startTime);
-      const dateStr = aptStart.toISOString().split('T')[0];
-      const timeStr = aptStart.toTimeString().slice(0, 5);
+      
+      // ✅ CORRECTION TIMEZONE: Utiliser Europe/Paris pour comparaison
+      const dateStr = aptStart.toLocaleString('fr-FR', { 
+        timeZone: 'Europe/Paris', 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+      }).split('/').reverse().join('-');
+      
+      const timeStr = aptStart.toLocaleString('fr-FR', { 
+        timeZone: 'Europe/Paris', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      });
+      
       bookedSlots.add(`${dateStr}|${timeStr}`);
     }
   } catch (error) {
