@@ -168,7 +168,7 @@ export class GoogleCalendarOAuth2Service {
         singleEvents: true,          // Déplier les événements récurrents
         orderBy: 'startTime',
         timeZone: this.config.timezone,
-        showDeleted: false,           // Exclure les événements supprimés
+        showDeleted: true,            // Inclure les événements supprimés pour gérer la libération des créneaux
         maxResults: 2500,             // Maximum d'événements à récupérer
       });
 
@@ -176,7 +176,7 @@ export class GoogleCalendarOAuth2Service {
       
       // Filtrer uniquement les événements actifs (non annulés)
       const activeEvents = events.filter((event: any) => 
-        event.status === 'confirmed' && 
+        event.status !== 'cancelled' && 
         event.start?.dateTime &&
         event.end?.dateTime
       ) as CalendarEvent[];
