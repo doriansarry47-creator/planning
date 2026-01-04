@@ -98,7 +98,10 @@ export const appointmentOAuth2Router = router({
 
         if (!slotIsAvailable) {
           console.error('[appointmentOAuth2Router] ❌ Créneau non disponible (vérification Google Calendar)');
-          throw new Error('Le créneau sélectionné n\'est plus disponible. Veuillez en choisir un autre.');
+          // Code spécial pour indiquer au client de rafraîchir silencieusement
+          const error = new Error('SLOT_NO_LONGER_AVAILABLE');
+          (error as any).code = 'SLOT_NO_LONGER_AVAILABLE';
+          throw error;
         }
 
         console.info('[appointmentOAuth2Router] ✅ Créneau disponible dans Google Calendar');
@@ -125,7 +128,9 @@ export const appointmentOAuth2Router = router({
           
           // Vérifier si c'est une erreur de conflit (créneau déjà pris)
           if (calendarError.message.includes('conflict') || calendarError.message.includes('overlap')) {
-            throw new Error('Le créneau vient d\'être réservé par un autre utilisateur. Veuillez en choisir un autre.');
+            const error = new Error('SLOT_NO_LONGER_AVAILABLE');
+            (error as any).code = 'SLOT_NO_LONGER_AVAILABLE';
+            throw error;
           }
           
           throw new Error(`Erreur lors de la création du rendez-vous: ${calendarError.message}`);
@@ -158,7 +163,9 @@ export const appointmentOAuth2Router = router({
           console.error('[appointmentOAuth2Router] ❌ Doublon détecté en BD, rollback...');
           console.error(`  Rendez-vous existant: ID=${conflict.id}, Patient=${conflict.patientName}`);
           await calendarService.deleteAppointment(googleEventId);
-          throw new Error('Un autre utilisateur vient de réserver ce créneau. Veuillez en choisir un autre.');
+          const error = new Error('SLOT_NO_LONGER_AVAILABLE');
+          (error as any).code = 'SLOT_NO_LONGER_AVAILABLE';
+          throw error;
         }
 
         console.info('[appointmentOAuth2Router] ✅ Aucun doublon détecté');

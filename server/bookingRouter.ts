@@ -126,6 +126,55 @@ export const bookingRouter = router({
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
       const endTime = formatInTimeZone(endDateTime, TIMEZONE, 'HH:mm');
 
+      // ⚡ VÉRIFICATION EN TEMPS RÉEL: Le créneau est-il toujours disponible ?
+      console.log("[BookingRouter] 🔍 Vérification de disponibilité en temps réel...");
+      try {
+        const calendar = (service as any).oauth2Service 
+          ? (service as any).oauth2Service.calendar 
+          : (service as any).calendar;
+        const calendarId = (service as any).config?.calendarId || "primary";
+
+        if (calendar) {
+          const nextDay = new Date(input.date);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nextDayStr = formatInTimeZone(toZonedTime(nextDay, TIMEZONE), TIMEZONE, 'yyyy-MM-dd');
+          
+          const timeMin = formatInTimeZone(new Date(`${input.date}T00:00:00`), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+          const timeMax = formatInTimeZone(new Date(`${nextDayStr}T00:00:00`), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+
+          const response = await calendar.events.list({
+            calendarId: calendarId,
+            timeMin,
+            timeMax,
+            singleEvents: true,
+            orderBy: 'startTime',
+          });
+
+          const googleEvents = response.data.items || [];
+          const simpleEvents = googleEvents.map(convertGoogleEventToSimpleEvent);
+          const availableSlots = calculateAvailableSlots(input.date, input.date, simpleEvents);
+
+          // Vérifier si le créneau sélectionné est dans la liste des disponibles
+          const slotIsAvailable = availableSlots.some(
+            slot => slot.date === input.date && slot.startTime === startTime
+          );
+
+          if (!slotIsAvailable) {
+            console.error("[BookingRouter] ❌ Créneau non disponible (vérifié en temps réel)");
+            const error = new Error('SLOT_NO_LONGER_AVAILABLE');
+            (error as any).code = 'SLOT_NO_LONGER_AVAILABLE';
+            throw error;
+          }
+
+          console.log("[BookingRouter] ✅ Créneau disponible, création de l'événement...");
+        }
+      } catch (error: any) {
+        if (error.code === 'SLOT_NO_LONGER_AVAILABLE' || error.message === 'SLOT_NO_LONGER_AVAILABLE') {
+          throw error;
+        }
+        console.warn("[BookingRouter] ⚠️ Impossible de vérifier la disponibilité, poursuite...", error.message);
+      }
+
       const eventId = await service.createEvent({
         date: appointmentDate,
         startTime,

@@ -35,77 +35,90 @@ export default function OptimizedBookAppointment() {
     reason: ''
   });
 
-  // Charger les disponibilités depuis l'API au montage du composant
-  useEffect(() => {
-    const fetchAvailabilities = async () => {
-      setIsLoadingSlots(true);
-      try {
-        const today = new Date();
-        const endDate = new Date();
-        endDate.setDate(today.getDate() + 30); // 30 jours de disponibilités
+  // Fonction réutilisable pour charger les disponibilités (définie en dehors de useEffect)
+  const fetchAvailabilities = async () => {
+    setIsLoadingSlots(true);
+    try {
+      const today = new Date();
+      const endDate = new Date();
+      endDate.setDate(today.getDate() + 30); // 30 jours de disponibilités
 
-        const response = await fetch('/api/trpc/booking.getAvailabilitiesByDate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            json: {
-              startDate: today.toISOString().split('T')[0],
-              endDate: endDate.toISOString().split('T')[0],
-            }
-          })
-        });
+      const response = await fetch('/api/trpc/booking.getAvailabilitiesByDate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          json: {
+            startDate: today.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0],
+          }
+        })
+      });
 
-        const result = await response.json();
-        console.log('📋 Disponibilités reçues (brutes):', result);
+      const result = await response.json();
+      console.log('📋 Disponibilités reçues (brutes):', result);
 
-        if (result?.result?.data?.json?.success) {
-          const data = result.result.data.json;
-          const rawSlotsByDate = data.slotsByDate || {};
-          
-          // --- FILTRAGE CÔTÉ FRONTEND ---
-          // On filtre les créneaux pour ne garder que ceux qui sont dans le futur par rapport à l'heure du navigateur
-          const now = new Date();
-          const filteredSlotsByDate: SlotsByDate = {};
-          const filteredAvailableDates: string[] = [];
+      if (result?.result?.data?.json?.success) {
+        const data = result.result.data.json;
+        const rawSlotsByDate = data.slotsByDate || {};
+        
+        // --- FILTRAGE CÔTÉ FRONTEND ---
+        // On filtre les créneaux pour ne garder que ceux qui sont dans le futur par rapport à l'heure du navigateur
+        const now = new Date();
+        const filteredSlotsByDate: SlotsByDate = {};
+        const filteredAvailableDates: string[] = [];
 
-          Object.entries(rawSlotsByDate).forEach(([dateStr, slots]) => {
-            const filteredSlots = (slots as AvailabilitySlot[]).filter(slot => {
-              // 🔧 CORRECTION: Utiliser une comparaison robuste avec le fuseau horaire Europe/Paris
-              // On crée la date du créneau en supposant qu'elle est en Europe/Paris
-              // Pour une comparaison correcte, on peut utiliser une chaîne ISO complète ou Intl
-              const slotDateTime = new Date(`${slot.date}T${slot.startTime}:00`);
-              
-              // Si le navigateur n'est pas en Europe/Paris, 'new Date(string)' peut interpréter différemment.
-              // Une approche plus sûre pour le frontend :
-              const nowInParis = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Paris"}));
-              const slotInParis = new Date(new Date(`${slot.date}T${slot.startTime}:00`).toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+        Object.entries(rawSlotsByDate).forEach(([dateStr, slots]) => {
+          const filteredSlots = (slots as AvailabilitySlot[]).filter(slot => {
+            // 🔧 CORRECTION: Utiliser une comparaison robuste avec le fuseau horaire Europe/Paris
+            // On crée la date du créneau en supposant qu'elle est en Europe/Paris
+            // Pour une comparaison correcte, on peut utiliser une chaîne ISO complète ou Intl
+            const slotDateTime = new Date(`${slot.date}T${slot.startTime}:00`);
+            
+            // Si le navigateur n'est pas en Europe/Paris, 'new Date(string)' peut interpréter différemment.
+            // Une approche plus sûre pour le frontend :
+            const nowInParis = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+            const slotInParis = new Date(new Date(`${slot.date}T${slot.startTime}:00`).toLocaleString("en-US", {timeZone: "Europe/Paris"}));
 
-              return slotInParis.getTime() > nowInParis.getTime();
-            });
-
-            if (filteredSlots.length > 0) {
-              filteredSlotsByDate[dateStr] = filteredSlots;
-              filteredAvailableDates.push(dateStr);
-            }
+            return slotInParis.getTime() > nowInParis.getTime();
           });
 
-          console.log(`📋 Disponibilités filtrées (frontend): ${filteredAvailableDates.length} dates`, filteredSlotsByDate);
-          
-          setSlotsByDate(filteredSlotsByDate);
-          setAvailableDates(filteredAvailableDates.sort());
-        } else {
-          console.error('❌ Erreur chargement disponibilités:', result);
-          toast.error('Impossible de charger les disponibilités');
-        }
-      } catch (error) {
-        console.error('❌ Erreur réseau:', error);
-        toast.error('Erreur de connexion au serveur');
-      } finally {
-        setIsLoadingSlots(false);
-      }
-    };
+          if (filteredSlots.length > 0) {
+            filteredSlotsByDate[dateStr] = filteredSlots;
+            filteredAvailableDates.push(dateStr);
+          }
+        });
 
+        console.log(`📋 Disponibilités filtrées (frontend): ${filteredAvailableDates.length} dates`, filteredSlotsByDate);
+        
+        setSlotsByDate(filteredSlotsByDate);
+        setAvailableDates(filteredAvailableDates.sort());
+        
+        return filteredSlotsByDate; // Retourner pour utilisation dans handleConfirmBooking
+      } else {
+        console.error('❌ Erreur chargement disponibilités:', result);
+        toast.error('Impossible de charger les disponibilités');
+        return {};
+      }
+    } catch (error) {
+      console.error('❌ Erreur réseau:', error);
+      toast.error('Erreur de connexion au serveur');
+      return {};
+    } finally {
+      setIsLoadingSlots(false);
+    }
+  };
+
+  // Charger les disponibilités depuis l'API au montage du composant
+  useEffect(() => {
     fetchAvailabilities();
+
+    // Rafraîchissement automatique toutes les 30 secondes pour éviter les conflits
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Rafraîchissement automatique des disponibilités...');
+      fetchAvailabilities();
+    }, 30000); // 30 secondes
+
+    return () => clearInterval(refreshInterval);
   }, []);
 
   // Grouper les dates par mois
@@ -180,6 +193,21 @@ export default function OptimizedBookAppointment() {
         return;
       }
 
+      // ⚡ RAFRAÎCHISSEMENT DES CRÉNEAUX AVANT SOUMISSION
+      console.log('🔄 Vérification de la disponibilité en temps réel avant soumission...');
+      const refreshedSlots = await fetchAvailabilities();
+
+      // Vérifier que le créneau sélectionné est toujours disponible
+      const currentSlots = refreshedSlots[selectedDate] || [];
+      const slotStillAvailable = currentSlots.some(s => s.startTime === selectedTime);
+      
+      if (!slotStillAvailable) {
+        toast.error('❌ Le créneau sélectionné n\'est plus disponible. Veuillez en choisir un autre.');
+        setStep('time'); // Retour à la sélection de créneau
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload = {
         date: selectedDate,
         time: selectedTime,
@@ -206,6 +234,16 @@ export default function OptimizedBookAppointment() {
       // tRPC retourne { result: { data: { json: { success: true, ... } } } }
       const success = result?.result?.data?.json?.success || result?.success;
       const error = result?.error?.json?.message || result?.error?.message || result?.message;
+      
+      // Gérer le code d'erreur spécial SLOT_NO_LONGER_AVAILABLE
+      if (error && (error.includes('SLOT_NO_LONGER_AVAILABLE') || error.includes('n\'est plus disponible'))) {
+        console.warn('⚠️ Créneau plus disponible, rafraîchissement...');
+        toast.info('🔄 Créneau indisponible. Rafraîchissement des disponibilités...');
+        await fetchAvailabilities();
+        setStep('time'); // Retour à la sélection de créneau
+        setIsSubmitting(false);
+        return;
+      }
       
       if (success) {
         setStep('done');
