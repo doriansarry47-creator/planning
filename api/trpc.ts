@@ -309,7 +309,7 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
         
         if (hasOverlap) {
           isBlocked = true;
-          console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (chevauchement avec blocage):', slotKey, '-', blocageEvent.summary);
+          console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (chevauchement avec blocage):', slotTimestamp, '-', blocageEvent.summary);
           break;
         }
       }
@@ -322,7 +322,7 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
           duration: slotDuration,
           title: 'Disponible (60 min)',
         });
-        console.log('[Vercel TRPC OAuth2] ✅ Créneau DISPONIBLE ajouté:', slotKey);
+        console.log('[Vercel TRPC OAuth2] ✅ Créneau DISPONIBLE ajouté:', slotTimestamp);
       }
 
       // Passer au créneau suivant
