@@ -265,12 +265,7 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
       }
 
       // ✅ CORRECTION TIMEZONE: Utiliser Europe/Paris pour l'affichage
-      const dateStr = slotStart.toLocaleString('fr-FR', { 
-        timeZone: 'Europe/Paris', 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-      }).split('/').reverse().join('-');
+      const dateStr = slotStart.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }); // YYYY-MM-DD
       
       const startTime = slotStart.toLocaleString('fr-FR', { 
         timeZone: 'Europe/Paris', 
@@ -310,8 +305,10 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
         const blocStart = new Date(blocageEvent.start.dateTime);
         const blocEnd = new Date(blocageEvent.end.dateTime);
 
-        // Détection de chevauchement
-        if (slotStart < blocEnd && slotEnd > blocStart) {
+        // Détection de chevauchement (avec une marge de 1 minute pour éviter les erreurs de précision)
+        const hasOverlap = slotStart < new Date(blocEnd.getTime() - 60000) && slotEnd > new Date(blocStart.getTime() + 60000);
+        
+        if (hasOverlap) {
           isBlocked = true;
           console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (chevauchement avec blocage):', slotKey, '-', blocageEvent.summary);
           break;
@@ -373,12 +370,7 @@ async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<stri
       const aptStart = new Date(apt.startTime);
       
       // ✅ CORRECTION TIMEZONE: Utiliser Europe/Paris pour comparaison
-      const dateStr = aptStart.toLocaleString('fr-FR', { 
-        timeZone: 'Europe/Paris', 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-      }).split('/').reverse().join('-');
+      const dateStr = aptStart.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }); // YYYY-MM-DD
       
       const timeStr = aptStart.toLocaleString('fr-FR', { 
         timeZone: 'Europe/Paris', 
