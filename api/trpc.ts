@@ -573,6 +573,16 @@ const appRouter = router({
           const endDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
           const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
           
+          // ✅ CORRECTION: Utiliser la même logique de filtrage que getAvailableSlotsFromOAuth
+          const dateStr = appointmentDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+          const timeStr = appointmentDate.toLocaleString('fr-FR', { 
+            timeZone: 'Europe/Paris', 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false
+          });
+          const slotKey = `${dateStr}|${timeStr}`;
+
           // Vérifier les chevauchements avec les événements existants (non "DISPONIBLE")
           const hasConflict = events.some((evt: any) => {
             if (!evt.start?.dateTime || !evt.end?.dateTime) return false;
@@ -581,8 +591,8 @@ const appRouter = router({
             const evtStart = new Date(evt.start.dateTime);
             const evtEnd = new Date(evt.end.dateTime);
             
-            // Détection de chevauchement
-            return appointmentDate < evtEnd && endDate > evtStart;
+            // Détection de chevauchement (avec marge de 1 min)
+            return appointmentDate < new Date(evtEnd.getTime() - 60000) && endDate > new Date(evtStart.getTime() + 60000);
           });
           
           if (hasConflict) {
@@ -626,28 +636,17 @@ const appRouter = router({
           
           // 🔒 ÉTAPE 3: Vérifier doublon dans la base de données
           console.log("[Vercel TRPC] 🔍 Vérification de doublon en BD...");
-          const existingAppointments = await sql`
-            SELECT id, "customerName", "startTime" 
-            FROM appointments 
-            WHERE DATE("startTime") = ${appointmentDate.toISOString().split('T')[0]}
-            AND status IN ('confirmed', 'pending')
-          `;
+          const bookedFromDb = await getBookedSlots(process.env.DATABASE_URL);
           
-          const conflict = existingAppointments.find((apt: any) => {
-            const aptTime = new Date(apt.startTime);
-            return aptTime.getHours() === hours && aptTime.getMinutes() === minutes;
-          });
-          
-          if (conflict) {
+          if (bookedFromDb.has(slotKey)) {
             // Rollback: Supprimer l'événement Google Calendar
-            console.error("[Vercel TRPC] ❌ Doublon détecté en BD, rollback...");
-            console.error(`  Rendez-vous existant: ID=${conflict.id}, Patient=${conflict.customerName}`);
+            console.error("[Vercel TRPC] ❌ Doublon détecté en BD (via slotKey), rollback...");
             if (googleEventId) {
               await deleteGoogleCalendarEvent(googleEventId);
             }
             throw new TRPCError({
               code: "CONFLICT",
-              message: "Un autre utilisateur vient de réserver ce créneau. Veuillez en choisir un autre."
+              message: "Le créneau sélectionné n'est plus disponible. Un autre utilisateur vient de le réserver."
             });
           }
           
