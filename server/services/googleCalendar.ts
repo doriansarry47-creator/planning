@@ -102,15 +102,10 @@ export class GoogleCalendarService {
     if (!this.isInitialized) return null;
 
     try {
-      // Construire la date/heure de début
-      const startDateTime = new Date(appointment.date);
-      const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      // Construire la date/heure de fin
-      const endDateTime = new Date(appointment.date);
-      const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      // Construire la date/heure de début (en forçant l'offset de Paris +01:00)
+      const dateStr = appointment.date instanceof Date ? appointment.date.toISOString().split('T')[0] : appointment.date;
+      const startDateTime = new Date(`${dateStr}T${appointment.startTime}:00+01:00`);
+      const endDateTime = new Date(`${dateStr}T${appointment.endTime}:00+01:00`);
 
       // Construire la description de l'événement
       let description = `Rendez-vous avec ${appointment.patientName}`;
@@ -172,13 +167,9 @@ export class GoogleCalendarService {
 
     try {
       const calendar = this.oauth2Service ? (this.oauth2Service as any).calendar : this.calendar;
-      const startDateTime = new Date(appointment.date);
-      const [startHours, startMinutes] = appointment.startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = new Date(appointment.date);
-      const [endHours, endMinutes] = appointment.endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      const dateStr = appointment.date instanceof Date ? appointment.date.toISOString().split('T')[0] : appointment.date;
+      const startDateTime = new Date(`${dateStr}T${appointment.startTime}:00+01:00`);
+      const endDateTime = new Date(`${dateStr}T${appointment.endTime}:00+01:00`);
 
       const event = {
         summary: `Consultation - ${appointment.patientName}`,
@@ -244,13 +235,9 @@ export class GoogleCalendarService {
     if (!this.isInitialized) return false;
 
     try {
-      const startDateTime = new Date(date);
-      const [startHours, startMinutes] = startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = new Date(date);
-      const [endHours, endMinutes] = endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+      const startDateTime = new Date(`${dateStr}T${startTime}:00+01:00`);
+      const endDateTime = new Date(`${dateStr}T${endTime}:00+01:00`);
 
       const response = await this.calendar.freebusy.query({
         resource: {

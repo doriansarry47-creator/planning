@@ -120,7 +120,6 @@ export const bookingRouter = router({
       const startTime = input.time;
       const appointmentDate = new Date(input.date);
       
-      const [hours, minutes] = startTime.split(':').map(Number);
       // On crée la date en spécifiant l'offset de Paris (+01:00 en hiver)
       const startDateTime = new Date(`${input.date}T${startTime}:00+01:00`);
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);

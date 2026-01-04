@@ -91,6 +91,7 @@ export function calculateAvailableSlots(
       // Utiliser date-fns-tz pour formater l'heure dans la timezone cible
       const startTimeStr = formatInTimeZone(currentTime, rules.timezone, 'HH:mm');
       const endTimeStr = formatInTimeZone(slotEnd, rules.timezone, 'HH:mm');
+      const currentSlotDateStr = formatInTimeZone(currentTime, rules.timezone, 'yyyy-MM-dd');
 
       // FILTRE : Pas dans le passé
       if (slotEnd > minBookingTime) {
@@ -105,7 +106,7 @@ export function calculateAvailableSlots(
 
         if (!isOccupied) {
           availableSlots.push({
-            date: dateStr,
+            date: currentSlotDateStr,
             startTime: startTimeStr,
             endTime: endTimeStr,
             duration: rules.slotDuration,

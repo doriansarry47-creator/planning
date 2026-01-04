@@ -1,6 +1,9 @@
 import { google } from 'googleapis';
 import { sendAppointmentConfirmationEmail, sendAppointmentNotificationToPractitioner } from './emailService';
 import { nanoid } from 'nanoid';
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
+
+const TIMEZONE = 'Europe/Paris';
 
 /**
  * Service de synchronisation des disponibilités avec Google Calendar
@@ -138,11 +141,12 @@ export class AvailabilitySyncService {
 
           // NE PAS INCLURE les créneaux réservés dans la liste
           if (!isBooked) {
-            const startTimeStr = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
-            const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
+            const startTimeStr = formatInTimeZone(currentTime, TIMEZONE, 'HH:mm');
+            const endTimeStr = formatInTimeZone(nextTime, TIMEZONE, 'HH:mm');
+            const dateStr = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
 
             availableSlots.push({
-              date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
+              date: new Date(dateStr),
               startTime: startTimeStr,
               endTime: endTimeStr,
               isAvailable: true,
@@ -173,24 +177,20 @@ export class AvailabilitySyncService {
     title?: string
   ): Promise<string | null> {
     try {
-      const startDateTime = new Date(date);
-      const [startHours, startMinutes] = startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = new Date(date);
-      const [endHours, endMinutes] = endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+      const startDateTime = new Date(`${dateStr}T${startTime}:00+01:00`);
+      const endDateTime = new Date(`${dateStr}T${endTime}:00+01:00`);
 
       const event = {
         summary: title || '🟢 DISPONIBLE',
         description: 'Créneau disponible pour rendez-vous',
         start: {
           dateTime: startDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
+          timeZone: TIMEZONE,
         },
         end: {
           dateTime: endDateTime.toISOString(),
-          timeZone: 'Europe/Paris',
+          timeZone: TIMEZONE,
         },
         transparency: 'transparent', // N'affecte pas la disponibilité
         colorId: '10', // Vert
@@ -240,13 +240,9 @@ export class AvailabilitySyncService {
         return null;
       }
 
-      const startDateTime = new Date(date);
-      const [startHours, startMinutes] = startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = new Date(date);
-      const [endHours, endMinutes] = endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+      const startDateTime = new Date(`${dateStr}T${startTime}:00+01:00`);
+      const endDateTime = new Date(`${dateStr}T${endTime}:00+01:00`);
 
       // Générer un hash unique pour l'annulation
       const appointmentHash = nanoid();
@@ -392,13 +388,9 @@ export class AvailabilitySyncService {
     endTime: string
   ): Promise<boolean> {
     try {
-      const startDateTime = new Date(date);
-      const [startHours, startMinutes] = startTime.split(':').map(Number);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endDateTime = new Date(date);
-      const [endHours, endMinutes] = endTime.split(':').map(Number);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+      const startDateTime = new Date(`${dateStr}T${startTime}:00+01:00`);
+      const endDateTime = new Date(`${dateStr}T${endTime}:00+01:00`);
 
       // Utiliser l'API freebusy pour vérifier les conflits
       const response = await this.calendar.freebusy.query({
