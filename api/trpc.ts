@@ -281,20 +281,19 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
         hour12: false
       });
       
-      const slotKey = `${dateStr}|${startTime}`;
+      const slotTimestamp = Math.floor(slotStart.getTime() / 60000) * 60000;
       
       console.log('[Vercel TRPC Timezone] 🎯 Créneau généré:', {
-        slotKey,
+        timestamp: slotTimestamp,
         dateStr,
         startTime,
         endTime,
         slotStartUTC: slotStart.toISOString(),
-        slotEndUTC: slotEnd.toISOString(),
       });
 
       // Vérifier que le créneau n'est pas déjà réservé en BD
-      if (bookedFromDb.has(slotKey)) {
-        console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (réservé en BD):', slotKey);
+      if (bookedFromDb.has(slotTimestamp)) {
+        console.log('[Vercel TRPC OAuth2] ❌ Créneau filtré (réservé en BD):', slotTimestamp);
         slotStart = new Date(slotStart.getTime() + slotDuration * 60 * 1000);
         continue;
       }
@@ -350,42 +349,33 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
   return slots;
 }
 
-async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<string>> {
-  const bookedSlots = new Set<string>();
+async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<number>> {
+  const bookedTimestamps = new Set<number>();
   
   const cleanUrl = cleanDatabaseUrl(databaseUrl);
   if (!cleanUrl) {
-    return bookedSlots;
+    return bookedTimestamps;
   }
 
   try {
     const sql = neon(cleanUrl);
     const result = await sql`
-      SELECT "startTime", "endTime" 
+      SELECT "startTime" 
       FROM appointments 
       WHERE status IN ('confirmed', 'pending')
     `;
     
     for (const apt of result) {
       const aptStart = new Date(apt.startTime);
-      
-      // ✅ CORRECTION TIMEZONE: Utiliser Europe/Paris pour comparaison
-      const dateStr = aptStart.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }); // YYYY-MM-DD
-      
-      const timeStr = aptStart.toLocaleString('fr-FR', { 
-        timeZone: 'Europe/Paris', 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false
-      });
-      
-      bookedSlots.add(`${dateStr}|${timeStr}`);
+      // On arrondit à la minute pour éviter les décalages de millisecondes
+      const timestamp = Math.floor(aptStart.getTime() / 60000) * 60000;
+      bookedTimestamps.add(timestamp);
     }
   } catch (error) {
     console.error("[Vercel TRPC] Erreur lecture rendez-vous:", error);
   }
   
-  return bookedSlots;
+  return bookedTimestamps;
 }
 
 async function createGoogleCalendarEvent(appointmentData: {
@@ -573,15 +563,8 @@ const appRouter = router({
           const endDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
           const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
           
-          // ✅ CORRECTION: Utiliser la même logique de filtrage que getAvailableSlotsFromOAuth
-          const dateStr = appointmentDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
-          const timeStr = appointmentDate.toLocaleString('fr-FR', { 
-            timeZone: 'Europe/Paris', 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false
-          });
-          const slotKey = `${dateStr}|${timeStr}`;
+          // ✅ CORRECTION: Utiliser les timestamps UTC pour une précision absolue
+          const slotTimestamp = Math.floor(appointmentDate.getTime() / 60000) * 60000;
 
           // Vérifier les chevauchements avec les événements existants (non "DISPONIBLE")
           const hasConflict = events.some((evt: any) => {
@@ -594,21 +577,41 @@ const appRouter = router({
             // Détection de chevauchement (avec marge de 1 min)
             return appointmentDate < new Date(evtEnd.getTime() - 60000) && endDate > new Date(evtStart.getTime() + 60000);
           });
-          
+
           if (hasConflict) {
-            console.error("[Vercel TRPC] ❌ Créneau non disponible (conflit détecté)");
+            console.error("[Vercel TRPC] ❌ Créneau non disponible (conflit Google Calendar)");
             throw new TRPCError({
               code: "CONFLICT",
               message: "Le créneau sélectionné n'est plus disponible. Un autre utilisateur vient de le réserver."
             });
           }
           
+          const dbUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
+          if (!dbUrl) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Base de données non configurée"
+            });
+          }
+          
+          // 🔒 ÉTAPE 2: Vérifier doublon dans la base de données AVANT Google Calendar
+          console.log("[Vercel TRPC] 🔍 Vérification de doublon en BD...");
+          const bookedFromDb = await getBookedSlots(process.env.DATABASE_URL);
+          
+          if (bookedFromDb.has(slotTimestamp)) {
+            console.error("[Vercel TRPC] ❌ Doublon détecté en BD (via timestamp)");
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Le créneau sélectionné n'est plus disponible. Un autre utilisateur vient de le réserver."
+            });
+          }
+
           console.log("[Vercel TRPC] ✅ Créneau disponible");
           
           const cancellationHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
           
-          // 🔒 ÉTAPE 2: Créer IMMÉDIATEMENT dans Google Calendar (LOCK)
-          console.log("[Vercel TRPC] 🔒 Création immédiate dans Google Calendar...");
+          // 🔒 ÉTAPE 3: Créer dans Google Calendar
+          console.log("[Vercel TRPC] 🔒 Création dans Google Calendar...");
           const googleEventId = await createGoogleCalendarEvent({
             patientName: `${input.patientInfo.firstName} ${input.patientInfo.lastName}`,
             patientEmail: input.patientInfo.email,
@@ -619,36 +622,7 @@ const appRouter = router({
             reason: input.patientInfo.reason,
           });
           
-          const dbUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
-          if (!dbUrl) {
-            // Rollback: Supprimer l'événement Google Calendar
-            console.error("[Vercel TRPC] ❌ Base de données non disponible, rollback...");
-            if (googleEventId) {
-              await deleteGoogleCalendarEvent(googleEventId);
-            }
-            throw new TRPCError({
-              code: "INTERNAL_SERVER_ERROR",
-              message: "Base de données non configurée"
-            });
-          }
-          
           const sql = neon(dbUrl);
-          
-          // 🔒 ÉTAPE 3: Vérifier doublon dans la base de données
-          console.log("[Vercel TRPC] 🔍 Vérification de doublon en BD...");
-          const bookedFromDb = await getBookedSlots(process.env.DATABASE_URL);
-          
-          if (bookedFromDb.has(slotKey)) {
-            // Rollback: Supprimer l'événement Google Calendar
-            console.error("[Vercel TRPC] ❌ Doublon détecté en BD (via slotKey), rollback...");
-            if (googleEventId) {
-              await deleteGoogleCalendarEvent(googleEventId);
-            }
-            throw new TRPCError({
-              code: "CONFLICT",
-              message: "Le créneau sélectionné n'est plus disponible. Un autre utilisateur vient de le réserver."
-            });
-          }
           
           console.log("[Vercel TRPC] ✅ Aucun doublon détecté");
           
