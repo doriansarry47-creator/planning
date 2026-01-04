@@ -598,8 +598,15 @@ const appRouter = router({
           console.log("[Vercel TRPC] 🔍 Vérification de doublon en BD...");
           const bookedFromDb = await getBookedSlots(process.env.DATABASE_URL);
           
-          if (bookedFromDb.has(slotTimestamp)) {
-            console.error("[Vercel TRPC] ❌ Doublon détecté en BD (via timestamp)");
+          // DIAGNOSTIC DÉTAILLÉ
+          console.log("[Vercel TRPC DEBUG] Timestamp recherché:", slotTimestamp);
+          console.log("[Vercel TRPC DEBUG] Timestamps occupés en BD:", Array.from(bookedFromDb));
+          
+          // Vérification avec une marge de 5 minutes pour voir si c'est un problème de précision
+          const nearConflict = Array.from(bookedFromDb).find(ts => Math.abs(ts - slotTimestamp) < 5 * 60000);
+          
+          if (nearConflict) {
+            console.error("[Vercel TRPC] ❌ Conflit détecté avec timestamp proche:", nearConflict);
             throw new TRPCError({
               code: "CONFLICT",
               message: "Le créneau sélectionné n'est plus disponible. Un autre utilisateur vient de le réserver."
