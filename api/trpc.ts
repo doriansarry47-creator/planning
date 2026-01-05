@@ -42,6 +42,29 @@ interface AvailableSlot {
 }
 
 /**
+ * Convertit une Date en heure locale du timezone Europe/Paris
+ * Corrige le problème de décalage horaire entre UTC et l'heure affichée
+ */
+function formatTimeInParis(date: Date): string {
+  // Convertir en heure de Paris (Europe/Paris timezone)
+  const parisTime = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const hours = parisTime.getHours().toString().padStart(2, '0');
+  const minutes = parisTime.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/**
+ * Convertit une Date en date locale du timezone Europe/Paris (YYYY-MM-DD)
+ */
+function formatDateInParis(date: Date): string {
+  const parisTime = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const year = parisTime.getFullYear();
+  const month = (parisTime.getMonth() + 1).toString().padStart(2, '0');
+  const day = parisTime.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Crée et configure le client OAuth2 pour Google Calendar
  */
 function createOAuth2Client(): OAuth2Client | null {
@@ -242,9 +265,9 @@ async function getAvailableSlotsFromOAuth(startDate?: Date, endDate?: Date, data
         continue;
       }
 
-      const dateStr = slotStart.toISOString().split('T')[0];
-      const startTime = slotStart.toTimeString().slice(0, 5);
-      const endTime = slotEnd.toTimeString().slice(0, 5);
+      const dateStr = formatDateInParis(slotStart);
+      const startTime = formatTimeInParis(slotStart);
+      const endTime = formatTimeInParis(slotEnd);
       const slotKey = `${dateStr}|${startTime}`;
 
       // Vérifier que le créneau n'est pas déjà réservé en BD
@@ -321,8 +344,8 @@ async function getBookedSlots(databaseUrl: string | undefined): Promise<Set<stri
     
     for (const apt of result) {
       const aptStart = new Date(apt.startTime);
-      const dateStr = aptStart.toISOString().split('T')[0];
-      const timeStr = aptStart.toTimeString().slice(0, 5);
+      const dateStr = formatDateInParis(aptStart);
+      const timeStr = formatTimeInParis(aptStart);
       bookedSlots.add(`${dateStr}|${timeStr}`);
     }
   } catch (error) {
@@ -579,6 +602,68 @@ const appRouter = router({
             message: "Erreur lors de la reservation: " + error.message
           });
         }
+      }),
+
+    // Endpoint pour récupérer les créneaux disponibles pour une date donnée
+    getAvailableSlots: publicProcedure
+      .input(z.object({
+        date: z.string(), // Format YYYY-MM-DD
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          console.log("[Vercel TRPC] getAvailableSlots appelé pour:", input.date);
+          
+          // Construire les dates de début et fin pour la journée demandée
+          const targetDate = new Date(input.date);
+          const startDate = new Date(targetDate);
+          startDate.setHours(0, 0, 0, 0);
+          
+          const endDate = new Date(targetDate);
+          endDate.setHours(23, 59, 59, 999);
+          
+          // Récupérer les créneaux disponibles via OAuth2
+          const slots = await getAvailableSlotsFromOAuth(startDate, endDate, process.env.DATABASE_URL);
+          
+          // Filtrer uniquement les créneaux pour la date demandée
+          const slotsForDate = slots.filter(slot => slot.date === input.date);
+          
+          // Extraire uniquement les heures de début
+          const availableSlots = slotsForDate.map(slot => slot.startTime);
+          
+          console.log(`[Vercel TRPC] ${availableSlots.length} créneaux disponibles pour ${input.date}`);
+          
+          return {
+            success: true,
+            date: input.date,
+            availableSlots,
+            totalSlots: availableSlots.length
+          };
+        } catch (error: any) {
+          console.error("[Vercel TRPC] Erreur getAvailableSlots:", error);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Impossible de récupérer les créneaux: " + error.message
+          });
+        }
+      }),
+
+    // Endpoint de vérification de santé du service
+    healthCheck: publicProcedure
+      .input(z.object({}).optional())
+      .mutation(async () => {
+        const oauth2Client = createOAuth2Client();
+        const dbUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
+        
+        return {
+          status: "ok",
+          timestamp: new Date().toISOString(),
+          platform: "vercel",
+          oauth2: oauth2Client ? "configured" : "not configured",
+          database: dbUrl ? "configured" : "not configured",
+          service: "Planning App - Vercel TRPC",
+          version: "2.1",
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
       }),
   }),
 
