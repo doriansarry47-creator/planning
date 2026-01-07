@@ -73,6 +73,7 @@
     "drizzle-zod": "^0.5.1",
     "embla-carousel-react": "^8.5.2",
     "express": "^4.21.2",
+    "google-auth-library": "^10.5.0",
     "googleapis": "^166.0.0",
     "ical.js": "^2.2.1",
     "jose": "^6.1.1",

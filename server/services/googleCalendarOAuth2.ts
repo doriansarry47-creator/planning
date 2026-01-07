@@ -220,7 +220,7 @@ export class GoogleCalendarOAuth2Service {
 
       // Créer l'événement
       const event = {
-        summary: `🗓️ ${appointment.clientName}`,
+        summary: `🏥 RDV - ${appointment.clientName}`,
         description: description,
         start: {
           dateTime: startDateTime,
@@ -230,11 +230,14 @@ export class GoogleCalendarOAuth2Service {
           dateTime: endDateTime,
           timeZone: this.config.timezone,
         },
+        attendees: [
+          { email: appointment.clientEmail, displayName: appointment.clientName }
+        ],
         reminders: {
           useDefault: false,
           overrides: [
-            { method: 'email', minutes: 24 * 60 },  // 24h avant
-            { method: 'popup', minutes: 60 },        // 1h avant
+            { method: 'email', minutes: 24 * 60 },  // 24h avant (email)
+            { method: 'popup', minutes: 60 },        // 1h avant (notification)
           ],
         },
         colorId: '11', // Rouge pour les rendez-vous clients
@@ -243,7 +246,7 @@ export class GoogleCalendarOAuth2Service {
       const response = await this.calendar.events.insert({
         calendarId: this.config.calendarId,
         resource: event,
-        sendUpdates: 'none', // Ne pas envoyer de notifications Google (l'app gère ses propres notifs)
+        sendUpdates: 'all', // Forcer l'envoi des emails Google (invitation, rappels)
       });
 
       const eventId = response.data.id;
@@ -272,13 +275,80 @@ export class GoogleCalendarOAuth2Service {
       await this.calendar.events.delete({
         calendarId: this.config.calendarId,
         eventId: eventId,
-        sendUpdates: 'none',
+        sendUpdates: 'all', // Notifier l'invité de l'annulation
       });
 
       console.info(`[GoogleCalendarOAuth2] ✅ Événement supprimé avec succès`);
       return true;
     } catch (error: any) {
       console.error('[GoogleCalendarOAuth2] ❌ Erreur lors de la suppression:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Mettre à jour un rendez-vous existant
+   * 
+   * @param eventId ID de l'événement Google Calendar
+   * @param appointment Nouvelles données du rendez-vous
+   * @returns Succès de la mise à jour
+   */
+  async updateAppointment(eventId: string, appointment: AppointmentData): Promise<boolean> {
+    try {
+      console.info(`[GoogleCalendarOAuth2] 🔄 Mise à jour du rendez-vous ${eventId}`);
+
+      // S'assurer que le token est valide
+      await this.ensureValidAccessToken();
+
+      // Construire les dates/heures au format ISO 8601
+      const startDateTime = `${appointment.date}T${appointment.startTime}:00`;
+      const endDateTime = `${appointment.date}T${appointment.endTime}:00`;
+
+      // Construire la description
+      let description = `Client: ${appointment.clientName}\n`;
+      description += `Email: ${appointment.clientEmail}\n`;
+      if (appointment.clientPhone) {
+        description += `Téléphone: ${appointment.clientPhone}\n`;
+      }
+      if (appointment.notes) {
+        description += `\nNotes: ${appointment.notes}`;
+      }
+      description += `\n\n✅ Mis à jour via l'application web`;
+
+      const event = {
+        summary: `🏥 RDV - ${appointment.clientName}`,
+        description: description,
+        start: {
+          dateTime: startDateTime,
+          timeZone: this.config.timezone,
+        },
+        end: {
+          dateTime: endDateTime,
+          timeZone: this.config.timezone,
+        },
+        attendees: [
+          { email: appointment.clientEmail, displayName: appointment.clientName }
+        ],
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'email', minutes: 24 * 60 },
+            { method: 'popup', minutes: 60 },
+          ],
+        },
+      };
+
+      await this.calendar.events.update({
+        calendarId: this.config.calendarId,
+        eventId: eventId,
+        resource: event,
+        sendUpdates: 'all', // Notifier l'invité du changement
+      });
+
+      console.info(`[GoogleCalendarOAuth2] ✅ Rendez-vous mis à jour avec succès`);
+      return true;
+    } catch (error: any) {
+      console.error('[GoogleCalendarOAuth2] ❌ Erreur lors de la mise à jour:', error.message);
       return false;
     }
   }

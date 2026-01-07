@@ -146,7 +146,7 @@ export class GoogleCalendarService {
       const response = await this.calendar.events.insert({
         calendarId: this.config.calendarId,
         resource: event,
-        sendUpdates: 'none',
+        sendUpdates: 'all',
       });
 
       return response.data.id;
@@ -163,32 +163,54 @@ export class GoogleCalendarService {
     eventId: string,
     appointment: AppointmentData
   ): Promise<boolean> {
-    if (!this.isInitialized && !this.oauth2Service) return false;
+    if (this.oauth2Service) {
+      const dateStr = appointment.date instanceof Date ? appointment.date.toISOString().split('T')[0] : appointment.date;
+      return this.oauth2Service.updateAppointment(eventId, {
+        date: dateStr,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+        clientName: appointment.patientName,
+        clientEmail: appointment.patientEmail,
+        clientPhone: appointment.patientPhone,
+        notes: appointment.reason,
+      });
+    }
+
+    if (!this.isInitialized) return false;
 
     try {
-      const calendar = this.oauth2Service ? (this.oauth2Service as any).calendar : this.calendar;
       const dateStr = appointment.date instanceof Date ? appointment.date.toISOString().split('T')[0] : appointment.date;
       const startDateTime = new Date(`${dateStr}T${appointment.startTime}:00+01:00`);
       const endDateTime = new Date(`${dateStr}T${appointment.endTime}:00+01:00`);
 
       const event = {
-        summary: `Consultation - ${appointment.patientName}`,
+        summary: `🏥 RDV - ${appointment.patientName}`,
         description: `Rendez-vous avec ${appointment.patientName}`,
         start: {
-          dateTime: startDateTime.toISOString(),
+          dateTime: startDateTime,
           timeZone: TIMEZONE,
         },
         end: {
-          dateTime: endDateTime.toISOString(),
+          dateTime: endDateTime,
           timeZone: TIMEZONE,
+        },
+        attendees: [
+          { email: appointment.patientEmail, displayName: appointment.patientName }
+        ],
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'email', minutes: 24 * 60 },
+            { method: 'popup', minutes: 60 },
+          ],
         },
       };
 
-      await calendar.events.update({
+      await this.calendar.events.update({
         calendarId: this.config.calendarId,
         eventId: eventId,
         resource: event,
-        sendUpdates: 'none',
+        sendUpdates: 'all',
       });
 
       return true;
