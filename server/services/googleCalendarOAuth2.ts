@@ -207,16 +207,21 @@ export class GoogleCalendarOAuth2Service {
       const startDateTime = `${appointment.date}T${appointment.startTime}:00`;
       const endDateTime = `${appointment.date}T${appointment.endTime}:00`;
 
-      // Construire la description
-      let description = `Client: ${appointment.clientName}\n`;
-      description += `Email: ${appointment.clientEmail}\n`;
-      if (appointment.clientPhone) {
-        description += `Téléphone: ${appointment.clientPhone}\n`;
-      }
+      // Construire la description personnalisée
+      let description = `Votre rendez-vous :\n\n`;
+      description += `📅 Date : ${appointment.date}\n`;
+      description += `⏰ Heure : ${appointment.startTime}\n`;
+      description += `📍 Lieu : 20 bis rue des jacobins 24000 Périgueux\n`;
+      description += `👤 Praticien : Dorian S.\n`;
       if (appointment.notes) {
-        description += `\nNotes: ${appointment.notes}`;
+        description += `📝 Motif : ${appointment.notes}\n`;
       }
-      description += `\n\n✅ Réservé via l'application web`;
+      description += `\n---\n`;
+      description += `Client : ${appointment.clientName}\n`;
+      if (appointment.clientPhone) {
+        description += `Téléphone : ${appointment.clientPhone}\n`;
+      }
+      description += `\n✅ Réservé via l'application web`;
 
       // Créer l'événement
       const event = {
@@ -304,16 +309,21 @@ export class GoogleCalendarOAuth2Service {
       const startDateTime = `${appointment.date}T${appointment.startTime}:00`;
       const endDateTime = `${appointment.date}T${appointment.endTime}:00`;
 
-      // Construire la description
-      let description = `Client: ${appointment.clientName}\n`;
-      description += `Email: ${appointment.clientEmail}\n`;
-      if (appointment.clientPhone) {
-        description += `Téléphone: ${appointment.clientPhone}\n`;
-      }
+      // Construire la description personnalisée
+      let description = `Votre rendez-vous (MIS À JOUR) :\n\n`;
+      description += `📅 Date : ${appointment.date}\n`;
+      description += `⏰ Heure : ${appointment.startTime}\n`;
+      description += `📍 Lieu : 20 bis rue des jacobins 24000 Périgueux\n`;
+      description += `👤 Praticien : Dorian S.\n`;
       if (appointment.notes) {
-        description += `\nNotes: ${appointment.notes}`;
+        description += `📝 Motif : ${appointment.notes}\n`;
       }
-      description += `\n\n✅ Mis à jour via l'application web`;
+      description += `\n---\n`;
+      description += `Client : ${appointment.clientName}\n`;
+      if (appointment.clientPhone) {
+        description += `Téléphone : ${appointment.clientPhone}\n`;
+      }
+      description += `\n✅ Mis à jour via l'application web`;
 
       const event = {
         summary: `🏥 RDV - ${appointment.clientName}`,
