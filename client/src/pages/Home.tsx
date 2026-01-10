@@ -221,9 +221,7 @@ export default function Home() {
                   <p className="text-xl md:text-2xl text-gray-800 font-semibold mb-4 leading-relaxed">
                     Découvrez les avis de mes patients sur Google
                   </p>
-                  <p className="text-gray-700 mb-6 text-lg leading-relaxed">
-                    Consultez les retours d'expérience authentiques de mes patients pour en savoir plus sur la qualité de mon accompagnement thérapeutique.
-                  </p>
+
                   <a 
                     href="https://maps.app.goo.gl/KRQDonRf4zr9FABG9" 
                     target="_blank" 
