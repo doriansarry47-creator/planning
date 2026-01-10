@@ -10,7 +10,7 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog';
-import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info, Sparkles, Calendar } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info, Sparkles, Calendar, ExternalLink, Star } from 'lucide-react';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -206,23 +206,33 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Testimonial Section */}
+      {/* Reviews Section - Link to Google Reviews */}
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-4xl mx-auto">
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-2xl hover:shadow-3xl transition-shadow duration-300">
+          <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-200 shadow-2xl hover:shadow-3xl transition-shadow duration-300">
             <CardContent className="p-10">
-              <div className="flex items-start gap-6">
-                <div className="bg-blue-600 p-3 rounded-full flex-shrink-0 shadow-lg">
-                  <CheckCircle2 className="h-8 w-8 text-white" />
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="flex-shrink-0">
+                  <div className="bg-yellow-500 p-3 rounded-full flex-shrink-0 shadow-lg">
+                    <Star className="h-8 w-8 text-white fill-white" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xl md:text-2xl text-gray-800 italic mb-6 leading-relaxed font-light">
-                    "Grâce à la thérapie sensori-motrice, j'ai enfin pu me reconnecter à mon corps 
-                    et retrouver une sérénité que je pensais perdue."
+                <div className="flex-1">
+                  <p className="text-xl md:text-2xl text-gray-800 font-semibold mb-4 leading-relaxed">
+                    Découvrez les avis de mes patients sur Google
                   </p>
-                  <p className="text-gray-700 font-semibold text-lg">
-                    — Marie, 34 ans
+                  <p className="text-gray-700 mb-6 text-lg leading-relaxed">
+                    Consultez les retours d'expérience authentiques de mes patients pour en savoir plus sur la qualité de mon accompagnement thérapeutique.
                   </p>
+                  <a 
+                    href="https://maps.app.goo.gl/KRQDonRf4zr9FABG9" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  >
+                    <span>Lire les avis Google</span>
+                    <ExternalLink className="h-5 w-5" />
+                  </a>
                 </div>
               </div>
             </CardContent>
@@ -230,7 +240,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Contact Section */}
+      {/* Contact Section with Google Maps */}
       <div className="bg-white/60 backdrop-blur-sm py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
@@ -241,7 +251,7 @@ export default function Home() {
               <div className="w-24 h-1 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-3 gap-8 mb-12">
               <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-2 border-blue-100 hover:border-blue-300 bg-white/80 backdrop-blur-sm">
                 <CardContent className="p-8 text-center">
                   <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
@@ -285,6 +295,23 @@ export default function Home() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Google Maps Embed */}
+            <Card className="border-2 border-blue-200 shadow-2xl overflow-hidden">
+              <CardContent className="p-0">
+                <div className="w-full h-96">
+                  <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2811.925016535181!2d0.7136223999999999!3d45.188614099999995!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6151b8d14f8ce02b%3A0x32d639468680d838!2sSARRY%20dorian%20Th%C3%A9rapeute%20psycho-corporel%20%2F%20Sensorimoteur%20Cabinet%20de%20th%C3%A9rapie%20psycho-corporelle%20P%C3%A9rigueux!5e0!3m2!1sen!2sus!4v1768043651850!5m2!1sen!2sus"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    allowFullScreen={true}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  ></iframe>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
