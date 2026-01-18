@@ -1,4 +1,6 @@
 import { google } from 'googleapis';
+import { createHash } from 'crypto';
+import { sendAppointmentConfirmationEmail } from './emailService';
 
 /**
  * Service avancé de gestion de calendrier Google pour les rendez-vous
@@ -9,6 +11,7 @@ import { google } from 'googleapis';
  * - Verrouillage des créneaux pendant réservation
  * - Vérification des conflits en temps réel
  * - Gestion de la confidentialité
+ * - Envoi automatique d'emails de confirmation
  */
 
 interface TimeSlot {
@@ -333,6 +336,14 @@ export class AppointmentCalendarService {
   }
 
   /**
+   * Générer un hash unique pour l'annulation de rendez-vous
+   */
+  private generateAppointmentHash(slotId: string, patientEmail: string): string {
+    const data = `${slotId}-${patientEmail}-${Date.now()}`;
+    return createHash('sha256').update(data).digest('hex').substring(0, 32);
+  }
+
+  /**
    * Réserver un créneau (transformation de disponibilité en RDV)
    */
   async bookSlot(
@@ -380,6 +391,9 @@ export class AppointmentCalendarService {
         return false;
       }
 
+      // Générer un hash pour l'annulation
+      const appointmentHash = this.generateAppointmentHash(slotId, patientInfo.email);
+
       // Transformer en rendez-vous
       event.data.summary = `🏥 RDV - ${patientInfo.name}`;
       event.data.description = `📋 Rendez-vous patient
@@ -415,6 +429,7 @@ ${patientInfo.reason ? `\n💬 Motif: ${patientInfo.reason}` : ''}`;
           patientName: patientInfo.name,
           patientEmail: patientInfo.email,
           patientPhone: patientInfo.phone || '',
+          appointmentHash,
         },
       };
 
@@ -422,13 +437,39 @@ ${patientInfo.reason ? `\n💬 Motif: ${patientInfo.reason}` : ''}`;
         calendarId: this.config.appointmentCalendarId,
         eventId: slotId,
         resource: event.data,
-        sendUpdates: 'all', // Envoyer notifications
+        sendUpdates: 'all', // Envoyer notifications Google Calendar
       });
 
       // Supprimer le verrou s'il existe
       this.pendingLocks.delete(slotId);
 
       console.log(`[AppointmentCalendar] Créneau ${slotId} réservé par ${patientInfo.name}`);
+
+      // Envoyer l'email de confirmation au patient
+      try {
+        const emailResult = await sendAppointmentConfirmationEmail({
+          patientName: patientInfo.name,
+          patientEmail: patientInfo.email,
+          practitionerName: 'Dorian Sarry',
+          date: startTime,
+          startTime: startTime.toTimeString().slice(0, 5),
+          endTime: endTime.toTimeString().slice(0, 5),
+          reason: patientInfo.reason || 'Consultation',
+          location: '20 rue des Jacobins, 24000 Périgueux',
+          appointmentHash,
+        });
+
+        if (emailResult.success) {
+          console.log(`[AppointmentCalendar] Email de confirmation envoyé à ${patientInfo.email} (ID: ${emailResult.messageId})`);
+        } else {
+          console.error(`[AppointmentCalendar] Échec de l'envoi de l'email: ${emailResult.error}`);
+          // Note: On ne bloque pas la réservation si l'email échoue
+        }
+      } catch (emailError) {
+        console.error('[AppointmentCalendar] Erreur lors de l\'envoi de l\'email:', emailError);
+        // Note: On ne bloque pas la réservation si l'email échoue
+      }
+
       return true;
     } catch (error) {
       console.error('[AppointmentCalendar] Erreur réservation:', error);
