@@ -286,8 +286,12 @@ export async function sendAppointmentConfirmationEmail(
   data: AppointmentEmailData
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
+    // Note: 'onboarding@resend.dev' ne fonctionne que pour votre propre email.
+    // Pour envoyer aux patients, vous DEVEZ utiliser une adresse liée à votre domaine vérifié.
+    const fromEmail = ENV.isProduction ? 'contact@votre-domaine.fr' : 'Dorian Sarry <onboarding@resend.dev>';
+    
     const { data: result, error } = await resend.emails.send({
-      from: 'Dorian Sarry <onboarding@resend.dev>',
+      from: fromEmail,
       to: [data.patientEmail],
       subject: `Confirmation de votre rendez-vous - ${new Date(data.date).toLocaleDateString('fr-FR')}`,
       html: getConfirmationEmailHTML(data),
