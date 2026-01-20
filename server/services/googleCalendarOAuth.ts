@@ -133,21 +133,18 @@ export class GoogleCalendarOAuthService {
           const endTimeStr = `${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`;
 
           // Vérifier si ce créneau est libre (pas de rendez-vous qui chevauche)
-          const isBooked = appointments.some((appt: any) => {
-            if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
+          let overlappingAppt: any = undefined;
+          for (const appt of appointments) {
+            if (!appt.start?.dateTime || !appt.end?.dateTime) continue;
             const apptStart = new Date(appt.start.dateTime);
             const apptEnd = new Date(appt.end.dateTime);
             
-            // Il y a chevauchement si le début du slot est avant la fin du RDV 
-            // ET la fin du slot est après le début du RDV
-            const overlaps = currentTime < apptEnd && nextTime > apptStart;
-            
-            if (overlaps) {
-              console.log(`[GoogleCalendarOAuth] ❌ Créneau ${startTimeStr} déjà réservé (RDV: ${appt.summary})`);
+            // Il y a chevauchement
+            if (currentTime < apptEnd && nextTime > apptStart) {
+              overlappingAppt = appt;
+              break;
             }
-            
-            return overlaps;
-          });
+          }
 
           // Ne pas inclure les créneaux dans le passé
           const now = new Date();
@@ -155,22 +152,22 @@ export class GoogleCalendarOAuthService {
           
           if (isPast) {
             console.log(`[GoogleCalendarOAuth] ⏮️ Créneau passé ignoré: ${startTimeStr}`);
-          } else {
-            const isAvailable = !isBooked;
-            
+            currentTime = nextTime;
+          } else if (!overlappingAppt) {
             slots.push({
               date: new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate()),
               startTime: startTimeStr,
               endTime: endTimeStr,
-              isAvailable: isAvailable,
+              isAvailable: true,
             });
 
-            if (isAvailable) {
-              console.log(`[GoogleCalendarOAuth] ✅ Créneau disponible: ${startTimeStr} - ${endTimeStr}`);
-            }
+            console.log(`[GoogleCalendarOAuth] ✅ Créneau disponible: ${startTimeStr} - ${endTimeStr}`);
+            currentTime = nextTime;
+          } else {
+            console.log(`[GoogleCalendarOAuth] ❌ Créneau ${startTimeStr} déjà réservé (RDV: ${overlappingAppt.summary})`);
+            // Sauter directement à la fin du rendez-vous
+            currentTime = new Date(overlappingAppt.end.dateTime);
           }
-
-          currentTime = nextTime;
         }
       }
 

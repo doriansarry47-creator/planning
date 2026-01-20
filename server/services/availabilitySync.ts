@@ -130,17 +130,21 @@ export class AvailabilitySyncService {
           if (nextTime > slotEnd) break;
 
           // Vérifier si ce créneau est occupé par un rendez-vous
-          const isBooked = bookedEvents.some((appt: any) => {
-            if (!appt.start?.dateTime || !appt.end?.dateTime) return false;
+          let overlappingAppt: any = undefined;
+          for (const appt of bookedEvents) {
+            if (!appt.start?.dateTime || !appt.end?.dateTime) continue;
             const apptStart = new Date(appt.start.dateTime);
             const apptEnd = new Date(appt.end.dateTime);
             
             // Vérifier s'il y a chevauchement
-            return currentTime < apptEnd && nextTime > apptStart;
-          });
+            if (currentTime < apptEnd && nextTime > apptStart) {
+              overlappingAppt = appt;
+              break;
+            }
+          }
 
           // NE PAS INCLURE les créneaux réservés dans la liste
-          if (!isBooked) {
+          if (!overlappingAppt) {
             const startTimeStr = formatInTimeZone(currentTime, TIMEZONE, 'HH:mm');
             const endTimeStr = formatInTimeZone(nextTime, TIMEZONE, 'HH:mm');
             const dateStr = formatInTimeZone(currentTime, TIMEZONE, 'yyyy-MM-dd');
@@ -153,9 +157,11 @@ export class AvailabilitySyncService {
               eventId: availEvent.id,
               title: availEvent.summary,
             });
+            currentTime = nextTime;
+          } else {
+            // Sauter directement à la fin du rendez-vous
+            currentTime = new Date(overlappingAppt.end.dateTime);
           }
-
-          currentTime = nextTime;
         }
       }
 
