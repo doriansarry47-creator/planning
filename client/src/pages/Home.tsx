@@ -10,7 +10,7 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog';
-import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info, Sparkles, Calendar, ExternalLink, Star } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Shield, Phone, Mail, MapPin, Info, Sparkles, Calendar, ExternalLink, Star, Clock, Euro } from 'lucide-react';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -249,7 +249,7 @@ export default function Home() {
               <div className="w-24 h-1 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
               <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-2 border-blue-100 hover:border-blue-300 bg-white/80 backdrop-blur-sm">
                 <CardContent className="p-8 text-center">
                   <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
@@ -290,6 +290,30 @@ export default function Home() {
                   >
                     doriansarry@yahoo.fr
                   </a>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-2 border-green-100 hover:border-green-300 bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-8 text-center">
+                  <div className="bg-gradient-to-br from-green-100 to-emerald-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                    <Clock className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h3 className="font-bold text-xl mb-3 text-gray-900">Durée</h3>
+                  <p className="text-gray-700 text-lg leading-relaxed font-medium">
+                    1 heure
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-2 border-amber-100 hover:border-amber-300 bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-8 text-center">
+                  <div className="bg-gradient-to-br from-amber-100 to-yellow-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                    <Euro className="h-8 w-8 text-amber-600" />
+                  </div>
+                  <h3 className="font-bold text-xl mb-3 text-gray-900">Tarif</h3>
+                  <p className="text-gray-700 text-lg leading-relaxed font-medium">
+                    50 €
+                  </p>
                 </CardContent>
               </Card>
             </div>
