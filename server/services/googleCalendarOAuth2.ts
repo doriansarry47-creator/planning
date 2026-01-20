@@ -203,11 +203,10 @@ export class GoogleCalendarOAuth2Service {
       // S'assurer que le token est valide
       await this.ensureValidAccessToken();
 
-      // Construire les dates/heures au format ISO 8601
-      // On envoie l'heure locale sans offset, et on précise la timezone à Google
-      // Google Calendar fera la conversion correcte (ex: 19:30 Europe/Paris -> 18:30 UTC)
-      const startDateTime = `${appointment.date}T${appointment.startTime}:00`;
-      const endDateTime = `${appointment.date}T${appointment.endTime}:00`;
+      // Construire les dates/heures au format ISO 8601 avec offset explicite (+01:00 pour l'hiver en France)
+      // Cela garantit que Google Calendar reçoit l'heure exacte sans ambiguïté.
+      const startDateTime = `${appointment.date}T${appointment.startTime}:00+01:00`;
+      const endDateTime = `${appointment.date}T${appointment.endTime}:00+01:00`;
 
       // Construire la description personnalisée
       let description = `Votre rendez-vous :\n\n`;
@@ -231,11 +230,11 @@ export class GoogleCalendarOAuth2Service {
         description: description,
         start: {
           dateTime: startDateTime,
-          timeZone: 'Europe/Paris', // Forcer explicitement la timezone Europe/Paris
+          timeZone: 'Europe/Paris',
         },
         end: {
           dateTime: endDateTime,
-          timeZone: 'Europe/Paris', // Forcer explicitement la timezone Europe/Paris
+          timeZone: 'Europe/Paris',
         },
         attendees: [
           { email: appointment.clientEmail, displayName: appointment.clientName }
