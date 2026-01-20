@@ -166,8 +166,8 @@ export const bookingRouter = router({
         console.log("[BookingRouter] ✅ RDV enregistré en base de données");
 
         // Envoi de l'email de confirmation
-        console.log("[BookingRouter] 📧 Envoi de l'email de confirmation...");
-        await sendAppointmentConfirmationEmail({
+        console.log("[BookingRouter] 📧 Envoi de l'email de confirmation à:", email);
+        const emailResult = await sendAppointmentConfirmationEmail({
           patientName: `${firstName} ${lastName}`,
           patientEmail: email,
           practitionerName: "Dorian Sarry",
@@ -181,6 +181,7 @@ export const bookingRouter = router({
           currency: serviceData.currency,
           appointmentHash: appointmentValues.cancellationHash,
         });
+        console.log("[BookingRouter] 📧 Résultat de l'envoi:", emailResult.success ? "Succès" : "Échec: " + emailResult.error);
         
       } catch (dbError) {
         console.error("[BookingRouter] ⚠️ Erreur base de données ou email:", dbError);

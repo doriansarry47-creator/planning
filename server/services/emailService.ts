@@ -287,7 +287,7 @@ export async function sendAppointmentConfirmationEmail(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const { data: result, error } = await resend.emails.send({
-      from: 'Confirmation RDV <onboarding@resend.dev>',
+      from: 'Dorian Sarry <onboarding@resend.dev>',
       to: [data.patientEmail],
       subject: `Confirmation de votre rendez-vous - ${new Date(data.date).toLocaleDateString('fr-FR')}`,
       html: getConfirmationEmailHTML(data),
