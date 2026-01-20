@@ -13,6 +13,9 @@ export interface AppointmentEmailData {
   endTime: string;
   reason: string;
   location?: string;
+  durationMinutes: number;
+  price: number;
+  currency: string;
   appointmentHash: string;
 }
 
@@ -166,24 +169,30 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
         <span class="info-label">📅 Date :</span>
         <span class="info-value">${dateFormatted}</span>
       </div>
-      <div class="info-row">
-        <span class="info-label">🕐 Heure :</span>
-        <span class="info-value">${data.startTime} - ${data.endTime}</span>
-      </div>
+	      <div class="info-row">
+	        <span class="info-label">🕐 Heure :</span>
+	        <span class="info-value">${data.startTime} - ${data.endTime}</span>
+	      </div>
+	      <div class="info-row">
+	        <span class="info-label">⏱️ Durée :</span>
+	        <span class="info-value">${data.durationMinutes} minutes</span>
+	      </div>
       <div class="info-row">
         <span class="info-label">👨‍⚕️ Praticien :</span>
         <span class="info-value">${data.practitionerName}</span>
       </div>
-      <div class="info-row">
-        <span class="info-label">💬 Motif :</span>
-        <span class="info-value">${data.reason}</span>
-      </div>
-      ${data.location ? `
-      <div class="info-row">
-        <span class="info-label">📍 Lieu :</span>
-        <span class="info-value">${data.location}</span>
-      </div>
-      ` : ''}
+	      <div class="info-row">
+	        <span class="info-label">💬 Motif :</span>
+	        <span class="info-value">${data.reason}</span>
+	      </div>
+	      <div class="info-row">
+	        <span class="info-label">💰 Tarif :</span>
+	        <span class="info-value">${data.price.toFixed(2)} ${data.currency}</span>
+	      </div>
+	      <div class="info-row">
+	        <span class="info-label">📍 Lieu :</span>
+	        <span class="info-value">${data.location || '20 rue des Jacobins, 24000 Périgueux'}</span>
+	      </div>
     </div>
 
     <div class="important-note">
@@ -243,10 +252,12 @@ Nous vous confirmons votre rendez-vous avec ${data.practitionerName}, praticien 
 DÉTAILS DU RENDEZ-VOUS
 ----------------------
 Date : ${dateFormatted}
-Heure : ${data.startTime} - ${data.endTime}
+	Heure : ${data.startTime} - ${data.endTime}
+	Durée : ${data.durationMinutes} minutes
 Praticien : ${data.practitionerName}
-Motif : ${data.reason}
-${data.location ? `Lieu : ${data.location}` : ''}
+	Motif : ${data.reason}
+	Tarif : ${data.price.toFixed(2)} ${data.currency}
+	Lieu : ${data.location || '20 rue des Jacobins, 24000 Périgueux'}
 
 IMPORTANT
 ---------

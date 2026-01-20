@@ -1,7 +1,9 @@
 import { router, publicProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getGoogleCalendarService } from "./services/googleCalendar";
-import { appointments } from "../drizzle/schema";
+import { appointments, services } from "../drizzle/schema";
+import { sendAppointmentConfirmationEmail } from "./services/emailService";
+import { eq } from "drizzle-orm";
 import { calculateAvailableSlots, convertGoogleEventToSimpleEvent } from "./services/availabilityCalculator";
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 
@@ -141,21 +143,47 @@ export const bookingRouter = router({
       try {
         const { getDb } = await import("./db");
         const db = await getDb();
-        await db.insert(appointments).values({
+        
+        // Récupérer les informations du service pour le tarif et la durée
+        const serviceInfo = await db.select().from(services).where(eq(services.id, 1)).limit(1);
+        const serviceData = serviceInfo[0] || { price: "60.00", duration: 60, currency: "EUR" } as any;
+
+        const appointmentValues = {
           practitionerId: 1,
           serviceId: 1,
           startTime: startDateTime,
           endTime: endDateTime,
-          status: "confirmed",
+          status: "confirmed" as const,
           customerName: `${firstName} ${lastName}`,
           customerEmail: email,
           customerPhone: phone,
           notes: reason || "",
           googleEventId: eventId,
-        });
+          cancellationHash: Math.random().toString(36).substring(2, 15),
+        };
+
+        await db.insert(appointments).values(appointmentValues as any);
         console.log("[BookingRouter] ✅ RDV enregistré en base de données");
+
+        // Envoi de l'email de confirmation
+        console.log("[BookingRouter] 📧 Envoi de l'email de confirmation...");
+        await sendAppointmentConfirmationEmail({
+          patientName: `${firstName} ${lastName}`,
+          patientEmail: email,
+          practitionerName: "Dorian Sarry",
+          date: appointmentDate,
+          startTime,
+          endTime,
+          reason: reason || "Consultation",
+          location: "20 rue des Jacobins, 24000 Périgueux",
+          durationMinutes: Number(serviceData.duration),
+          price: Number(serviceData.price),
+          currency: serviceData.currency,
+          appointmentHash: appointmentValues.cancellationHash,
+        });
+        
       } catch (dbError) {
-        console.error("[BookingRouter] ⚠️ Erreur base de données (le RDV Google Calendar est créé):", dbError);
+        console.error("[BookingRouter] ⚠️ Erreur base de données ou email:", dbError);
       }
 
       return { success: true, eventId };
