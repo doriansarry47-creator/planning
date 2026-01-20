@@ -375,23 +375,34 @@ async function createGoogleCalendarEvent(appointmentData: {
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
     const targetCalendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
-    const startDateTime = new Date(appointmentData.date);
+    // CORRECTION : Créer les dates en heure de Paris pour éviter le décalage horaire
+    // Au lieu d'utiliser setHours() qui utilise l'heure locale du serveur (UTC),
+    // on construit une date/heure explicite en format ISO avec timezone Paris
+    const dateStr = appointmentData.date.toISOString().split('T')[0]; // YYYY-MM-DD
     const [startHours, startMinutes] = appointmentData.startTime.split(':').map(Number);
-    startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-    const endDateTime = new Date(appointmentData.date);
     const [endHours, endMinutes] = appointmentData.endTime.split(':').map(Number);
-    endDateTime.setHours(endHours, endMinutes, 0, 0);
+    
+    // Construire les datetime strings avec timezone Paris explicite
+    const startDateTimeStr = `${dateStr}T${startHours.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}:00`;
+    const endDateTimeStr = `${dateStr}T${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}:00`;
+    
+    console.log('[Vercel TRPC OAuth2] 📅 Création événement:', {
+      date: dateStr,
+      startTime: appointmentData.startTime,
+      endTime: appointmentData.endTime,
+      startDateTime: startDateTimeStr,
+      endDateTime: endDateTimeStr,
+    });
 
     const event = {
       summary: `🗓️ RDV - ${appointmentData.patientName}`,
       description: `Patient: ${appointmentData.patientName}\nEmail: ${appointmentData.patientEmail}\nTéléphone: ${appointmentData.patientPhone || 'Non renseigné'}\nMotif: ${appointmentData.reason || 'Non précisé'}\n\n✅ Réservé via l'application web`,
       start: {
-        dateTime: startDateTime.toISOString(),
+        dateTime: startDateTimeStr,
         timeZone: 'Europe/Paris',
       },
       end: {
-        dateTime: endDateTime.toISOString(),
+        dateTime: endDateTimeStr,
         timeZone: 'Europe/Paris',
       },
       colorId: '11',
