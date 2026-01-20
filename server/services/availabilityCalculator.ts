@@ -114,31 +114,13 @@ export function calculateAvailableSlots(
           currentTime = slotEnd;
         } else {
           // Si occupé, on saute à la fin du rendez-vous
+          // Le prochain créneau doit commencer immédiatement après la fin du RDV
+          // Ex: RDV de 18h à 19h -> prochain créneau à 19h00, pas 19h30
           const apptEnd = new Date(overlappingAppt.endDateTime);
           
-          // Pour éviter de décaler tous les créneaux suivants (ex: RDV finit à 18h30 -> prochain à 18h30),
-          // on arrondit à la prochaine heure pleine ou demi-heure si on veut garder un rythme,
-          // MAIS l'utilisateur veut que ça s'enchaîne. 
-          // S'il a un RDV de 18h à 19h, le suivant doit être à 19h.
-          // S'il a un RDV de 18h à 18h30, et qu'il veut des créneaux de 60min, 
-          // soit il commence à 18h30 (perte de rythme), soit il attend 19h.
-          
-          // L'utilisateur dit : "j'ai un créneaux de 18h à 19h mais l'application me propose un créneaux a 19h30"
-          // Cela arrive si `currentTime` devient 19h00, mais que quelque chose le décale.
-          // Dans mon test, avec 18h-19h, ça donnait bien 19h.
-          
-          // Hypothèse : Le "créneau de 18h à 19h" est peut-être un événement Google qui finit à 19h00m01s 
-          // ou un petit décalage de secondes/ms qui fait que 19h00 < apptEnd est vrai.
-          
-          // Correction : On s'assure que si on saute à la fin d'un RDV, on ne crée pas de décalage inutile.
-          // Si le rendez-vous finit à une heure qui n'est pas alignée sur le rythme souhaité (ex: 18h30 alors qu'on veut des créneaux de 60min commençant aux heures piles),
-          // on peut soit commencer à 18h30, soit attendre 19h00.
-          // L'utilisateur se plaint d'un décalage de 30 min (19h30 au lieu de 19h00).
-          // Cela suggère qu'il veut rester aligné sur les heures piles ou les demies.
-          
-          // On arrondit à la minute la plus proche pour éviter les problèmes de millisecondes de Google
-          // qui pourraient faire que 19:00:01 soit considéré comme après 19:00.
-          currentTime = new Date(Math.round(apptEnd.getTime() / 60000) * 60000);
+          // Arrondir à la minute supérieure pour éviter les problèmes de millisecondes
+          // qui pourraient faire qu'un RDV finissant à 19h00m00s001 soit considéré comme après 19h00
+          currentTime = new Date(Math.ceil(apptEnd.getTime() / 60000) * 60000);
         }
       } else {
         currentTime = slotEnd;

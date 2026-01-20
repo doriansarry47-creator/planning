@@ -57,7 +57,7 @@ export class AvailabilitySyncService {
   async getAvailableSlots(
     startDate: Date,
     endDate: Date,
-    slotDuration: number = 30
+    slotDuration: number = 60
   ): Promise<AvailabilitySlot[]> {
     try {
       console.log('[AvailabilitySync] Récupération des créneaux disponibles...');
@@ -160,9 +160,10 @@ export class AvailabilitySyncService {
             currentTime = nextTime;
           } else {
             // Sauter directement à la fin du rendez-vous
-            // On arrondit à la minute la plus proche pour éviter les décalages de quelques secondes
+            // On commence le prochain créneau immédiatement après la fin du RDV
+            // Arrondir à la minute supérieure pour éviter les problèmes de millisecondes
             const apptEnd = new Date(overlappingAppt.end.dateTime);
-            currentTime = new Date(Math.round(apptEnd.getTime() / 60000) * 60000);
+            currentTime = new Date(Math.ceil(apptEnd.getTime() / 60000) * 60000);
           }
         }
       }
