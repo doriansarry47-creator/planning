@@ -160,7 +160,9 @@ export class AvailabilitySyncService {
             currentTime = nextTime;
           } else {
             // Sauter directement à la fin du rendez-vous
-            currentTime = new Date(overlappingAppt.end.dateTime);
+            // On arrondit à la minute la plus proche pour éviter les décalages de quelques secondes
+            const apptEnd = new Date(overlappingAppt.end.dateTime);
+            currentTime = new Date(Math.round(apptEnd.getTime() / 60000) * 60000);
           }
         }
       }
