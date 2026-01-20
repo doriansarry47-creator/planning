@@ -96,25 +96,30 @@ export function calculateAvailableSlots(
       // FILTRE : Pas dans le passé
       if (slotEnd > minBookingTime) {
         // FILTRE : Pas de chevauchement avec un rendez-vous
-        let isOccupied = false;
+        let overlappingAppt: SimpleEvent | undefined = undefined;
         for (const appt of appointments) {
           if (currentTime < appt.endDateTime && slotEnd > appt.startDateTime) {
-            isOccupied = true;
+            overlappingAppt = appt;
             break;
           }
         }
 
-        if (!isOccupied) {
+        if (!overlappingAppt) {
           availableSlots.push({
             date: currentSlotDateStr,
             startTime: startTimeStr,
             endTime: endTimeStr,
             duration: rules.slotDuration,
           });
+          currentTime = slotEnd;
+        } else {
+          // Si occupé, on saute directement à la fin du rendez-vous pour le prochain créneau
+          // Cela évite de perdre du temps si le rendez-vous finit à une heure pile
+          currentTime = new Date(overlappingAppt.endDateTime);
         }
+      } else {
+        currentTime = slotEnd;
       }
-
-      currentTime = slotEnd;
     }
   }
 
