@@ -121,6 +121,7 @@ export function calculateAvailableSlots(
           // Arrondir à la minute supérieure pour éviter les problèmes de millisecondes
           // qui pourraient faire qu'un RDV finissant à 19h00m00s001 soit considéré comme après 19h00
           currentTime = new Date(Math.ceil(apptEnd.getTime() / 60000) * 60000);
+
         }
       } else {
         currentTime = slotEnd;
