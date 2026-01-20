@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 import { ENV } from '../_core/env';
 
-// Initialisation du client Resend avec le token
+// Initialisation du client Resend avec le token fourni par l'utilisateur
 const resend = new Resend(ENV.resendApiKey || 're_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd');
 
 export interface AppointmentEmailData {
@@ -20,7 +20,7 @@ export interface AppointmentEmailData {
 }
 
 /**
- * Template d'email de confirmation de rendez-vous
+ * Template d'email de confirmation de rendez-vous professionnel
  */
 function getConfirmationEmailHTML(data: AppointmentEmailData): string {
   const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR', {
@@ -30,7 +30,6 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
     day: 'numeric',
   });
 
-  // URL de base pour l'annulation (à adapter selon votre environnement)
   const baseUrl = ENV.appUrl || 'http://localhost:5173';
   const cancelUrl = `${baseUrl}/appointments/cancel/${data.appointmentHash}`;
 
@@ -40,187 +39,193 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmation de rendez-vous</title>
+  <title>Confirmation de votre rendez-vous professionnel</title>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       line-height: 1.6;
-      color: #333;
+      color: #1a202c;
       max-width: 600px;
       margin: 0 auto;
+      padding: 0;
+      background-color: #f7fafc;
+    }
+    .wrapper {
       padding: 20px;
-      background-color: #f4f7fa;
     }
     .container {
       background-color: #ffffff;
-      border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e2e8f0;
     }
     .header {
+      background-color: #2d3748;
+      color: #ffffff;
+      padding: 30px;
       text-align: center;
-      border-bottom: 3px solid #2563eb;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
     }
     .header h1 {
-      color: #2563eb;
       margin: 0;
-      font-size: 28px;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
     }
-    .header p {
-      color: #64748b;
-      margin: 5px 0 0 0;
-      font-size: 16px;
+    .content {
+      padding: 40px;
     }
-    .info-box {
-      background-color: #eff6ff;
-      border-left: 4px solid #2563eb;
-      padding: 20px;
-      margin: 20px 0;
-      border-radius: 6px;
-    }
-    .info-row {
-      display: flex;
-      margin: 12px 0;
-      align-items: flex-start;
-    }
-    .info-label {
+    .greeting {
+      font-size: 18px;
       font-weight: 600;
-      color: #1e40af;
-      min-width: 140px;
-      display: inline-block;
+      margin-bottom: 16px;
+      color: #2d3748;
     }
-    .info-value {
-      color: #334155;
+    .intro {
+      margin-bottom: 32px;
+      color: #4a5568;
+    }
+    .details-card {
+      background-color: #f8fafc;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+      border: 1px solid #edf2f7;
+    }
+    .detail-row {
+      display: flex;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #edf2f7;
+      padding-bottom: 12px;
+    }
+    .detail-row:last-child {
+      margin-bottom: 0;
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .detail-label {
+      font-weight: 600;
+      color: #718096;
+      width: 120px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .detail-value {
+      color: #2d3748;
+      font-weight: 500;
       flex: 1;
     }
-    .important-note {
-      background-color: #fef3c7;
-      border-left: 4px solid #f59e0b;
-      padding: 15px;
-      margin: 25px 0;
-      border-radius: 6px;
+    .price-tag {
+      display: inline-block;
+      background-color: #ebf8ff;
+      color: #2b6cb0;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-weight: 700;
     }
-    .important-note p {
-      margin: 0;
-      color: #92400e;
-      font-size: 14px;
-    }
-    .button-container {
+    .action-section {
       text-align: center;
-      margin: 30px 0;
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 1px solid #edf2f7;
     }
     .button {
       display: inline-block;
-      padding: 14px 32px;
-      background-color: #dc2626;
-      color: white;
+      background-color: #4a5568;
+      color: #ffffff;
       text-decoration: none;
-      border-radius: 8px;
+      padding: 14px 28px;
+      border-radius: 6px;
       font-weight: 600;
-      font-size: 16px;
-      transition: background-color 0.3s;
+      font-size: 15px;
+      transition: background-color 0.2s;
     }
-    .button:hover {
-      background-color: #b91c1c;
+    .button-cancel {
+      background-color: #ffffff;
+      color: #e53e3e;
+      border: 1px solid #feb2b2;
+      margin-top: 15px;
     }
     .footer {
+      padding: 30px;
       text-align: center;
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid #e2e8f0;
-      color: #64748b;
-      font-size: 14px;
+      font-size: 13px;
+      color: #a0aec0;
+      background-color: #f7fafc;
     }
     .contact-info {
-      background-color: #f8fafc;
-      padding: 20px;
-      border-radius: 6px;
-      margin-top: 25px;
+      margin-top: 20px;
+      color: #718096;
+      font-style: normal;
     }
-    .contact-info h3 {
-      color: #1e40af;
-      margin-top: 0;
-      font-size: 18px;
-    }
-    .contact-item {
-      margin: 8px 0;
-      color: #475569;
-    }
-    .emoji {
-      margin-right: 8px;
+    .important-notice {
+      font-size: 12px;
+      color: #718096;
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #fffaf0;
+      border-left: 4px solid #f6ad55;
+      border-radius: 4px;
+      text-align: left;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>✅ Rendez-vous confirmé</h1>
-      <p>Votre rendez-vous a été enregistré avec succès</p>
-    </div>
-
-    <p>Bonjour <strong>${data.patientName}</strong>,</p>
-    
-    <p>Nous vous confirmons votre rendez-vous avec <strong>${data.practitionerName}</strong>, praticien certifié en Thérapie Sensori-Motrice.</p>
-
-    <div class="info-box">
-      <div class="info-row">
-        <span class="info-label">📅 Date :</span>
-        <span class="info-value">${dateFormatted}</span>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>CONFIRMATION DE RENDEZ-VOUS</h1>
       </div>
-	      <div class="info-row">
-	        <span class="info-label">🕐 Heure :</span>
-	        <span class="info-value">${data.startTime} - ${data.endTime}</span>
-	      </div>
-	      <div class="info-row">
-	        <span class="info-label">⏱️ Durée :</span>
-	        <span class="info-value">${data.durationMinutes} minutes</span>
-	      </div>
-      <div class="info-row">
-        <span class="info-label">👨‍⚕️ Praticien :</span>
-        <span class="info-value">${data.practitionerName}</span>
-      </div>
-	      <div class="info-row">
-	        <span class="info-label">💬 Motif :</span>
-	        <span class="info-value">${data.reason}</span>
-	      </div>
-	      <div class="info-row">
-	        <span class="info-label">💰 Tarif :</span>
-	        <span class="info-value">${data.price.toFixed(2)} ${data.currency}</span>
-	      </div>
-	      <div class="info-row">
-	        <span class="info-label">📍 Lieu :</span>
-	        <span class="info-value">${data.location || '20 rue des Jacobins, 24000 Périgueux'}</span>
-	      </div>
-    </div>
+      
+      <div class="content">
+        <p class="greeting">Bonjour ${data.patientName},</p>
+        <p class="intro">Nous avons le plaisir de vous confirmer votre prochain rendez-vous professionnel avec <strong>${data.practitionerName}</strong>.</p>
+        
+        <div class="details-card">
+          <div class="detail-row">
+            <div class="detail-label">Date</div>
+            <div class="detail-value">${dateFormatted}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Horaire</div>
+            <div class="detail-value">${data.startTime} — ${data.endTime}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Durée</div>
+            <div class="detail-value">${data.durationMinutes} minutes</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Lieu</div>
+            <div class="detail-value">${data.location || '20 rue des Jacobins, 24000 Périgueux'}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Objet</div>
+            <div class="detail-value">${data.reason}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Tarif</div>
+            <div class="detail-value"><span class="price-tag">${data.price.toFixed(2)} ${data.currency}</span></div>
+          </div>
+        </div>
 
-    <div class="important-note">
-      <p><strong>⚠️ Important :</strong> Si vous ne pouvez pas vous présenter à ce rendez-vous, merci de nous prévenir au moins 24h à l'avance.</p>
-    </div>
+        <div class="important-notice">
+          <strong>Note importante :</strong> En cas d'empêchement, nous vous remercions de bien vouloir nous en informer au moins 24 heures à l'avance afin de libérer ce créneau pour un autre client.
+        </div>
 
-    <div class="contact-info">
-      <h3>Informations de contact</h3>
-      <div class="contact-item">
-        <span class="emoji">📍</span> 20 rue des Jacobins, 24000 Périgueux
+        <div class="action-section">
+          <p style="color: #718096; font-size: 14px; margin-bottom: 20px;">Vous pouvez gérer votre rendez-vous via le lien ci-dessous :</p>
+          <a href="${cancelUrl}" class="button button-cancel">Annuler le rendez-vous</a>
+        </div>
       </div>
-      <div class="contact-item">
-        <span class="emoji">📞</span> <a href="tel:+33645156368" style="color: #2563eb; text-decoration: none;">06.45.15.63.68</a>
+      
+      <div class="footer">
+        <p>© 2026 ${data.practitionerName} — Services Professionnels</p>
+        <div class="contact-info">
+          20 rue des Jacobins, 24000 Périgueux<br>
+          Tél : 06.45.15.63.68 | Email : doriansarry@yahoo.fr
+        </div>
       </div>
-      <div class="contact-item">
-        <span class="emoji">✉️</span> <a href="mailto:doriansarry@yahoo.fr" style="color: #2563eb; text-decoration: none;">doriansarry@yahoo.fr</a>
-      </div>
-    </div>
-
-    <div class="button-container">
-      <a href="${cancelUrl}" class="button">Annuler le rendez-vous</a>
-    </div>
-
-    <div class="footer">
-      <p>© 2025 Dorian Sarry - Thérapie Sensori-Motrice</p>
-      <p style="margin-top: 10px;">
-        <em>Cet email a été envoyé automatiquement suite à votre réservation de rendez-vous.</em>
-      </p>
     </div>
   </div>
 </body>
@@ -243,38 +248,34 @@ function getConfirmationEmailText(data: AppointmentEmailData): string {
   const cancelUrl = `${baseUrl}/appointments/cancel/${data.appointmentHash}`;
 
   return `
-Confirmation de rendez-vous
+CONFIRMATION DE RENDEZ-VOUS PROFESSIONNEL
 
 Bonjour ${data.patientName},
 
-Nous vous confirmons votre rendez-vous avec ${data.practitionerName}, praticien certifié en Thérapie Sensori-Motrice.
+Nous vous confirmons votre rendez-vous avec ${data.practitionerName}.
 
-DÉTAILS DU RENDEZ-VOUS
-----------------------
-Date : ${dateFormatted}
-	Heure : ${data.startTime} - ${data.endTime}
-	Durée : ${data.durationMinutes} minutes
-Praticien : ${data.practitionerName}
-	Motif : ${data.reason}
-	Tarif : ${data.price.toFixed(2)} ${data.currency}
-	Lieu : ${data.location || '20 rue des Jacobins, 24000 Périgueux'}
+DÉTAILS DU RENDEZ-VOUS :
+- Date : ${dateFormatted}
+- Horaire : ${data.startTime} - ${data.endTime}
+- Durée : ${data.durationMinutes} minutes
+- Lieu : ${data.location || '20 rue des Jacobins, 24000 Périgueux'}
+- Objet : ${data.reason}
+- Tarif : ${data.price.toFixed(2)} ${data.currency}
 
-IMPORTANT
----------
-Si vous ne pouvez pas vous présenter à ce rendez-vous, merci de nous prévenir au moins 24h à l'avance.
+IMPORTANT :
+En cas d'empêchement, merci de nous prévenir au moins 24h à l'avance.
 
-INFORMATIONS DE CONTACT
-------------------------
+ANNULATION :
+Pour annuler votre rendez-vous, veuillez suivre ce lien :
+${cancelUrl}
+
+CONTACT :
 Adresse : 20 rue des Jacobins, 24000 Périgueux
 Téléphone : 06.45.15.63.68
 Email : doriansarry@yahoo.fr
 
-Pour annuler votre rendez-vous, cliquez sur ce lien :
-${cancelUrl}
-
----
-© 2025 Dorian Sarry - Thérapie Sensori-Motrice
-Cet email a été envoyé automatiquement suite à votre réservation de rendez-vous.
+Cordialement,
+L'équipe de ${data.practitionerName}
   `;
 }
 
@@ -285,15 +286,10 @@ export async function sendAppointmentConfirmationEmail(
   data: AppointmentEmailData
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    // Vérifier que le service est configuré
-    if (!ENV.resendApiKey) {
-      console.log('[Email] Utilisation du token Resend par défaut');
-    }
-
     const { data: result, error } = await resend.emails.send({
-      from: 'Dorian Sarry - Thérapie <onboarding@resend.dev>', // À personnaliser avec votre domaine
+      from: 'Confirmation RDV <onboarding@resend.dev>',
       to: [data.patientEmail],
-      subject: `Confirmation de rendez-vous - ${new Date(data.date).toLocaleDateString('fr-FR')}`,
+      subject: `Confirmation de votre rendez-vous - ${new Date(data.date).toLocaleDateString('fr-FR')}`,
       html: getConfirmationEmailHTML(data),
       text: getConfirmationEmailText(data),
       replyTo: 'doriansarry@yahoo.fr',
@@ -332,19 +328,22 @@ export async function sendAppointmentNotificationToPractitioner(
     });
 
     const { data: result, error } = await resend.emails.send({
-      from: 'Planning Rendez-vous <onboarding@resend.dev>',
+      from: 'Notification Système <onboarding@resend.dev>',
       to: [practitionerEmail],
-      subject: `Nouveau rendez-vous - ${data.patientName} le ${dateFormatted}`,
+      subject: `Nouveau rendez-vous : ${data.patientName} le ${dateFormatted}`,
       html: `
-        <h2>Nouveau rendez-vous</h2>
-        <p>Un nouveau rendez-vous a été réservé :</p>
-        <ul>
-          <li><strong>Patient :</strong> ${data.patientName} (${data.patientEmail})</li>
-          <li><strong>Date :</strong> ${dateFormatted}</li>
-          <li><strong>Heure :</strong> ${data.startTime} - ${data.endTime}</li>
-          <li><strong>Motif :</strong> ${data.reason}</li>
-          ${data.location ? `<li><strong>Lieu :</strong> ${data.location}</li>` : ''}
-        </ul>
+        <div style="font-family: sans-serif; color: #333; max-width: 600px;">
+          <h2 style="color: #2d3748; border-bottom: 2px solid #edf2f7; padding-bottom: 10px;">Nouveau rendez-vous confirmé</h2>
+          <p>Un nouveau rendez-vous a été enregistré dans votre agenda :</p>
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #edf2f7;">
+            <p><strong>Client :</strong> ${data.patientName} (<a href="mailto:${data.patientEmail}">${data.patientEmail}</a>)</p>
+            <p><strong>Date :</strong> ${dateFormatted}</p>
+            <p><strong>Horaire :</strong> ${data.startTime} - ${data.endTime} (${data.durationMinutes} min)</p>
+            <p><strong>Objet :</strong> ${data.reason}</p>
+            <p><strong>Tarif :</strong> ${data.price.toFixed(2)} ${data.currency}</p>
+          </div>
+          <p style="font-size: 12px; color: #a0aec0; margin-top: 20px;">Ceci est une notification automatique du système de réservation.</p>
+        </div>
       `,
       replyTo: data.patientEmail,
     });
@@ -354,7 +353,6 @@ export async function sendAppointmentNotificationToPractitioner(
       return { success: false, error: error.message };
     }
 
-    console.log('[Email] Email de notification envoyé au praticien:', result?.id);
     return { success: true, messageId: result?.id };
 
   } catch (error) {
