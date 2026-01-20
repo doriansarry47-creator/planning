@@ -111,6 +111,7 @@ export function calculateAvailableSlots(
             endTime: endTimeStr,
             duration: rules.slotDuration,
           });
+          // On avance de la durée du créneau (60 min)
           currentTime = slotEnd;
         } else {
           // Si occupé, on saute à la fin du rendez-vous
@@ -119,9 +120,10 @@ export function calculateAvailableSlots(
           const apptEnd = new Date(overlappingAppt.endDateTime);
           
           // Arrondir à la minute supérieure pour éviter les problèmes de millisecondes
-          // qui pourraient faire qu'un RDV finissant à 19h00m00s001 soit considéré comme après 19h00
           currentTime = new Date(Math.ceil(apptEnd.getTime() / 60000) * 60000);
-
+          
+          // IMPORTANT : On ne fait PAS currentTime = slotEnd ici, 
+          // car on veut que le prochain tour de boucle commence EXACTEMENT à la fin du RDV.
         }
       } else {
         currentTime = slotEnd;
