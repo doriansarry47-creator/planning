@@ -1,8 +1,8 @@
-import { Resend } from 'resend';
 import { ENV } from '../_core/env';
 
-// Initialisation du client Resend avec le token fourni par l'utilisateur
-const resend = new Resend(ENV.resendApiKey || 're_Crbni8Gw_2Jb32KcyR4gLdkGs8umzGrHd');
+// Configuration Sweego API
+const SWEEGO_API_URL = 'https://api.sweego.io/v1';
+const SWEEGO_API_KEY = ENV.sweegoApiKey || 'dc058ad-3a50-48af-96ed-1c42a63e9a07';
 
 export interface AppointmentEmailData {
   patientName: string;
@@ -21,6 +21,7 @@ export interface AppointmentEmailData {
 
 /**
  * Template d'email de confirmation de rendez-vous professionnel
+ * Design professionnel optimisé pour Sweego
  */
 function getConfirmationEmailHTML(data: AppointmentEmailData): string {
   const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR', {
@@ -41,133 +42,189 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Confirmation de votre rendez-vous professionnel</title>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.6;
       color: #1a202c;
-      max-width: 600px;
-      margin: 0 auto;
+      background-color: #f0f4f8;
       padding: 0;
-      background-color: #f7fafc;
+      margin: 0;
     }
     .wrapper {
-      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 20px;
     }
     .container {
       background-color: #ffffff;
-      border-radius: 8px;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
       border: 1px solid #e2e8f0;
     }
     .header {
-      background-color: #2d3748;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #ffffff;
-      padding: 30px;
+      padding: 40px 30px;
       text-align: center;
     }
     .header h1 {
       margin: 0;
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 700;
-      letter-spacing: -0.025em;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
     }
     .content {
-      padding: 40px;
+      padding: 40px 35px;
     }
     .greeting {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 600;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
       color: #2d3748;
     }
     .intro {
-      margin-bottom: 32px;
+      margin-bottom: 30px;
       color: #4a5568;
+      font-size: 16px;
+      line-height: 1.7;
     }
     .details-card {
-      background-color: #f8fafc;
+      background: linear-gradient(to bottom, #f8fafc 0%, #ffffff 100%);
       border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 32px;
-      border: 1px solid #edf2f7;
+      padding: 28px;
+      margin-bottom: 30px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
     .detail-row {
       display: flex;
-      margin-bottom: 16px;
-      border-bottom: 1px solid #edf2f7;
-      padding-bottom: 12px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid #e2e8f0;
     }
     .detail-row:last-child {
       margin-bottom: 0;
       border-bottom: none;
       padding-bottom: 0;
     }
+    .detail-icon {
+      font-size: 24px;
+      margin-right: 15px;
+      flex-shrink: 0;
+    }
+    .detail-content {
+      flex: 1;
+    }
     .detail-label {
-      font-weight: 600;
+      font-weight: 700;
       color: #718096;
-      width: 120px;
-      font-size: 14px;
+      font-size: 12px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.8px;
+      margin-bottom: 5px;
     }
     .detail-value {
       color: #2d3748;
       font-weight: 500;
-      flex: 1;
+      font-size: 16px;
+    }
+    .detail-value strong {
+      color: #1a202c;
+      font-weight: 700;
     }
     .price-tag {
       display: inline-block;
-      background-color: #ebf8ff;
-      color: #2b6cb0;
-      padding: 4px 12px;
-      border-radius: 9999px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+      padding: 8px 18px;
+      border-radius: 50px;
       font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .important-notice {
+      background: linear-gradient(to right, #fff5f5 0%, #fffaf0 100%);
+      border-left: 5px solid #f6ad55;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 30px 0;
+      font-size: 14px;
+      color: #744210;
+    }
+    .important-notice strong {
+      color: #c05621;
+      font-size: 15px;
     }
     .action-section {
       text-align: center;
       margin-top: 40px;
-      padding-top: 30px;
-      border-top: 1px solid #edf2f7;
+      padding-top: 35px;
+      border-top: 2px solid #edf2f7;
     }
-    .button {
-      display: inline-block;
-      background-color: #4a5568;
-      color: #ffffff;
-      text-decoration: none;
-      padding: 14px 28px;
-      border-radius: 6px;
-      font-weight: 600;
+    .action-text {
+      color: #718096;
       font-size: 15px;
-      transition: background-color 0.2s;
+      margin-bottom: 25px;
+      line-height: 1.6;
     }
     .button-cancel {
+      display: inline-block;
       background-color: #ffffff;
       color: #e53e3e;
-      border: 1px solid #feb2b2;
-      margin-top: 15px;
+      text-decoration: none;
+      padding: 16px 40px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      border: 2px solid #fc8181;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(229, 62, 62, 0.15);
+    }
+    .button-cancel:hover {
+      background-color: #fff5f5;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(229, 62, 62, 0.25);
     }
     .footer {
-      padding: 30px;
+      padding: 35px 30px;
       text-align: center;
       font-size: 13px;
       color: #a0aec0;
-      background-color: #f7fafc;
+      background: linear-gradient(to bottom, #f7fafc 0%, #edf2f7 100%);
+      border-top: 1px solid #e2e8f0;
+    }
+    .footer-brand {
+      font-size: 15px;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 15px;
     }
     .contact-info {
       margin-top: 20px;
       color: #718096;
       font-style: normal;
+      line-height: 1.8;
     }
-    .important-notice {
-      font-size: 12px;
-      color: #718096;
-      margin-top: 20px;
-      padding: 15px;
-      background-color: #fffaf0;
-      border-left: 4px solid #f6ad55;
-      border-radius: 4px;
-      text-align: left;
+    .contact-info a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    @media only screen and (max-width: 600px) {
+      .wrapper { padding: 20px 10px; }
+      .content { padding: 30px 25px; }
+      .header { padding: 30px 20px; }
+      .header h1 { font-size: 22px; }
+      .details-card { padding: 20px; }
+      .detail-row { flex-direction: column; }
+      .detail-icon { margin-bottom: 8px; }
     }
   </style>
 </head>
@@ -175,56 +232,92 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
   <div class="wrapper">
     <div class="container">
       <div class="header">
+        <div class="header-icon">📅</div>
         <h1>CONFIRMATION DE RENDEZ-VOUS</h1>
       </div>
       
       <div class="content">
         <p class="greeting">Bonjour ${data.patientName},</p>
-        <p class="intro">Nous avons le plaisir de vous confirmer votre prochain rendez-vous professionnel avec <strong>${data.practitionerName}</strong>.</p>
+        <p class="intro">
+          Nous avons le plaisir de vous confirmer votre prochain rendez-vous professionnel avec <strong>${data.practitionerName}</strong>. 
+          Tous les détails de votre rendez-vous sont ci-dessous.
+        </p>
         
         <div class="details-card">
           <div class="detail-row">
-            <div class="detail-label">Date</div>
-            <div class="detail-value">${dateFormatted}</div>
+            <div class="detail-icon">📆</div>
+            <div class="detail-content">
+              <div class="detail-label">Date du rendez-vous</div>
+              <div class="detail-value"><strong>${dateFormatted}</strong></div>
+            </div>
           </div>
+          
           <div class="detail-row">
-            <div class="detail-label">Horaire</div>
-            <div class="detail-value">${data.startTime} — ${data.endTime}</div>
+            <div class="detail-icon">🕐</div>
+            <div class="detail-content">
+              <div class="detail-label">Horaire</div>
+              <div class="detail-value"><strong>${data.startTime}</strong> → <strong>${data.endTime}</strong></div>
+            </div>
           </div>
+          
           <div class="detail-row">
-            <div class="detail-label">Durée</div>
-            <div class="detail-value">${data.durationMinutes} minutes</div>
+            <div class="detail-icon">⏱️</div>
+            <div class="detail-content">
+              <div class="detail-label">Durée</div>
+              <div class="detail-value"><strong>${data.durationMinutes} minutes</strong></div>
+            </div>
           </div>
+          
           <div class="detail-row">
-            <div class="detail-label">Lieu</div>
-            <div class="detail-value">${data.location || '20 rue des Jacobins, 24000 Périgueux'}</div>
+            <div class="detail-icon">📍</div>
+            <div class="detail-content">
+              <div class="detail-label">Adresse</div>
+              <div class="detail-value">${data.location || '20 rue des Jacobins, 24000 Périgueux'}</div>
+            </div>
           </div>
+          
           <div class="detail-row">
-            <div class="detail-label">Objet</div>
-            <div class="detail-value">${data.reason}</div>
+            <div class="detail-icon">📝</div>
+            <div class="detail-content">
+              <div class="detail-label">Objet de la consultation</div>
+              <div class="detail-value">${data.reason}</div>
+            </div>
           </div>
+          
           <div class="detail-row">
-            <div class="detail-label">Tarif</div>
-            <div class="detail-value"><span class="price-tag">${data.price.toFixed(2)} ${data.currency}</span></div>
+            <div class="detail-icon">💰</div>
+            <div class="detail-content">
+              <div class="detail-label">Tarif de la consultation</div>
+              <div class="detail-value"><span class="price-tag">${data.price.toFixed(2)} ${data.currency}</span></div>
+            </div>
           </div>
         </div>
 
         <div class="important-notice">
-          <strong>Note importante :</strong> En cas d'empêchement, nous vous remercions de bien vouloir nous en informer au moins 24 heures à l'avance afin de libérer ce créneau pour un autre client.
+          <strong>⚠️ Note importante :</strong><br>
+          En cas d'empêchement, nous vous remercions de bien vouloir nous en informer au moins <strong>24 heures à l'avance</strong> afin de libérer ce créneau pour un autre client. Cette courtoisie nous permet de mieux organiser nos services.
         </div>
 
         <div class="action-section">
-          <p style="color: #718096; font-size: 14px; margin-bottom: 20px;">Vous pouvez gérer votre rendez-vous via le lien ci-dessous :</p>
-          <a href="${cancelUrl}" class="button button-cancel">Annuler le rendez-vous</a>
+          <p class="action-text">
+            Vous avez besoin d'annuler ou de modifier votre rendez-vous ?<br>
+            Utilisez le bouton ci-dessous :
+          </p>
+          <a href="${cancelUrl}" class="button-cancel">🗑️ Annuler le rendez-vous</a>
         </div>
       </div>
       
       <div class="footer">
-        <p>© 2026 ${data.practitionerName} — Services Professionnels</p>
+        <p class="footer-brand">© 2026 ${data.practitionerName} — Services Professionnels</p>
         <div class="contact-info">
-          20 rue des Jacobins, 24000 Périgueux<br>
-          Tél : 06.45.15.63.68 | Email : doriansarry@yahoo.fr
+          📍 20 rue des Jacobins, 24000 Périgueux<br>
+          📞 <strong>06.45.15.63.68</strong><br>
+          ✉️ <a href="mailto:doriansarry@yahoo.fr">doriansarry@yahoo.fr</a>
         </div>
+        <p style="margin-top: 20px; font-size: 11px; color: #cbd5e0;">
+          Cet email a été envoyé automatiquement, merci de ne pas y répondre directement.<br>
+          Pour toute question, contactez-nous via les coordonnées ci-dessus.
+        </p>
       </div>
     </div>
   </div>
@@ -280,35 +373,59 @@ L'équipe de ${data.practitionerName}
 }
 
 /**
- * Envoie un email de confirmation de rendez-vous
+ * Envoie un email de confirmation de rendez-vous via Sweego
  */
 export async function sendAppointmentConfirmationEmail(
   data: AppointmentEmailData
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    // Note: 'onboarding@resend.dev' ne fonctionne que pour votre propre email.
-    // Pour envoyer aux patients, vous DEVEZ utiliser une adresse liée à votre domaine vérifié.
-    const fromEmail = ENV.isProduction ? 'contact@votre-domaine.fr' : 'Dorian Sarry <onboarding@resend.dev>';
+    const fromEmail = ENV.isProduction ? 'contact@votre-domaine.fr' : 'doriansarry@yahoo.fr';
+    const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR');
     
-    const { data: result, error } = await resend.emails.send({
-      from: fromEmail,
-      to: [data.patientEmail],
-      subject: `Confirmation de votre rendez-vous - ${new Date(data.date).toLocaleDateString('fr-FR')}`,
+    const payload = {
+      to: [
+        {
+          email: data.patientEmail,
+          name: data.patientName
+        }
+      ],
+      from: {
+        email: fromEmail,
+        name: data.practitionerName
+      },
+      subject: `Confirmation de votre rendez-vous - ${dateFormatted}`,
       html: getConfirmationEmailHTML(data),
       text: getConfirmationEmailText(data),
-      replyTo: 'doriansarry@yahoo.fr',
+      replyTo: {
+        email: 'doriansarry@yahoo.fr',
+        name: data.practitionerName
+      }
+    };
+
+    const response = await fetch(`${SWEEGO_API_URL}/emails`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SWEEGO_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
 
-    if (error) {
-      console.error('[Email] Erreur lors de l\'envoi:', error);
-      return { success: false, error: error.message };
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('[Email Sweego] Erreur lors de l\'envoi:', result);
+      return { 
+        success: false, 
+        error: result.message || `HTTP ${response.status}: ${response.statusText}` 
+      };
     }
 
-    console.log('[Email] Email de confirmation envoyé avec succès:', result?.id);
-    return { success: true, messageId: result?.id };
+    console.log('[Email Sweego] Email de confirmation envoyé avec succès:', result.id);
+    return { success: true, messageId: result.id };
 
   } catch (error) {
-    console.error('[Email] Erreur inattendue lors de l\'envoi:', error);
+    console.error('[Email Sweego] Erreur inattendue lors de l\'envoi:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur inconnue' 
@@ -317,7 +434,7 @@ export async function sendAppointmentConfirmationEmail(
 }
 
 /**
- * Envoie un email de notification au praticien
+ * Envoie un email de notification au praticien via Sweego
  */
 export async function sendAppointmentNotificationToPractitioner(
   data: AppointmentEmailData,
@@ -331,9 +448,17 @@ export async function sendAppointmentNotificationToPractitioner(
       day: 'numeric',
     });
 
-    const { data: result, error } = await resend.emails.send({
-      from: 'Notification Système <onboarding@resend.dev>',
-      to: [practitionerEmail],
+    const payload = {
+      to: [
+        {
+          email: practitionerEmail,
+          name: data.practitionerName
+        }
+      ],
+      from: {
+        email: 'notification@votre-domaine.fr',
+        name: 'Notification Système'
+      },
       subject: `Nouveau rendez-vous : ${data.patientName} le ${dateFormatted}`,
       html: `
         <div style="font-family: sans-serif; color: #333; max-width: 600px;">
@@ -349,18 +474,36 @@ export async function sendAppointmentNotificationToPractitioner(
           <p style="font-size: 12px; color: #a0aec0; margin-top: 20px;">Ceci est une notification automatique du système de réservation.</p>
         </div>
       `,
-      replyTo: data.patientEmail,
+      replyTo: {
+        email: data.patientEmail,
+        name: data.patientName
+      }
+    };
+
+    const response = await fetch(`${SWEEGO_API_URL}/emails`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SWEEGO_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
 
-    if (error) {
-      console.error('[Email] Erreur lors de l\'envoi au praticien:', error);
-      return { success: false, error: error.message };
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('[Email Sweego] Erreur lors de l\'envoi au praticien:', result);
+      return { 
+        success: false, 
+        error: result.message || `HTTP ${response.status}: ${response.statusText}` 
+      };
     }
 
-    return { success: true, messageId: result?.id };
+    console.log('[Email Sweego] Notification envoyée au praticien avec succès:', result.id);
+    return { success: true, messageId: result.id };
 
   } catch (error) {
-    console.error('[Email] Erreur inattendue lors de l\'envoi au praticien:', error);
+    console.error('[Email Sweego] Erreur inattendue lors de l\'envoi au praticien:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur inconnue' 
