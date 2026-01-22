@@ -1,40 +1,43 @@
-import { ENV } from '../_core/env';
+/**
+ * Test Script pour l'intégration Sweego Email
+ * Ce script teste l'envoi d'emails de confirmation de rendez-vous
+ * 
+ * Usage: 
+ * npx tsx test-sweego-email.ts
+ */
 
-// Configuration Sweego API
-// Mis à jour le 2026-01-22 avec nouvelles credentials
-// Documentation: https://learn.sweego.io/docs/api-intro
+import * as dotenv from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Charger les variables d'environnement
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: resolve(__dirname, '.env') });
+
+// Configuration Sweego
 const SWEEGO_API_URL = 'https://api.sweego.io';
-const SWEEGO_API_KEY = ENV.sweegoApiKey || '5282eb71-fc1d-4423-ab78-29b4e7e96052';
+const SWEEGO_API_KEY = process.env.SWEEGO_API_KEY || '5282eb71-fc1d-4423-ab78-29b4e7e96052';
+const APP_URL = process.env.APP_URL || 'https://webapp-frtjapec0-ikips-projects.vercel.app';
 
-export interface AppointmentEmailData {
-  patientName: string;
-  patientEmail: string;
-  practitionerName: string;
-  date: Date;
-  startTime: string;
-  endTime: string;
-  reason: string;
-  location?: string;
-  durationMinutes: number;
-  price: number;
-  currency: string;
-  appointmentHash: string;
-}
+console.log('\n🧪 ===== TEST SWEEGO EMAIL SERVICE =====\n');
+console.log('📋 Configuration:');
+console.log(`   - API URL: ${SWEEGO_API_URL}/send`);
+console.log(`   - API Key: ${SWEEGO_API_KEY.substring(0, 10)}...`);
+console.log(`   - APP URL: ${APP_URL}\n`);
 
 /**
- * Template d'email de confirmation de rendez-vous professionnel
- * Design professionnel optimisé pour Sweego
+ * Template d'email de test
  */
-function getConfirmationEmailHTML(data: AppointmentEmailData): string {
-  const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR', {
+function getTestEmailHTML(): string {
+  const dateFormatted = new Date('2026-02-15T14:00:00Z').toLocaleDateString('fr-FR', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 
-  const baseUrl = ENV.appUrl || 'http://localhost:5173';
-  const cancelUrl = `${baseUrl}/appointments/cancel/${data.appointmentHash}`;
+  const cancelUrl = `${APP_URL}/appointments/cancel/test-hash-123`;
 
   return `
 <!DOCTYPE html>
@@ -190,11 +193,6 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
       transition: all 0.3s ease;
       box-shadow: 0 4px 6px rgba(229, 62, 62, 0.15);
     }
-    .button-cancel:hover {
-      background-color: #fff5f5;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(229, 62, 62, 0.25);
-    }
     .footer {
       padding: 35px 30px;
       text-align: center;
@@ -239,9 +237,9 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
       </div>
       
       <div class="content">
-        <p class="greeting">Bonjour ${data.patientName},</p>
+        <p class="greeting">Bonjour Jean Dupont,</p>
         <p class="intro">
-          Nous avons le plaisir de vous confirmer votre prochain rendez-vous professionnel avec <strong>${data.practitionerName}</strong>. 
+          Nous avons le plaisir de vous confirmer votre prochain rendez-vous professionnel avec <strong>Dr. Marie Martin</strong>. 
           Tous les détails de votre rendez-vous sont ci-dessous.
         </p>
         
@@ -258,7 +256,7 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
             <div class="detail-icon">🕐</div>
             <div class="detail-content">
               <div class="detail-label">Horaire</div>
-              <div class="detail-value"><strong>${data.startTime}</strong> → <strong>${data.endTime}</strong></div>
+              <div class="detail-value"><strong>14:00</strong> → <strong>15:00</strong></div>
             </div>
           </div>
           
@@ -266,7 +264,7 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
             <div class="detail-icon">⏱️</div>
             <div class="detail-content">
               <div class="detail-label">Durée</div>
-              <div class="detail-value"><strong>${data.durationMinutes} minutes</strong></div>
+              <div class="detail-value"><strong>60 minutes</strong></div>
             </div>
           </div>
           
@@ -274,7 +272,7 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
             <div class="detail-icon">📍</div>
             <div class="detail-content">
               <div class="detail-label">Adresse</div>
-              <div class="detail-value">${data.location || '20 rue des Jacobins, 24000 Périgueux'}</div>
+              <div class="detail-value">20 rue des Jacobins, 24000 Périgueux</div>
             </div>
           </div>
           
@@ -282,7 +280,7 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
             <div class="detail-icon">📝</div>
             <div class="detail-content">
               <div class="detail-label">Objet de la consultation</div>
-              <div class="detail-value">${data.reason}</div>
+              <div class="detail-value">Consultation générale de suivi</div>
             </div>
           </div>
           
@@ -290,7 +288,7 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
             <div class="detail-icon">💰</div>
             <div class="detail-content">
               <div class="detail-label">Tarif de la consultation</div>
-              <div class="detail-value"><span class="price-tag">${data.price.toFixed(2)} ${data.currency}</span></div>
+              <div class="detail-value"><span class="price-tag">75.00 EUR</span></div>
             </div>
           </div>
         </div>
@@ -310,7 +308,7 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
       </div>
       
       <div class="footer">
-        <p class="footer-brand">© 2026 ${data.practitionerName} — Services Professionnels</p>
+        <p class="footer-brand">© 2026 Dr. Marie Martin — Services Professionnels</p>
         <div class="contact-info">
           📍 20 rue des Jacobins, 24000 Périgueux<br>
           📞 <strong>06.45.15.63.68</strong><br>
@@ -329,40 +327,46 @@ function getConfirmationEmailHTML(data: AppointmentEmailData): string {
 }
 
 /**
- * Template d'email de confirmation de rendez-vous (version texte)
+ * Test d'envoi d'email via Sweego
  */
-function getConfirmationEmailText(data: AppointmentEmailData): string {
-  const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+async function testSweegoEmail(testEmail: string = 'doriansarry@yahoo.fr') {
+  console.log(`📧 Test d'envoi d'email à: ${testEmail}`);
+  console.log('⏳ Envoi en cours...\n');
 
-  const baseUrl = ENV.appUrl || 'http://localhost:5173';
-  const cancelUrl = `${baseUrl}/appointments/cancel/${data.appointmentHash}`;
-
-  return `
+  try {
+    // Format Sweego API selon la documentation officielle
+    const payload = {
+      channel: 'email',
+      provider: 'sweego',
+      recipients: [
+        {
+          email: testEmail,
+          name: 'Jean Dupont'
+        }
+      ],
+      from: {
+        email: 'doriansarry@yahoo.fr',
+        name: 'Dr. Marie Martin'
+      },
+      subject: 'Test - Confirmation de votre rendez-vous professionnel - 15 février 2026',
+      'message-html': getTestEmailHTML(),
+      'message-txt': `
 CONFIRMATION DE RENDEZ-VOUS PROFESSIONNEL
 
-Bonjour ${data.patientName},
+Bonjour Jean Dupont,
 
-Nous vous confirmons votre rendez-vous avec ${data.practitionerName}.
+Nous vous confirmons votre rendez-vous avec Dr. Marie Martin.
 
 DÉTAILS DU RENDEZ-VOUS :
-- Date : ${dateFormatted}
-- Horaire : ${data.startTime} - ${data.endTime}
-- Durée : ${data.durationMinutes} minutes
-- Lieu : ${data.location || '20 rue des Jacobins, 24000 Périgueux'}
-- Objet : ${data.reason}
-- Tarif : ${data.price.toFixed(2)} ${data.currency}
+- Date : samedi 15 février 2026
+- Horaire : 14:00 - 15:00
+- Durée : 60 minutes
+- Lieu : 20 rue des Jacobins, 24000 Périgueux
+- Objet : Consultation générale de suivi
+- Tarif : 75.00 EUR
 
 IMPORTANT :
 En cas d'empêchement, merci de nous prévenir au moins 24h à l'avance.
-
-ANNULATION :
-Pour annuler votre rendez-vous, veuillez suivre ce lien :
-${cancelUrl}
 
 CONTACT :
 Adresse : 20 rue des Jacobins, 24000 Périgueux
@@ -370,40 +374,11 @@ Téléphone : 06.45.15.63.68
 Email : doriansarry@yahoo.fr
 
 Cordialement,
-L'équipe de ${data.practitionerName}
-  `;
-}
-
-/**
- * Envoie un email de confirmation de rendez-vous via Sweego
- */
-export async function sendAppointmentConfirmationEmail(
-  data: AppointmentEmailData
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    const fromEmail = ENV.isProduction ? 'contact@votre-domaine.fr' : 'doriansarry@yahoo.fr';
-    const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR');
-    
-    // Format Sweego API selon la documentation officielle
-    const payload = {
-      channel: 'email',
-      provider: 'sweego',
-      recipients: [
-        {
-          email: data.patientEmail,
-          name: data.patientName
-        }
-      ],
-      from: {
-        email: fromEmail,
-        name: data.practitionerName
-      },
-      subject: `Confirmation de votre rendez-vous - ${dateFormatted}`,
-      'message-html': getConfirmationEmailHTML(data),
-      'message-txt': getConfirmationEmailText(data),
+L'équipe de Dr. Marie Martin
+      `,
       'reply-to': {
         email: 'doriansarry@yahoo.fr',
-        name: data.practitionerName
+        name: 'Dr. Marie Martin'
       }
     };
 
@@ -419,104 +394,59 @@ export async function sendAppointmentConfirmationEmail(
     const result = await response.json();
 
     if (!response.ok) {
-      console.error('[Email Sweego] Erreur lors de l\'envoi:', result);
-      return { 
-        success: false, 
-        error: result.message || `HTTP ${response.status}: ${response.statusText}` 
-      };
+      console.error('❌ ÉCHEC DE L\'ENVOI');
+      console.error(`   Status: ${response.status} ${response.statusText}`);
+      console.error(`   Détails:`, JSON.stringify(result, null, 2));
+      return false;
     }
 
-    console.log('[Email Sweego] Email de confirmation envoyé avec succès:', result.id || result);
-    return { success: true, messageId: result.id || result.message_id };
-
+    console.log('✅ EMAIL ENVOYÉ AVEC SUCCÈS!');
+    console.log(`   Message ID: ${result.id || result.message_id || 'N/A'}`);
+    console.log(`   Status: ${response.status} ${response.statusText}`);
+    console.log(`   Destinataire: ${testEmail}`);
+    console.log(`\n📬 Vérifiez votre boîte mail (${testEmail})`);
+    console.log(`   - Vérifiez aussi le dossier SPAM/Indésirables`);
+    console.log(`   - Le template inclut :`);
+    console.log(`     ✓ Date et horaire du rendez-vous`);
+    console.log(`     ✓ Durée de la consultation`);
+    console.log(`     ✓ Adresse complète`);
+    console.log(`     ✓ Tarif de la consultation`);
+    console.log(`     ✓ Bouton d'annulation`);
+    console.log(`     ✓ Informations de contact`);
+    
+    return true;
   } catch (error) {
-    console.error('[Email Sweego] Erreur inattendue lors de l\'envoi:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur inconnue' 
-    };
+    console.error('❌ ERREUR INATTENDUE:', error);
+    return false;
   }
 }
 
 /**
- * Envoie un email de notification au praticien via Sweego
+ * Point d'entrée principal
  */
-export async function sendAppointmentNotificationToPractitioner(
-  data: AppointmentEmailData,
-  practitionerEmail: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+async function main() {
+  // Récupérer l'email de test depuis les arguments
+  const testEmail = process.argv[2] || 'doriansarry@yahoo.fr';
 
-    const htmlContent = `
-      <div style="font-family: sans-serif; color: #333; max-width: 600px;">
-        <h2 style="color: #2d3748; border-bottom: 2px solid #edf2f7; padding-bottom: 10px;">Nouveau rendez-vous confirmé</h2>
-        <p>Un nouveau rendez-vous a été enregistré dans votre agenda :</p>
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #edf2f7;">
-          <p><strong>Client :</strong> ${data.patientName} (<a href="mailto:${data.patientEmail}">${data.patientEmail}</a>)</p>
-          <p><strong>Date :</strong> ${dateFormatted}</p>
-          <p><strong>Horaire :</strong> ${data.startTime} - ${data.endTime} (${data.durationMinutes} min)</p>
-          <p><strong>Objet :</strong> ${data.reason}</p>
-          <p><strong>Tarif :</strong> ${data.price.toFixed(2)} ${data.currency}</p>
-        </div>
-        <p style="font-size: 12px; color: #a0aec0; margin-top: 20px;">Ceci est une notification automatique du système de réservation.</p>
-      </div>
-    `;
+  console.log('🎯 Objectif du test:');
+  console.log('   - Vérifier la connexion à l\'API Sweego');
+  console.log('   - Tester l\'envoi d\'un email de confirmation');
+  console.log('   - Valider le template HTML professionnel\n');
 
-    // Format Sweego API selon la documentation officielle
-    const payload = {
-      channel: 'email',
-      provider: 'sweego',
-      recipients: [
-        {
-          email: practitionerEmail,
-          name: data.practitionerName
-        }
-      ],
-      from: {
-        email: 'notification@votre-domaine.fr',
-        name: 'Notification Système'
-      },
-      subject: `Nouveau rendez-vous : ${data.patientName} le ${dateFormatted}`,
-      'message-html': htmlContent,
-      'reply-to': {
-        email: data.patientEmail,
-        name: data.patientName
-      }
-    };
+  // Exécuter le test
+  const success = await testSweegoEmail(testEmail);
 
-    const response = await fetch(`${SWEEGO_API_URL}/send`, {
-      method: 'POST',
-      headers: {
-        'Api-Key': SWEEGO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      console.error('[Email Sweego] Erreur lors de l\'envoi au praticien:', result);
-      return { 
-        success: false, 
-        error: result.message || `HTTP ${response.status}: ${response.statusText}` 
-      };
-    }
-
-    console.log('[Email Sweego] Notification envoyée au praticien avec succès:', result.id || result);
-    return { success: true, messageId: result.id || result.message_id };
-
-  } catch (error) {
-    console.error('[Email Sweego] Erreur inattendue lors de l\'envoi au praticien:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur inconnue' 
-    };
+  console.log('\n' + '='.repeat(50));
+  if (success) {
+    console.log('✅ TEST RÉUSSI - Service email opérationnel');
+    console.log('='.repeat(50) + '\n');
+    process.exit(0);
+  } else {
+    console.log('❌ TEST ÉCHOUÉ - Vérifiez la configuration');
+    console.log('='.repeat(50) + '\n');
+    process.exit(1);
   }
 }
+
+// Exécuter le script
+main();
