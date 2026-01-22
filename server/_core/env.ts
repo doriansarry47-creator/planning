@@ -8,6 +8,7 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
+  sweegoApiKey: process.env.SWEEGO_API_KEY ?? "",
   appUrl: process.env.APP_URL ?? "http://localhost:5173",
   
   // Google Calendar Configuration (Service Account JWT)
