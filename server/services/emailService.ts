@@ -1,8 +1,9 @@
 import { ENV } from '../_core/env';
 
 // Configuration Sweego API
-const SWEEGO_API_URL = 'https://api.sweego.io/v1';
-const SWEEGO_API_KEY = ENV.sweegoApiKey || 'dc058ad-3a50-48af-96ed-1c42a63e9a07';
+const SWEEGO_API_URL = 'https://api.sweego.io';
+// Key ID: 1146d268-1c56-47ba-8dad-843db0bdaa7e
+const SWEEGO_API_KEY = ENV.sweegoApiKey || '5282eb71-fc1d-4423-ab78-29b4e7e96052';
 
 export interface AppointmentEmailData {
   patientName: string;
@@ -379,11 +380,23 @@ export async function sendAppointmentConfirmationEmail(
   data: AppointmentEmailData
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
+    // Utiliser un email générique pour l'envoi, qui sera configuré dans le dashboard Sweego
+    // L'utilisateur devra configurer son domaine vérifié dans Sweego
+    const fromEmail = 'noreply@sweego.io'; // Email par défaut Sweego pour les tests
+    const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR');
+    
+    // Format Sweego API selon la documentation officielle
+    const payload = {
+      channel: 'email',
+      provider: 'sweego',
+      recipients: [
+
     const fromEmail = ENV.isProduction ? 'contact@votre-domaine.fr' : 'doriansarry@yahoo.fr';
     const dateFormatted = new Date(data.date).toLocaleDateString('fr-FR');
     
     const payload = {
       to: [
+
         {
           email: data.patientEmail,
           name: data.patientName
@@ -394,18 +407,18 @@ export async function sendAppointmentConfirmationEmail(
         name: data.practitionerName
       },
       subject: `Confirmation de votre rendez-vous - ${dateFormatted}`,
-      html: getConfirmationEmailHTML(data),
-      text: getConfirmationEmailText(data),
-      replyTo: {
+      'message-html': getConfirmationEmailHTML(data),
+      'message-txt': getConfirmationEmailText(data),
+      'reply-to': {
         email: 'doriansarry@yahoo.fr',
         name: data.practitionerName
       }
     };
 
-    const response = await fetch(`${SWEEGO_API_URL}/emails`, {
+    const response = await fetch(`${SWEEGO_API_URL}/send`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SWEEGO_API_KEY}`,
+        'Api-Key': SWEEGO_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -417,12 +430,20 @@ export async function sendAppointmentConfirmationEmail(
       console.error('[Email Sweego] Erreur lors de l\'envoi:', result);
       return { 
         success: false, 
+        error: result.detail || result.message || result.error_msg || `HTTP ${response.status}: ${response.statusText}` 
+      };
+    }
+
+    console.log('[Email Sweego] Email de confirmation envoyé avec succès:', result.id || result);
+    return { success: true, messageId: result.id || result.message_id };
+
         error: result.message || `HTTP ${response.status}: ${response.statusText}` 
       };
     }
 
     console.log('[Email Sweego] Email de confirmation envoyé avec succès:', result.id);
     return { success: true, messageId: result.id };
+
 
   } catch (error) {
     console.error('[Email Sweego] Erreur inattendue lors de l\'envoi:', error);
@@ -448,19 +469,41 @@ export async function sendAppointmentNotificationToPractitioner(
       day: 'numeric',
     });
 
+    const htmlContent = `
+      <div style="font-family: sans-serif; color: #333; max-width: 600px;">
+        <h2 style="color: #2d3748; border-bottom: 2px solid #edf2f7; padding-bottom: 10px;">Nouveau rendez-vous confirmé</h2>
+        <p>Un nouveau rendez-vous a été enregistré dans votre agenda :</p>
+        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #edf2f7;">
+          <p><strong>Client :</strong> ${data.patientName} (<a href="mailto:${data.patientEmail}">${data.patientEmail}</a>)</p>
+          <p><strong>Date :</strong> ${dateFormatted}</p>
+          <p><strong>Horaire :</strong> ${data.startTime} - ${data.endTime} (${data.durationMinutes} min)</p>
+          <p><strong>Objet :</strong> ${data.reason}</p>
+          <p><strong>Tarif :</strong> ${data.price.toFixed(2)} ${data.currency}</p>
+        </div>
+        <p style="font-size: 12px; color: #a0aec0; margin-top: 20px;">Ceci est une notification automatique du système de réservation.</p>
+      </div>
+    `;
+
+    // Format Sweego API selon la documentation officielle
+    const payload = {
+      channel: 'email',
+      provider: 'sweego',
+      recipients: [
+
     const payload = {
       to: [
+
         {
           email: practitionerEmail,
           name: data.practitionerName
         }
       ],
       from: {
-        email: 'notification@votre-domaine.fr',
+        email: 'noreply@sweego.io', // Email par défaut Sweego
         name: 'Notification Système'
       },
       subject: `Nouveau rendez-vous : ${data.patientName} le ${dateFormatted}`,
-      html: `
+      'message-html': htmlContent,
         <div style="font-family: sans-serif; color: #333; max-width: 600px;">
           <h2 style="color: #2d3748; border-bottom: 2px solid #edf2f7; padding-bottom: 10px;">Nouveau rendez-vous confirmé</h2>
           <p>Un nouveau rendez-vous a été enregistré dans votre agenda :</p>
@@ -474,16 +517,20 @@ export async function sendAppointmentNotificationToPractitioner(
           <p style="font-size: 12px; color: #a0aec0; margin-top: 20px;">Ceci est une notification automatique du système de réservation.</p>
         </div>
       `,
+ 5325321 (feat: Mise à jour Sweego avec nouvelles clés API et guide de configuration)
+      'reply-to': {
+
       replyTo: {
+
         email: data.patientEmail,
         name: data.patientName
       }
     };
 
-    const response = await fetch(`${SWEEGO_API_URL}/emails`, {
+    const response = await fetch(`${SWEEGO_API_URL}/send`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SWEEGO_API_KEY}`,
+        'Api-Key': SWEEGO_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -495,6 +542,13 @@ export async function sendAppointmentNotificationToPractitioner(
       console.error('[Email Sweego] Erreur lors de l\'envoi au praticien:', result);
       return { 
         success: false, 
+        error: result.detail || result.message || result.error_msg || `HTTP ${response.status}: ${response.statusText}` 
+      };
+    }
+
+    console.log('[Email Sweego] Notification envoyée au praticien avec succès:', result.id || result);
+    return { success: true, messageId: result.id || result.message_id };
+
         error: result.message || `HTTP ${response.status}: ${response.statusText}` 
       };
     }
