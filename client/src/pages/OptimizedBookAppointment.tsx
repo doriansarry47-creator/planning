@@ -74,8 +74,9 @@ export default function OptimizedBookAppointment() {
               // On force le fuseau horaire Europe/Paris pour la comparaison
               const slotDateTime = new Date(`${slot.date}T${slot.startTime}:00`);
               
-              // Comparaison avec l'heure actuelle
-              return slotDateTime.getTime() > now.getTime();
+              // Comparaison avec l'heure actuelle + 24h
+              const twentyFourHoursFromNow = now.getTime() + (24 * 60 * 60 * 1000);
+              return slotDateTime.getTime() > twentyFourHoursFromNow;
             });
 
             if (filteredSlots.length > 0) {

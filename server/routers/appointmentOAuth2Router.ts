@@ -63,6 +63,15 @@ export const appointmentOAuth2Router = router({
         console.info(`[appointmentOAuth2Router] 📝 Tentative de réservation pour ${input.clientName}`);
         console.info(`  Date: ${input.date} ${input.startTime}-${input.endTime}`);
 
+        // 🛡️ NOUVELLE RÈGLE: Empêcher la réservation moins de 24h à l'avance
+        const now = new Date();
+        const appointmentStartTime = new Date(`${input.date}T${input.startTime}:00`);
+        const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+        if (appointmentStartTime < twentyFourHoursFromNow) {
+          throw new Error('Les rendez-vous doivent être pris au moins 24 heures à l\'avance.');
+        }
+
         // Récupérer le service Google Calendar
         const calendarService = getGoogleCalendarOAuth2Service();
 

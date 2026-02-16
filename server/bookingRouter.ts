@@ -84,7 +84,15 @@ export const bookingRouter = router({
             const availableSlots = calculateAvailableSlots(startDateStr, endDateStr, simpleEvents);
             
             const slotsByDate: Record<string, any[]> = {};
+            const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
             for (const slot of availableSlots) {
+              // Vérifier si le créneau commence dans plus de 24h
+              const slotStartTime = new Date(`${slot.date}T${slot.startTime}:00+01:00`);
+              if (slotStartTime < twentyFourHoursFromNow) {
+                continue; // Ignorer les créneaux trop proches
+              }
+
               if (!slotsByDate[slot.date]) {
                 slotsByDate[slot.date] = [];
               }
@@ -115,6 +123,19 @@ export const bookingRouter = router({
     .input(bookAppointmentSchema)
     .mutation(async ({ input }) => {
       console.log("[BookingRouter] 📥 Réservation reçue:", input.date, input.time);
+
+      // 🛡️ NOUVELLE RÈGLE: Empêcher la réservation moins de 24h à l'avance
+      const now = new Date();
+      const appointmentStartTime = new Date(`${input.date}T${input.time}:00+01:00`);
+      const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      if (appointmentStartTime < twentyFourHoursFromNow) {
+        return {
+          success: false,
+          error: "Les rendez-vous doivent être pris au moins 24 heures à l'avance.",
+        };
+      }
+
       const service = getGoogleCalendarService();
       if (!service) throw new Error("Service de calendrier non disponible");
 

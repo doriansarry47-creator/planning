@@ -239,6 +239,13 @@ export class GoogleCalendarIcalService {
         const eventStart = toZonedTime(new Date(event.start), TIMEZONE);
         const eventEnd = toZonedTime(new Date(event.end), TIMEZONE);
         
+        // 🛡️ NOUVELLE RÈGLE: Empêcher la réservation moins de 24h à l'avance
+        const twentyFourHoursFromNow = now.getTime() + (24 * 60 * 60 * 1000);
+        if (eventStart.getTime() < twentyFourHoursFromNow) {
+          console.log(`[GoogleCalendarIcal] 🛡️ Créneau ignoré (moins de 24h): ${formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm')}`);
+          return;
+        }
+
         const eventStartTs = eventStart.getTime();
         const eventEndTs = eventEnd.getTime();
         const filterStartTs = filterStartDate.getTime();

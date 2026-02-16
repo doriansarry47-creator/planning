@@ -124,6 +124,22 @@ export const patientBookingRouter = router({
       }
 
       try {
+        // 🛡️ NOUVELLE RÈGLE: Empêcher la réservation moins de 24h à l'avance
+        const now = new Date();
+        const appointmentDate = new Date(input.date);
+        const [hours, minutes] = input.startTime.split(':').map(Number);
+        const appointmentStartTime = new Date(appointmentDate);
+        appointmentStartTime.setHours(hours, minutes, 0, 0);
+
+        const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        
+        if (appointmentStartTime < twentyFourHoursFromNow) {
+          return {
+            success: false,
+            error: 'Les rendez-vous doivent être pris au moins 24 heures à l\'avance.',
+          };
+        }
+
         // Vérifier d'abord que le créneau est toujours disponible
         const isAvailable = await service.isSlotAvailable(
           input.date,

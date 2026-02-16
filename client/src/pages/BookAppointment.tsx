@@ -173,9 +173,13 @@ export default function OptimizedBookAppointment() {
   };
 
   const isDateDisabled = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today || date.getDay() === 0 || date.getDay() === 6; // Past dates and weekends
+    const now = new Date();
+    const minDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    minDate.setHours(0, 0, 0, 0);
+    
+    // Désactiver les dates passées et aujourd'hui (car < 24h)
+    // Et les week-ends
+    return date < minDate || date.getDay() === 0 || date.getDay() === 6;
   };
 
   if (bookingConfirmed) {
